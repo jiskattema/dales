@@ -31,23 +31,23 @@ save
   ! Prognostic variables
 
   real, target, allocatable :: stackmomentum(:,:,:)
-  real, pointer :: u0(:,:,:)        !<   x-component of velocity at time step t
-  real, pointer :: v0(:,:,:)        !<   y-component of velocity at time step t
-  real, pointer :: w0(:,:,:)        !<   z-component of velocity at time step t
-  real, pointer :: um(:,:,:)        !<   x-component of velocity at time step t-1
-  real, pointer :: vm(:,:,:)        !<   y-component of velocity at time step t-1
-  real, pointer :: wm(:,:,:)        !<   z-component of velocity at time step t-1
-  real, pointer :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
-  real, pointer :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
+  real, pointer, contiguous :: u0(:,:,:)        !<   x-component of velocity at time step t
+  real, pointer, contiguous :: v0(:,:,:)        !<   y-component of velocity at time step t
+  real, pointer, contiguous :: w0(:,:,:)        !<   z-component of velocity at time step t
+  real, pointer, contiguous :: um(:,:,:)        !<   x-component of velocity at time step t-1
+  real, pointer, contiguous :: vm(:,:,:)        !<   y-component of velocity at time step t-1
+  real, pointer, contiguous :: wm(:,:,:)        !<   z-component of velocity at time step t-1
+  real, pointer, contiguous :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
+  real, pointer, contiguous :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
 
   real, allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
 
   real, target, allocatable :: stackscalar(:,:,:)
-  real, pointer :: qt0(:,:,:)       !<   total specific humidity at time step t
-  real, pointer :: qtm(:,:,:)       !<   total specific humidity at time step t
-  real, pointer :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, pointer :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
+  real, pointer, contiguous :: qt0(:,:,:)       !<   total specific humidity at time step t
+  real, pointer, contiguous :: qtm(:,:,:)       !<   total specific humidity at time step t
+  real, pointer, contiguous :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
+  real, pointer, contiguous :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
