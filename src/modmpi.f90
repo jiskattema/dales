@@ -190,9 +190,9 @@ contains
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      if (fullexc) then
-        sendn(ii) = a(i,ey-j+1,k)
-      endif
+      !if (fullexc) then
+      sendn(ii) = a(i,ey-j+1,k)
+      !endif
       sends(ii) = a(i,sy+j-1,k)
     enddo
     enddo
@@ -214,9 +214,9 @@ contains
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      if (fullexc) then
-        a(i,sy-j,k) = recvs(ii)
-      endif
+      !if (fullexc) then
+      a(i,sy-j,k) = recvs(ii)
+      !endif
       a(i,ey+j,k) = recvn(ii)
     enddo
     enddo
@@ -236,13 +236,13 @@ contains
   if(nprocx .gt. 1)then
     !   Send east/west
     ii = 0
-    do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
+    do i=1,ih
       ii = ii + 1
-      if (fullexc) then
-        sende(ii) = a(ex-i+1,j,k)
-      endif
+      !if (fullexc) then
+      sende(ii) = a(ex-i+1,j,k)
+      !endif
       sendw(ii) = a(sx+i-1,j,k)
     enddo
     enddo
@@ -260,13 +260,13 @@ contains
     call MPI_RECV(recve, ewsize, MY_REAL, nbreast, 7, comm3d, status, mpierr)
 
     ii = 0
-    do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
+    do i=1,ih
       ii = ii + 1
-      if (fullexc) then
-        a(sx-i,j,k) = recvw(ii)
-      endif
+      !if (fullexc) then
+      a(sx-i,j,k) = recvw(ii)
+      !endif
       a(ex+i,j,k) = recve(ii)
     enddo
     enddo
