@@ -428,10 +428,17 @@ contains
 
 !     e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1)+ &
 !            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+
+  end do
+  end do
+  end do
+
+  do k=2,kmax
+  do j=2,j1
+  do i=2,i1
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
-    
   end do
   end do
   end do
