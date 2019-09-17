@@ -274,9 +274,9 @@ contains
   else
     ! Single processor, make sure the field is periodic
     do k=sz,ez
-    do j=sy-jh,ey+jh
     do i=1,ih
-      a(sx-i,j,k) = a(ex-i+1,j,k)
+    do j=sy-jh,ey+jh
+      a(sx-ih+i-1,j,k) = a(ex-ih+i,j,k)
       a(ex+i,j,k) = a(sx+i-1,j,k)
     enddo
     enddo
