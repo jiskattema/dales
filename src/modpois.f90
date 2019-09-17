@@ -124,7 +124,7 @@ contains
     real,allocatable,target :: stackpuvwp(:,:,:)
     real,pointer, contiguous :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
-    real rk3coef
+    real irk3coef
 
     ! add a 1 point halo size (ie ih==jh==1)
     allocate(stackpuvwp(2-1:i1+1,2-1:j1+1,1:3*k1))
@@ -132,18 +132,17 @@ contains
     pvp(2-1:i1+1,2-1:j1+1,1:k1) => stackpuvwp(:,:,1*k1+1:2*k1)
     pwp(2-1:i1+1,2-1:j1+1,1:k1) => stackpuvwp(:,:,2*k1+1:3*k1)
 
-    rk3coef = rdt / (4. - dble(rk3step))
+    irk3coef = (4. - dble(rk3step)) / rdt
 
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          pup(i,j,k) = up(i,j,k) + um(i,j,k) / rk3coef
-          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) / rk3coef
-          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) / rk3coef
+          pup(i,j,k) = up(i,j,k) + um(i,j,k) * irk3coef
+          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) * irk3coef
+          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) * irk3coef
         end do
       end do
     end do
-
 
   !****************************************************************
 
