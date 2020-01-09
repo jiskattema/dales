@@ -14,7 +14,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 2019 Netherlands eScience Center
+!  2019 Jisk Attema, Netherlands eScience Center
 !
 !  Based on hypre/src/test/f77_struct.f
 

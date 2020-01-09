@@ -104,6 +104,18 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   DOC "NetCDF Fortran library"
 )
 
+FIND_LIBRARY(HYPRE_LIB libHYPRE.a
+  PATHS
+  $ENV{HYPRE_LIB}
+  ${ADDMODULEPATH}/lib
+  ${ADDMODULEPATH}/lib64
+  /usr/lib
+  /usr/lib64
+  $ENV{HOME}/lib
+  $ENV{HOME}/lib64
+  DOC "Iterative solver library"
+)
+
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
@@ -122,8 +134,8 @@ else(NETCDF_FORTRAN_LIB)
   MESSAGE(STATUS "WARNING: No Fortran NETCDF bindings are found.")
 endif(NETCDF_FORTRAN_LIB)
 
-### Find HYPRE files
-# TODO: For now, assume they are in current paths
+### Iterative solver (HYPRE)
+OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
 
 ### Documentation
 INCLUDE(FindDoxygen)
