@@ -228,10 +228,8 @@ program DALES
 !   3.4   REMAINING TERMS
 !-----------------------------------------------------
     call coriolis !remaining terms of ns equation
-    call samptend(tend_coriolis)
     call forces !remaining terms of ns equation
     call samptend(tend_force)
-
     call lstend !large scale forcings
     call samptend(tend_ls)
     call microsources !Drizzle etc.

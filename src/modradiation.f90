@@ -254,6 +254,9 @@ subroutine radpar
   use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
   use modsurfdata,  only : tauField
+  use modmicrodata, only : imicro, imicro_bulk3       !#sb3
+  use modmicrodata3, only : iq_cl,iq_ci,iq_hr,iq_hs,iq_hg   & !#sb3
+                      ,in_cl,in_ci,in_hr,in_hs,in_hg,in_cc    !#sb3
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
@@ -261,6 +264,7 @@ subroutine radpar
 
   real thlpld,thlplu,thlpsw
   real tauc
+  real :: q_clw      !#sb3
   integer :: i=0, j=0, k
 
   real :: rho_l= 1000.  !liquid water density (kg/m3)
@@ -283,6 +287,11 @@ subroutine radpar
      else
         absorber(2-ih:i1+ih,2-jh:j1+jh,1:k1) = ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
      endif
+     if (imicro.eq.imicro_bulk3) then   !#sb3 START
+       absorber(2-ih:i1+ih,2-jh:j1+jh,1:k1) = sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,iq_cl)  &
+        +sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,iq_ci)+sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,iq_hs)
+     endif !#sb3 END
+
 
      do j=2,j1
      do i=2,i1
@@ -326,8 +335,40 @@ subroutine radpar
 
     swd = 0.0
     mu=zenith(xtime*3600 + rtimee,xday,xlat,xlon)
-    do j=2,j1
-    do i=2,i1
+    if(imicro.eq.imicro_bulk3) then ! #sb3 START
+     do j=2,j1
+     do i=2,i1
+ 
+       if (mu > 0.035) then  !factor 0.035 needed for security
+         tauc = 0.           ! column-integrated tau cloud
+         if (laero .or. lcloudshading) then ! not sure if I have to define the use of lcldoushading before
+           do k = 1,kmax
+             tau(k) = 0.      ! tau laagje dz
+             q_clw = sv0(i,j,k,iq_cl)+sv0(i,j,k,iq_ci)+sv0(i,j,k,iq_hs) ! calculating cloud and snow water
+             if(laero) then ! there are aerosols
+               tau(k) = sv0(i,j,k,in_cc) ! tau(k) = sv0(i,j,k,iDE)
+             else ! if (lcloudshading) then ! there are clouds
+               ! if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+               if (q_clw > 1e-5)  tau(k)=1.5*q_clw*rhof(k)*dzf(k)/reff/rho_l
+             end if
+             tauc=tauc+tau(k)
+           end do
+         endif
+         tauField(i,j) = tauc
+         call sunray(tau,tauc,i,j)
+       end if
+ 
+       do k=1,kmax
+         thlpsw          = ((swd(i,j,k+1)-swu(i,j,k+1))-(swd(i,j,k)-swu(i,j,k)))/(rhof(k)*cp*exnf(k)*dzf(k))
+         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
+ 
+       end do
+ 
+     end do
+     end do
+    else ! #sb3 END   
+     do j=2,j1
+     do i=2,i1
 
       if (mu > 0.035) then  !factor 0.035 needed for security
         tauc = 0.           ! column-integrated tau cloud
@@ -352,8 +393,9 @@ subroutine radpar
 
       end do
 
-    end do
-    end do
+     end do
+     end do
+    endif ! #sb3
 
   endif  !end shortwave loop
 
@@ -482,10 +524,14 @@ subroutine radpar
 
   subroutine radlsm
     use modsurfdata, only : albedo, tskin
-    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz, dzf
-    use modfields,   only : thl0, ql0, rhof
+    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz, dzf &
+                            ,kmax ! #sb3
+    use modfields,   only : thl0, ql0, rhof            &
+                            ,sv0 !#sb3
+    use modmicrodata, only: imicro, imicro_bulk3          !#sb3
+    use modmicrodata3, only:iq_cl,iq_ci,iq_hr,iq_hs,iq_hg !#sb3
     implicit none
-    integer        :: i,j
+    integer        :: i,j, k !#sb3 
     real           :: Tr, sinlea, qlint, tau
     real,parameter :: S0 = 1376.
     real           :: rhow  = 1000.  ! density of water
@@ -495,7 +541,27 @@ subroutine radpar
 
     Tr  = (0.6 + 0.2 * sinlea)
 
-    do j=2,j1
+    if(imicro.eq.imicro_bulk3) then ! #sb3 START
+       do j=2,j1
+       do i=2,i1
+         qlint = 0 ! sum(ql0(i,j,:) * rhof(:) * dzf(:))
+         do k=2,kmax
+           qlint = qlint+(sv0(i,j,k,iq_cl)+sv0(i,j,k,iq_ci)                 &
+                +sv0(i,j,k,iq_hs))*rhof(k) * dzf(k)
+         end do
+         tau   = (3./2.)*(qlint/(rhow*reff))
+         if(lcloudshading .and. (tau >= tauc)) then ! 'dense' cloud and cloud shading is active
+           swd(i,j,1) = - S0 * Tr * sinlea * (5. - exp(-tau))/(4.+ 3.*tau*0.14)
+         else
+           swd(i,j,1) = - S0 * Tr * sinlea
+         endif
+         swu(i,j,1) = - albedo(i,j) * swd(i,j,1)
+         lwd(i,j,1) = - 0.8 * boltz * thl0(i,j,1) ** 4.
+         lwu(i,j,1) = boltz * tskin(i,j) ** 4.
+       end do
+       end do
+     else ! imicro #sb3 END
+      do j=2,j1
       do i=2,i1
         qlint = sum(ql0(i,j,:) * rhof(:) * dzf(:))
         tau   = (3./2.)*(qlint/(rhow*reff))
@@ -508,7 +574,8 @@ subroutine radpar
         lwd(i,j,1) = - 0.8 * boltz * thl0(i,j,1) ** 4.
         lwu(i,j,1) = boltz * tskin(i,j) ** 4.
       end do
-    end do
+      end do
+     endif
 
     !write(6,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
 

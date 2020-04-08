@@ -33,7 +33,7 @@ module modnudge
 
 implicit none
 PRIVATE
-PUBLIC :: initnudge, nudge,exitnudge
+PUBLIC :: initnudge, nudge,exitnudge, lnudge ! #tb
 SAVE
   real, dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
   real, dimension(:)  , allocatable :: timenudge

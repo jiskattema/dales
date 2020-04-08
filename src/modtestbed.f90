@@ -34,23 +34,30 @@ use netcdf
 
 implicit none
 PRIVATE
-PUBLIC :: inittestbed, testbednudge, exittestbed, ltestbed,testbed_getinttime, ntnudge, nknudge, &
-          tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts, tb_z0h, tb_z0m, tb_alb, tb_Qnet, &
-          tb_u,tb_v,tb_w,tb_thl,tb_qt,tb_ug,tb_vg, &
-          tb_dqtdxls,tb_dqtdyls, &
-          tb_qtadv,tb_thladv,tb_uadv,tb_vadv, &
-          tb_tsoilav,tb_phiwav, &
+PUBLIC :: inittestbed, testbednudge, exittestbed, ltestbed,  &
+          testbed_getinttime, ntnudge, nknudge,              &
+          tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,        &
+          tb_z0h, tb_z0m, tb_alb, tb_Qnet,                   &
+          tb_u,tb_v,tb_w,tb_thl,tb_qt,tb_ug,tb_vg,           &
+          tb_dqtdxls,tb_dqtdyls,                             &
+          tb_qtadv,tb_thladv,tb_uadv,tb_vadv,                &
+          tb_sv,tb_svadv,tb_svs,                             &  !#sb3
+          tb_tsoilav,tb_phiwav,                              &
           tbrad_p, tbrad_ql, tbrad_qv, tbrad_t, tbrad_o3
 SAVE
+  real, dimension(:,:,:), allocatable :: tb_sv, tb_svadv  !#sb3
   real, dimension(:,:), allocatable :: tnudge,tb_u,tb_v,tb_w,tb_thl,tb_qt,tb_ug,tb_vg, &
                                        tb_dqtdxls,tb_dqtdyls, &
                                        tb_qtadv,tb_thladv,tb_uadv,tb_vadv, &
                                        tb_tsoilav,tb_phiwav, &
                                        tbrad_p, tbrad_t, tbrad_qv, tbrad_ql, tbrad_o3
+  real, dimension(:,:), allocatable :: tb_svs  !#sb3                                  
   real, dimension(:)  , allocatable :: tb_time, tb_ps, tb_qts, tb_thls, tb_wqs, tb_wts, tb_z0h, tb_z0m, tb_alb, tb_Qnet
-  real :: tb_taunudge = 10800.
-  logical :: ltestbed = .false., &
-             ltb_nudge = .false., &
+  real :: tb_taunudge = 10800.      &
+         ,tb_zminnudge = 0.           ! #tb
+  logical :: ltestbed = .false.,    &
+             ltb_nudge = .false.,   &
+             ltb_sv    = .false.,   &  !#sb3
              ltb_u,ltb_v,ltb_w,ltb_thl,ltb_qt
   integer :: nknudge,ntnudge
 
@@ -59,10 +66,12 @@ contains
 
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
     use modglobal,only :ifnamopt,fname_options,k1,&
+                        nsv,                      & !#sb3
                         grav,rd,cp,pref0,rlv,zf,checknamelisterror
     use modsurfdata,only : ksoilmax
     use modforces, only : lforce_user
-
+    use modnudge,  only : lnudge         ! #tb
+    
     implicit none
 
     real, dimension(:,:), allocatable :: dumomega,dumqv,dumql,dumqi,dumt,dumpf, dumo3,&
@@ -71,7 +80,6 @@ contains
                                          dumqadv,dumladv,dumiadv,dumtadv, &
                                          dumtsoilav,dumphiwav,dumswi,&
                                          dumlwnet,dumswnet
-
     real, dimension(:), allocatable :: dumheights
 
     real :: dumphifc,dumphiwp
@@ -83,8 +91,10 @@ contains
     integer :: ierr,i,k,ik,nknudgep1,nknudges
     real tv,rho,iexner,fac
 
-    namelist /NAMTESTBED/ &
-       ltestbed, ltb_nudge, tb_taunudge
+    namelist /NAMTESTBED/                   &
+        ltestbed, ltb_nudge, tb_taunudge    &
+       ,tb_zminnudge                        & !#tb
+       ,ltb_sv                                !#sb3
 
     if(myid==0)then
 
@@ -93,15 +103,25 @@ contains
       call checknamelisterror(ierr, ifnamopt, 'NAMTESTBED')
       write(6 ,NAMTESTBED)
       close(ifnamopt)
+      
+      if (lnudge) then   ! #tb START
+         ! lnudge=.false.  ! overriding nudging
+         write(6,*) "WARNING: set to use both nudging and testbed" !t
+         write(6,*) "Big PROBLEM ! It can cause double nudging and other issues. "
+         ! write(6,*) " OVERRIDING, setting lnudge=.false. "
+     endif ! #tb END
+
 
     end if
  
     call MPI_BCAST(ltestbed     , 1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(ltb_nudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(tb_zminnudge , 1,MY_REAL    ,0,comm3d,mpierr) !#tb
+    call MPI_BCAST(ltb_sv       , 1,MPI_LOGICAL,0,comm3d,mpierr) !#sb3
     
     if (.not. ltestbed) return
     
-    lforce_user = .true.
+    ! lforce_user = .true.
 
     if(myid==0) then
         !--- open nc file ---
@@ -169,7 +189,10 @@ contains
                  tbrad_t    (ntnudge, nknudge), &
                  tbrad_qv   (ntnudge, nknudge), &
                  tbrad_ql   (ntnudge, nknudge), &
-                 tbrad_o3   (ntnudge, nknudge) &
+                 tbrad_o3   (ntnudge, nknudge), &
+                 tb_sv      (ntnudge,k1,nsv),   &  ! #sb3 
+                 tb_svadv   (ntnudge,k1,nsv),   &  ! #sb3
+                 tb_svs     (ntnudge,nsv)       &  ! #sb3
                  )
 
      tnudge = tb_taunudge     !nudging timescale
@@ -201,6 +224,10 @@ contains
 
         tb_tsoilav=0
         tb_phiwav=0
+        
+        tb_sv = 0     !#sb3
+        tb_svadv = 0  !#sb3
+        tb_svs = 0    !#sb3
 
     
     if(myid==0) then
@@ -551,6 +578,8 @@ contains
 
           enddo
           
+          !
+          
 
           !--- soil & surface properties ---
           tb_qts(i) = tb_qt(i,1)    !qts seems not really used anymore (see subr. timedepsurf in modtimedep.f90)
@@ -575,6 +604,13 @@ contains
           end do
 
         enddo
+        
+        if(ltb_sv) then 
+            write(6,*) 'WARNING testbednudge:','advective tendencies for scalars not yet included'
+        endif
+        if(ltb_sv.and. ltb_nudge) then 
+            write(6,*) 'WARNING testbednudge:','nudging for scalars not yet included'
+        endif
 
         
         !--- clean-up ---
@@ -673,6 +709,8 @@ contains
     call MPI_BCAST(tbrad_ql     ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(tbrad_t      ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(tbrad_o3     ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
+    
+    call MPI_BCAST(tb_sv        ,ntnudge*k1*nsv,MY_REAL    ,0,comm3d,mpierr)
 
     ltb_u   = any(abs(tb_u)>1e-8)
     ltb_v   = any(abs(tb_v)>1e-8)
@@ -686,7 +724,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine testbednudge
-    use modglobal, only : timee,rtimee,i1,j1,kmax,rdt
+    use modglobal, only : timee,rtimee,i1,j1,kmax,rdt, zf ! #sb3
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
     implicit none
 
@@ -710,7 +748,9 @@ contains
 
     qtthres = 1e-6
     do k=1,kmax
-
+    
+     if ( zf(k).gt. tb_zminnudge) then  ! tb_zminnudge #tb START
+     
       currtnudge = max(rdt,tnudge(t,k)*dtp+tnudge(t+1,k)*dtm)
 
       if (ltb_u)   up(2:i1,2:j1,k) = up(2:i1,2:j1,k)     - &
@@ -734,7 +774,12 @@ contains
           qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)   - &
             ( qt0av(k)  - (tb_qt(t,k) *dtp + tb_qt(t+1,k) *dtm) ) / qttnudge
       end if
+     endif ! tb_zminnudge #tb END
     end do
+    
+    ! if(ltb_sv.and. ltb_nudge) then 
+    !    write(6,*) 'testbednudge:','nudging for scalars not yet included'
+    ! endif
 
     !write(6,*) 'testbednudge:', rtimee, t, tb_time(t), tb_time(t+1), currtnudge, dtm, dtp, qt0av (1),tb_qt (t,1),tb_qt (t+1,1)
     !write(6,*) 'testbednudge:', rtimee, t, tb_time(t), tb_time(t+1), currtnudge, dtm, dtp, qt0av (kmax),tb_qt (t,kmax),tb_qt (t+1,kmax)
@@ -772,7 +817,41 @@ contains
 
   subroutine exittestbed
   if (allocated(tb_time)) then
-    deallocate(tb_time)
+    deallocate(  tnudge       &
+                ,tb_u         &
+                ,tb_v         &
+                ,tb_w         &
+                ,tb_thl       &
+                ,tb_qt        &
+                ,tb_ug        &
+                ,tb_vg        &
+                ,tb_dqtdxls   &
+                ,tb_dqtdyls   &
+                ,tb_qtadv     &
+                ,tb_thladv    &
+                ,tb_uadv      &
+                ,tb_vadv      &
+                ,tb_time      &
+                ,tb_ps        &
+                ,tb_qts       &
+                ,tb_thls      &
+                ,tb_wts       &
+                ,tb_wqs       &
+                ,tb_z0m       &
+                ,tb_z0h       &
+                ,tb_alb       &
+                ,tb_Qnet      &
+                ,tb_tsoilav   &
+                ,tb_phiwav    &
+                ,tbrad_p      &
+                ,tbrad_t      &
+                ,tbrad_qv     &
+                ,tbrad_ql     &
+                ,tbrad_o3     &
+                ,tb_sv        &
+                ,tb_svadv     &
+                ,tb_svs       &
+               )    
   end if
   end subroutine exittestbed
 

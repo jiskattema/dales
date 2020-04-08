@@ -394,7 +394,7 @@ contains
     use moduser,           only : initsurf_user
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
-                                  tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+                                  tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv, tb_sv   ! #sb3
 
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
@@ -435,7 +435,7 @@ contains
             qtprof (k) = tb_qt(1,k)
             uprof  (k) = tb_u(1,k)
             vprof  (k) = tb_v(1,k)
-            e12prof(k) = e12min
+            e12prof(k) = e12min+exp(-0.02*zf(k))  ! e12prof(k) = e12min
           end do
 
           ps         = tb_ps(1)
@@ -467,7 +467,7 @@ contains
 
         write(*,*) 'height    thl      qt         u      v     e12'
         do k=kmax,1,-1
-          write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
+          write (*,'(f7.1,f8.1,e12.4,2f7.1,e12.4)') &   ! #dbg
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
@@ -539,6 +539,21 @@ contains
       svprof = 0.
       if(myid==0)then
         if (nsv>0) then
+         if(ltestbed) then  ! #tb START
+           write(*,*) 'readinitfiles: testbed mode: scalar fields from scm_in.nc'          
+           do k=1,kmax
+            do n=1,nsv
+              svprof(k,n) = tb_sv(1,k,n)
+            end do
+           end do
+           write (6,*) 'height   sv(1) --------- sv(nsv) '
+           do k=kmax,1,-1
+            write (6,*) &
+               height (k), &
+               (svprof (k,n),n=1,nsv)
+           end do            
+         else ! #tb END ltestbed==0
+
           open (ifinput,file='scalar.inp.'//cexpnr)
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
@@ -554,7 +569,7 @@ contains
                   height (k), &
                 (svprof (k,n),n=1,nsv)
           end do
-
+         endif ! #tb
         end if
       end if ! end if myid==0
 

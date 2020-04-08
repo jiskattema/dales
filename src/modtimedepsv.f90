@@ -42,8 +42,8 @@ save
   logical       :: ltimedepsvz    = .false. !< Switch for large scale forcings
   logical       :: ltimedepsvsurf = .true.  !< Switch for surface fluxes
 
-  integer, parameter    :: kflux = 100
-  integer, parameter    :: kls   = 100
+  integer       :: kflux ! integer, parameter    :: kflux = 100
+  integer       :: kls ! integer, parameter    :: kls   = 100
   real, allocatable     :: timesvsurf (:)
   real, allocatable     :: svst     (:,:) !< Time dependent surface scalar concentration
 
@@ -57,6 +57,9 @@ contains
   subroutine inittimedepsv
     use modmpi,   only :myid,my_real,mpi_logical,mpierr,comm3d
     use modglobal,only :cexpnr,kmax,k1,ifinput,runtime,nsv
+    use modtestbed,        only : ltestbed,ntnudge,      & ! #tb
+                                  tb_time,tb_ps,         & ! #tb
+                                  tb_sv,tb_svadv,tb_svs    ! #tb
     implicit none
 
     character (80):: chmess
@@ -68,6 +71,14 @@ contains
 
     if (nsv==0 .or. .not.ltimedepsv ) return
 
+    if (ltestbed) then    ! #tb START
+      kflux = ntnudge
+      kls   = ntnudge
+    else
+      kflux = 100
+      kls   = 100
+    end if                ! #tb END
+    
     allocate(height(k1))
     allocate(timesvsurf (0:kflux))
     allocate(svst  (kflux,nsv))
@@ -82,7 +93,22 @@ contains
     if (myid==0) then
 
 !    --- load lsforcings---
-
+     if(ltestbed) then  !#tb START
+      write(*,*) 'inittimedepsv: testbed mode: data for time-dependent forcing obtained from scm_in.nc'
+      ! times
+      timesvsurf(1:kflux) = tb_time
+      timesvz(1:kls)      = tb_time
+      ! variables 
+      svst                = tb_svs
+      do n=1,nsv
+      do t=1,kls
+      do k=1,k1
+        svzt(k,t,n)    = tb_sv(t,k,n)
+      enddo 
+      enddo
+      enddo
+     
+     else !ltestbed  #tb END
 
       open(ifinput,file='ls_fluxsv.inp.'//cexpnr)
       read(ifinput,'(a80)') chmess
@@ -91,7 +117,7 @@ contains
       write(6,*) chmess
       read(ifinput,'(a80)') chmess
       write(6,*) chmess
-
+   
 
 !      --- load fluxes---
       outputfmt = '(f10.3,100e10.3)'
@@ -137,14 +163,14 @@ contains
           write (6,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
         end do
       end do
-
+      close(ifinput)  ! moving inside if block
+     endif !ltestbed #tb
       if ((timesvz(1) > runtime) .or. (timesvsurf(1) > runtime)) then
         write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
         write(6,*) '--> only time dependent surface variables (scalars)'
         ltimedepsvz=.false.
       end if
 
-      close(ifinput)
    endif
 
 

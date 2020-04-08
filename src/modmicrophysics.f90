@@ -42,6 +42,7 @@ contains
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
+    use modbulkmicro3, only : initbulkmicro3 !#sb3
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
@@ -85,6 +86,9 @@ contains
     case(imicro_sice2)
        if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
        call initsimpleice2
+    case(imicro_bulk3)  !#sb3
+        if (nsv < 12) STOP "ERROR: Full Seifer-Beheng microphysics requires nsv >=12" !#sb3
+        call initbulkmicro3 !#sb3
     case(imicro_user)
     end select
   end subroutine initmicrophysics
@@ -111,6 +115,7 @@ contains
    use modbulkmicro, only : bulkmicro
    use modsimpleice, only : simpleice
    use modsimpleice2, only : simpleice2
+   use modbulkmicro3, only : bulkmicro3 !#sb3
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
@@ -126,6 +131,8 @@ contains
        call simpleice
     case(imicro_sice2)
       call simpleice2
+    case(imicro_bulk3)  !#sb3
+      call bulkmicro3   !#sb3
     case(imicro_user)
       call micro_user
     end select
@@ -136,6 +143,7 @@ contains
     use modbulkmicro, only : exitbulkmicro
     use modsimpleice, only : exitsimpleice
     use modsimpleice2, only : exitsimpleice2
+    use modbulkmicro3, only : exitbulkmicro3 !#sb3
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
@@ -151,6 +159,8 @@ contains
         call exitsimpleice
      case(imicro_sice2)
       call exitsimpleice2
+     case(imicro_bulk3)    !#sb3
+      call exitbulkmicro3  !#sb3
   end select
   end subroutine exitmicrophysics
 
