@@ -84,7 +84,7 @@ module modbulkmicro3
      ,l_sb_inuc_sat,l_sb_inuc_expl, l_sb_reisner             & ! flags for ice nucleation
      ,N_inuc, n_i_max, tmp_inuc, x_inuc                      & !  parameters for ice nucleation
      ,N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R               & !  parameters for ice nucleation - Reisner correction  
-     ,c_ccn                                                  & ! C_CCN parameter, used when l_c_ccn
+     ,c_ccn, n_clmax                                         & ! C_CCN parameter, used when l_c_ccn
      ,kappa_ccn, x_cnuc,sat_max                              & ! parameters for liquid cloud nucleation
      ,Nc0, xc0_min, Nccn0                                      !! setting of initial clouds
     
@@ -180,6 +180,7 @@ module modbulkmicro3
      call MPI_BCAST( tmp_inuc,         1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(x_inuc ,           1, MY_REAL     ,0,comm3d,ierr)  
      call MPI_BCAST(c_ccn,             1, MY_REAL     ,0,comm3d,ierr) 
+     call MPI_BCAST(n_clmax,           1, MY_REAL     ,0,comm3d,ierr) 
      call MPI_BCAST(kappa_ccn ,        1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(sat_max ,           1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(x_cnuc ,          1, MY_REAL     ,0,comm3d,ierr)  
@@ -1740,10 +1741,11 @@ module modbulkmicro3
     !
     
     ! == CCN checking ==
-    insv = in_cc
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
+    if(.not.l_c_ccn) then
+     insv = in_cc
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
         nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_ccp(i,j,k))*delt
       if (nrtest .le.0.0 ) then ! correction
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
@@ -1751,9 +1753,10 @@ module modbulkmicro3
         svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
        ! no change for qt and th
       end if       
-    enddo
-    enddo
-    enddo   
+     enddo
+     enddo
+     enddo  
+    endif ! not l_c_ccn
     ! #sb3 END
     
      ! call check_ssat(flag_do_dbg)  ! #sb3 
@@ -1909,9 +1912,29 @@ subroutine initclouds3
     Nc_set =  Nc0    ! prescribed number of droplets
     
     ! initialisation itself
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
+    if (l_c_ccn) then
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+       q_tocl = qt0(i,j,k)-qvsl(i,j,k)         ! get amount of available water for liquid clouds
+       if (q_tocl>0.0) then
+        ! prepare number of droplet
+         n_prop = Nc_set/rhof(k)           ! to get number of droplets in kg^{-1} 
+         ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN 
+         n_prop = min(n_prop,q_tocl/x_min)    ! droplets smaller than minimal size
+        ! save values to arrays
+         sv0(i,j,k,in_cl) = n_prop
+         svm(i,j,k,in_cl) = n_prop
+         sv0(i,j,k,iq_cl) = q_tocl
+         svm(i,j,k,iq_cl) = q_tocl         
+       endif
+      enddo
+      enddo
+      enddo   
+     else
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
        q_tocl = qt0(i,j,k)-qvsl(i,j,k)         ! get amount of available water for liquid clouds
        if (q_tocl>0.0) then
         ! prepare number of droplet
@@ -1924,9 +1947,10 @@ subroutine initclouds3
          sv0(i,j,k,iq_cl) = q_tocl
          svm(i,j,k,iq_cl) = q_tocl         
        endif
-     enddo
-     enddo
-     enddo
+      enddo
+      enddo
+      enddo
+     endif
      ! write(6,*) ' clouds initialised by initcloud3'
 
 end subroutine initclouds3
@@ -3001,7 +3025,7 @@ end subroutine initclouds3
           ! in case of further adjustment of nucleation subroutin
           endif
          ! basic limiting 
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+         dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
          endif
         enddo
         enddo
@@ -3018,7 +3042,7 @@ end subroutine initclouds3
            ! note - written this way on purpose
            ! in case of further adjustment of nucleation subroutin
            ! basic limiting 
-           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
           endif 
          endif
         enddo
@@ -3036,13 +3060,13 @@ end subroutine initclouds3
           if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
            dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
               (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-           ! basic limiting
           endif
           if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
            dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
           endif
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+          ! basic limiting
+          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
          endif
         enddo
         enddo
@@ -3057,13 +3081,13 @@ end subroutine initclouds3
           if (w0(i,j,k).gt.0.0) then
            dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
               (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-           ! basic limiting
           endif
           if (w0(i,j,k+1).lt.0.0) then
            dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
           endif
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+          ! basic limiting
+          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
          endif
         enddo
         enddo
@@ -3081,6 +3105,7 @@ end subroutine initclouds3
           ! if conditions for nucleation, calculate it
           if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
            dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+           ! basic limiting 
            dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
           endif
          endif
@@ -3116,13 +3141,13 @@ end subroutine initclouds3
            dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
                max(0.0,w0(i,j,k)*                                   &
               (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-           ! basic limiting
           endif
           if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
            dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
               max(0.0,w0(i,j,k+1)*                                  &
              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
           endif
+         ! basic limiting
           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
          endif
         enddo
@@ -3138,13 +3163,13 @@ end subroutine initclouds3
            dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
                max(0.0,w0(i,j,k)*                                   &
               (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-           ! basic limiting
           endif
           if (w0(i,j,k+1).lt.0.0) then
            dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
               max(0.0,w0(i,j,k+1)*                                  &
              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
           endif
+          ! basic limiting
           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
          endif
         enddo
@@ -3215,9 +3240,9 @@ end subroutine initclouds3
         end if
      
      ! warning if too high cloud water number 
-      if ( any((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax)).lt. 0.)) then
-       write(6,*) 'WARNING: nucleation removing too many ccn'
-       write(6,*) '  delta n_cl too big in ', count((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax) ).lt. 0.),myid
+!      if ( any((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax)).lt. 0.)) then
+!       write(6,*) 'WARNING: nucleation removing too many ccn'
+!       write(6,*) '  delta n_cl too big in ', count((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax) ).lt. 0.),myid
 !          do j=2,j1
 !          do i=2,i1
 !          do k=1,k1
@@ -3227,7 +3252,7 @@ end subroutine initclouds3
 !          enddo
 !          enddo
 !          enddo        
-      end if 
+!      end if 
      endif !l_sb_dbg
      
      ! deallocate variables
@@ -3273,8 +3298,8 @@ end subroutine initclouds3
      n_ccm(2-ih:i1+ih,2-jh:j1+jh,1:k1)=svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,in_cc)
      ! #t 
      ! test how many low values
-
-     if ( any((coef_mincc *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1) ).lt. 0.)) then
+     if(.not.l_c_ccn) then
+      if ( any((coef_mincc *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1) ).lt. 0.)) then
         if(l_sb_dbg) then 
           write(6,*) 'correction for n_cc, n_clp and n_cip needed in gridpoints ', count((coef_mincc   &
                    *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
@@ -3317,6 +3342,7 @@ end subroutine initclouds3
         enddo
         enddo
         enddo   
+      endif
      endif
      
      ! cleaning up
@@ -3467,8 +3493,8 @@ end subroutine initclouds3
            ! in case of further adjustment of nucleation subroutine
          endif
         endif 
-         ! basic correction 
-         dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), n_cc(i,j,k)/delt) ! does not exceed ccn
+         ! basic correction  - not suitable
+         ! dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), n_cc(i,j,k)/delt) ! does not exceed ccn
          ! dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), max( (qt0(i,j,k)     &
          !          -q_cl(i,j,k)-q_ci(i,j,k))-qvsi(i,j,k),0.0)/x_inuc)
          ! update water numbers and 

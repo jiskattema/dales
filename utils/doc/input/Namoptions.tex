@@ -480,27 +480,28 @@ It requires nsv $\geq$ 12 (ie. the number of scalars to be at least 12).
   % flags for initialisation
   l\_setccn	   & .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to automatically set CCN. CCN concentration to value of Nccn0.	& -\\
   l\_setclouds	   & .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to initialise clouds after the first thermodynamic calculation.	& -\\
-  Nccn0  	   & $100.0\cdot10^{6} $	& $x \in \mathbb{R} $               & Initial CCN number concentration; used when l\_setccn = .true. & $\mathrm{m}^{-3}$ \\
-  Nc0              & $70.0\cdot10^{8} $		& $x \in \mathbb{R}, \; x \geq 0 $               & Initial cloud droplet number concentration; used when l\_setclouds = .true. & $\mathrm{m}^{-3}$ \\
-  xc0\_min          & $4.2\cdot10^{-15} $	& $x \in \mathbb{R}, \; x \geq 0 $               & Minimum size of initial cloud droplets; used when l\_setclouds = .true. & kg \\
+  Nccn0  	   & $100.0\cdot10^{6} $	& $x \in \mathbb{R} $ 			& Initial CCN number concentration; used when l\_setccn = .true. & $\mathrm{m}^{-3}$ \\
+  Nc0              & $70.0\cdot10^{8} $		& $x \in \mathbb{R}, \; x \geq 0 $	& Initial cloud droplet number concentration; used when l\_setclouds = .true. & $\mathrm{m}^{-3}$ \\
+  xc0\_min          & $4.2\cdot10^{-15} $	& $x \in \mathbb{R}, \; x \geq 0 $	& Minimum size of initial cloud droplets; used when l\_setclouds = .true. & kg \\
   % flags processes
   % : sedimentation - mass conservation
   l\_corr\_neg\_qt & .true.     & $x\in\{\text{.false.},\text{.true.}\}$		& Switch to conserve total water (total humidity+precipitating hydrometeors)	& -\\
   % : cloud droplet nucleation
-  l\_c\_ccn        & .false.   & $x\in\{\text{.false.},\text{.true.}\}$				& Switch to keep cloud nucleation coefficient constant (prognostic CCN not used, l\_setccn ignored) 	& -\\
-  c\_ccn            &  $100.0\cdot10^{6} $ &  $x \in \mathbb{R}, \; x \geq 0 $			& Constant coefficient in cloud nucleation tendency; used only when l\_ccn\_const = .true.     & $\mathrm{m}^{-3}$  \\
+  l\_c\_ccn        & .false.   & $x\in\{\text{.false.},\text{.true.}\}$			& Switch to keep cloud nucleation coefficient constant (prognostic CCN not used, l\_setccn ignored) 	& -\\
+  c\_ccn            &  $100.0\cdot10^{6} $ &  $x \in \mathbb{R}, \; x \geq 0 $		& Constant coefficient in cloud nucleation tendency; used only when l\_ccn\_const = .true.     & $\mathrm{m}^{-3}$  \\
+  n\_clmax            &  $150.0\cdot10^{6} $ &  $x \in \mathbb{R}, \; x \geq 0 $	& Limit for number of cloud droplets after nucleation; used only when l\_ccn\_const = .true.     & $\mathrm{m}^{-3}$  \\
   l\_sb\_sat\_max  & .true.    & $x\in\{\text{.false.},\text{.true.}\}$		        & Switch to stop cloud droplet nucleation in saturation above sat\_max & - \\ 
-  sat\_max         &  1.1      & $x \in \mathbb{R}, \; x \geq 0 $  				& Limit saturation above which droplet nucleation does not occur; used when l\_sb\_sat\_max = .true. & \% \\
-  kappa\_ccn       &  0.462     & $x \in \mathbb{R}, \; x \geq 0 $ 				& Parameter $\kappa $ in CCN activation spectra        & - \\
-  x\_cnuc          &  $1.0\cdot 10^{-12} $ & $x \in \mathbb{R}, \; x \geq 0 $  			& Mean size of newly nucleated cloud droplet           & kg \\
+  sat\_max         &  1.1      & $x \in \mathbb{R}, \; x \geq 0 $  			& Limit saturation above which droplet nucleation does not occur; used when l\_sb\_sat\_max = .true. & \% \\
+  kappa\_ccn       &  0.462     & $x \in \mathbb{R}, \; x \geq 0 $ 			& Parameter $\kappa $ in CCN activation spectra        & - \\
+  x\_cnuc          &  $1.0\cdot 10^{-12} $ & $x \in \mathbb{R}, \; x \geq 0 $  		& Mean size of newly nucleated cloud droplet           & kg \\
   % : ice nucleation    
-  N\_inuc           &  1000.0     & $x \in \mathbb{R}, \; x \geq 0 $ 				& Constant coefficiens in ice nucleation tendency & $\mathrm{m}^{-3}$  \\
-  n\_i\_max          & 1100.0      & $x \in \mathbb{R}, \; x \geq 0 $ 				& Limit number concentration of nucleated ice  & $\mathrm{m}^{-3}$ \\
-  tmp\_inuc         & 268.15     & $x \in \mathbb{R}, \; x \geq 0 $ 				& Temperature threshold below which ice nucleation occurs &  K \\
-  x\_inuc           & $1.0 \cdot 10^{-12} $ & $x \in \mathbb{R}, \; x \geq 0 $			& Mean size of new ice crystals   & kg \\
+  N\_inuc           &  1000.0     & $x \in \mathbb{R}, \; x \geq 0 $ 			& Constant coefficiens in ice nucleation tendency & $\mathrm{m}^{-3}$  \\
+  n\_i\_max          & 1100.0      & $x \in \mathbb{R}, \; x \geq 0 $ 			& Limit number concentration of nucleated ice  & $\mathrm{m}^{-3}$ \\
+  tmp\_inuc         & 268.15     & $x \in \mathbb{R}, \; x \geq 0 $ 			& Temperature threshold below which ice nucleation occurs &  K \\
+  x\_inuc           & $1.0 \cdot 10^{-12} $ & $x \in \mathbb{R}, \; x \geq 0 $		& Mean size of new ice crystals   & kg \\
   l\_sb\_reisner   & .true.    & $x\in\{\text{.false.},\text{.true.}\}$		        & Switch to use Resisner correction$^{*}$ for ice nucleation & -\\  
-  N\_inuc\_R         & 0.01     &  $x \in \mathbb{R}, \; x \geq 0 $  				& Constant coefficient in modified Fletcher's formula; used when l\_sb\_reisner = .true. & $\mathrm{m}^{-3}$  \\
-  c\_inuc\_R         & 246.15     &  $x \in \mathbb{R}, \; x \geq 0 $  				& Temperature coefficient in modified Fletcher's formula; used when l\_sb\_reisner = .true. & $\mathrm{K}$  \\
+  N\_inuc\_R         & 0.01     &  $x \in \mathbb{R}, \; x \geq 0 $  			& Constant coefficient in modified Fletcher's formula; used when l\_sb\_reisner = .true. & $\mathrm{m}^{-3}$  \\
+  c\_inuc\_R         & 246.15     &  $x \in \mathbb{R}, \; x \geq 0 $  			& Temperature coefficient in modified Fletcher's formula; used when l\_sb\_reisner = .true. & $\mathrm{K}$  \\
   a1\_inuc\_R        & 0.1      &  $x \in [0.0,1.0]       $  				& Lower multiplicative limit in Reisner correction$^{*}$; used when l\_sb\_reisner = .true. & - \\
   a2\_inuc\_R        & 1000.0     &  $x \in [1.0, 10^6]   $  				& Upper multiplicative limit in Reisner correction$^{*}$; used when l\_sb\_reisner = .true. & - \\
 \end{supertabular}

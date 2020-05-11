@@ -143,6 +143,8 @@
                      ,x_cnuc_SB   = 1.0e-12     & !< mass of nucleated liquid droplet
                      ,sat_min_SB  = 1.0e-5      & ! 0.01 ! < min supersaturation for nucleation [%]
                      ,sat_max_SB  = 1.1         & ! 1.1  ! < max supersaturation for nucleation [%]
+                     ,n_clmax_marit = 1.5e8     & ! maximum number concentration in case of constant c_ccn
+                     ,n_clmax_conti = 1.5e10    & ! maximum number concentration in case of constant c_ccn
                      ,c_ccn_marit = 1.0e8       & !< C_CCN parameter for maritime conditions
                      ,c_ccn_conti = 1.26e9      & !< C_CCN parameter for conitnental conditions 
                      ,kappa_marit = 0.462       & !< kappa_ccn parameter for maritime conditions
@@ -310,6 +312,7 @@
     ! and now the default value of parameters that can be adjusted  by namelist
     real ::  x_cnuc          = x_cnuc_SB      & !< mass of nucleated liquid droplet
             ,c_ccn           = c_ccn_marit    & !< C_CCN parameter for maritime conditions
+            ,n_clmax         = n_clmax_marit  & !< maximum number concentration in case of constant C_CCN
             ,kappa_ccn       = kappa_marit    & !< kappa_ccn parameter for maritime conditions
             ,sat_min         = sat_min_SB     & ! < min supersaturation [%] for nucleation 
             ,sat_max         = sat_max_SB     & ! < max supersaturation [%] for nucleation 
