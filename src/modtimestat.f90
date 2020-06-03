@@ -959,7 +959,11 @@ contains
        else
          zb_ci_av = 0.0            ! zbaseav = 0.0
          zt_ci_av = 0.0            ! ztopav = 0.0
-       end if      
+       end if     
+       
+       cl_c      = cl_c/ijtot      ! cc      = cc/ijtot
+       ci_c      = ci_c/ijtot      !
+       c_totc    = c_totc/ijtot
        !domain averaged  water path
        qcl_intav = qcl_intav / ijtot   ! qlintav = qlintav / ijtot
        qci_intav = qci_intav / ijtot
