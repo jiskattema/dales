@@ -5884,45 +5884,32 @@ end subroutine initclouds3
     ! -- outputs
     dq_ci_col_iis(2:i1,2:j1,1:k1) = dq_col_a(2:i1,2:j1,1:k1)
     dn_ci_col_iis(2:i1,2:j1,1:k1) = dn_col_a(2:i1,2:j1,1:k1)
-!        
-!     do k=1,k1   
-!     do j=2,j1
-!     do i=2,i1
-!       if (qcol_mask(i,j,k)) then 
-!         ! aggregation debug #remove
-!         if( (dq_ci_col_iis(i,j,k)>0.0).or.(dn_ci_col_iis(i,j,k)>0.0).or.((-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))>0.0) ) then
-!           write(6,*) ' WARNING: positive collection results'
-!           write(6,*) '   dq_ci_col_iis = ',  dq_ci_col_iis(i,j,k)
-!           write(6,*) '   dn_ci_col_iis = ',  dn_ci_col_iis(i,j,k)
-!           write(6,*) '   dq_ci limiter = ',  (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k))
-!           write(6,*) '   dq_ci limiter = ',  (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))
-!           write(6,*) '     q_cip = ', q_cip(i,j,k)
-!           write(6,*) '     dq_ci_dep = ',dq_ci_dep(i,j,k)
-!           write(6,*) '     n_cip = ', n_cip(i,j,k)
-!           ! write(6,*) '     dn_ci_dep = ',dn_ci_dep(i,j,k)
-!         endif
-!         ! aggregation debug 
-!         ! limiting dq_ci  --   limit x_cv_ii as per ICON 2017
-!         dq_ci_col_iis(i,j,k) = max(dq_ci_col_iis(i,j,k), (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k))) !  max(dq_ci_col_iis(i,j,k), -rem_cf*svm(i,j,k,iq_ci))
-!         dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))) ! ,dq_ci_col_iis(i,j,k)/x_cv_ii ), -rem_cf*svm(i,j,k,in_ci)) 
-!         dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), dq_ci_col_iis(i,j,k)/x_minagg_ii )             
-!         ! changes in cloud water 
-!         n_cip(i,j,k)    = n_cip(i,j,k) + dn_ci_col_iis(i,j,k)
-!         ! change in q_ci
-!         q_cip(i,j,k)    = q_cip(i,j,k) + dq_ci_col_iis(i,j,k)
-!         ! q_cip(i,j,k) = q_cip(i,j,k)        
-!         ! aggregation to snow 
-!         n_hsp (i,j,k)   = n_hsp(i,j,k) - 0.5 * dn_ci_col_iis (i,j,k)   ! as prescibed 
-!         q_hsp (i,j,k)   = q_hsp(i,j,k) - dq_ci_col_iis (i,j,k)
-!         ! 
-!         ! changes in the total amount of water - removed to snow
-!         !#iceout qtpmcr(i,j,k)   = qtpmcr(i,j,k) + dq_ci_col_iis (i,j,k)
-!         ! change in th_l - removal of water in the form of snow 
-!         !#iceout thlpmcr(i,j,k)  = thlpmcr(i,j,k)-(rlv/(cp*exnf(k)))*dq_ci_col_iis (i,j,k)
-!       endif 
-!     enddo
-!     enddo
-!     enddo
+       
+    do k=1,k1   
+    do j=2,j1
+    do i=2,i1
+      if (qcol_mask(i,j,k)) then  
+        ! limiting dq_ci  --   limit x_cv_ii as per ICON 2017
+        dq_ci_col_iis(i,j,k) = max(dq_ci_col_iis(i,j,k), (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k))) !  max(dq_ci_col_iis(i,j,k), -rem_cf*svm(i,j,k,iq_ci))
+        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))) ! ,dq_ci_col_iis(i,j,k)/x_cv_ii ), -rem_cf*svm(i,j,k,in_ci)) 
+        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), dq_ci_col_iis(i,j,k)/x_minagg_ii )             
+        ! changes in cloud water 
+        n_cip(i,j,k)    = n_cip(i,j,k) + dn_ci_col_iis(i,j,k)
+        ! change in q_ci
+        q_cip(i,j,k)    = q_cip(i,j,k) + dq_ci_col_iis(i,j,k)
+        ! q_cip(i,j,k) = q_cip(i,j,k)        
+        ! aggregation to snow 
+        n_hsp (i,j,k)   = n_hsp(i,j,k) - 0.5 * dn_ci_col_iis (i,j,k)   ! as prescibed 
+        q_hsp (i,j,k)   = q_hsp(i,j,k) - dq_ci_col_iis (i,j,k)
+        ! 
+        ! changes in the total amount of water - removed to snow
+        !#iceout qtpmcr(i,j,k)   = qtpmcr(i,j,k) + dq_ci_col_iis (i,j,k)
+        ! change in th_l - removal of water in the form of snow 
+        !#iceout thlpmcr(i,j,k)  = thlpmcr(i,j,k)-(rlv/(cp*exnf(k)))*dq_ci_col_iis (i,j,k)
+      endif 
+    enddo
+    enddo
+    enddo
 !     
    
     ! #hh checking the sizes
