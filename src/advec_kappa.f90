@@ -216,8 +216,6 @@ subroutine  halflev_kappa(putin,putout)
     real, intent(in) :: d1 !< Scalar flux at 1.5 cells upwind
     real, intent(in) :: d2 !< Scalar flux at 0.5 cells upwind
 
-    real ri,phir
-
     rlim = min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
       (sign(0.5, d1) + sign(0.5, d2))
 
