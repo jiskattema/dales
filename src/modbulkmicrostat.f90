@@ -89,15 +89,25 @@ subroutine initbulkmicrostat
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
-    use modmicrodata,only: imicro, imicro_bulk, imicro_sice
+    use modmicrodata,only: imicro, imicro_bulk, imicro_sice, imicro_bulk3 !#sb3
+    use modbulkmicrostat3,only:initbulkmicrostat3  ! #sb3
     implicit none
     integer      :: ierr
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
+    
+    ! #sb3 START
+    if (imicro.eq.imicro_bulk3) then
+       call initbulkmicrostat3
+       return
+    endif
+    ! #sb3 END
 
     if ((imicro /=imicro_bulk) .and. (imicro /= imicro_sice)) return
 
+    
+    
     dtav  = dtav_glob
     timeav  = timeav_glob
     if(myid==0)then
@@ -221,7 +231,10 @@ subroutine initbulkmicrostat
 !> General routine, does the timekeeping
   subroutine bulkmicrostat
     use modglobal,    only  : rk3step, timee, dt_lim
+    use modmicrodata,only: imicro, imicro_bulk3             ! #sb3
     implicit none
+    
+    if (imicro.eq.imicro_bulk3) return  ! #sb3 treated separately
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
     if (timee == 0)    return
@@ -553,7 +566,16 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 
   subroutine exitbulkmicrostat
+    use modmicrodata,only: imicro, imicro_bulk3     ! #sb3
+    use modbulkmicrostat3, only:exitbulkmicrostat3  ! #sb3
     implicit none
+    ! #sb3 START
+    if (imicro.eq.imicro_bulk3) then
+       call exitbulkmicrostat3
+       return
+    endif
+    ! #sb3 END
+    
     if (.not. lmicrostat)  return
 
     deallocate(Npav      , &

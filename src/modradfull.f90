@@ -115,7 +115,9 @@ contains
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,pref0
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
     use modsurfdata,  only : albedo, ps
-    use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
+    use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr,imicro_bulk3 !#sb3
+    use modmicrodata3, only: iq_cl,iq_ci,iq_hr,iq_hs,iq_hg            & !#sb3
+                            ,in_cl,in_ci,in_hr,in_hs,in_hg              !#sb3
     use modraddata,   only : thlprad, lwd,lwu,swd,swu
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
@@ -128,6 +130,20 @@ contains
     allocate(tempskin(1:i1+1,1:j1+1))
 
 !take care of UCLALES z-shift for thermo variables.
+     if (imicro.eq.imicro_bulk3) then !  #sb3 START
+      do k=1,kmax
+        rhof_b(k+1)     = rhof(k)
+        exnf_b(k+1)     = exnf(k)
+        do j=2,j1
+        do i=2,i1
+          qv_b(i,j,k+1)   = max(0.,qt0(i,j,k) -  sv0(i,j,k,iq_cl))        ! water vapour:  qt-q_cl
+          ql_b(i,j,k+1)   = sv0(i,j,k,iq_cl) + sv0(i,j,k,iq_ci)           ! for now - cloud liquid and cloud ice, later change
+          temp_b(i,j,k+1) = thl0(i,j,k)*exnf(k)+(rlv/cp)*sv0(i,j,k,iq_cl) ! 
+          rr_b(i,j,k+1)   = sv0(i,j,k,iq_hr)+sv0(i,j,k,iq_hg)+sv0(i,j,k,iq_hs) ! for now - precipitating water
+        end do
+        end do
+      end do
+     else !#sb3 END
       do k=1,kmax
         rhof_b(k+1)     = rhof(k)
         exnf_b(k+1)     = exnf(k)
@@ -140,6 +156,7 @@ contains
           end do
         end do
       end do
+     endif ! # sb3
 
       !take care of the surface boundary conditions
       !CvH edit, extrapolation creates instability in surface scheme
@@ -161,7 +178,9 @@ contains
 
       if (imicro==imicro_bulk) then
         rr_b(:,:,1) = 0.
-        call d4stream(i1,ih,j1,jh,k1,tempskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swd,swu,lwd,lwu,rr=rr_b)
+        call d4stream(i1,ih,j1,jh,k1,tempskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swd,swu,lwd,lwu,rr=rr_b) 
+      elseif(imicro==imicro_bulk3) then   ! #sb3
+        call d4stream(i1,ih,j1,jh,k1,tempskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swd,swu,lwd,lwu,rr=rr_b) ! #sb3     
       else
         call d4stream(i1,ih,j1,jh,k1,tempskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swd,swu,lwd,lwu)
       end if

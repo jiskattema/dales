@@ -1,6 +1,49 @@
 Changes in DALES
 ================
 
+Version 4.3-sb3 - March 2020
+----------------------------
+
+This version introduces a connection of dales4.3 with 3-phase microphysics scheme of Seifert&Beheng
+Modifications in other modules are marked by tag #sb3 when linked to new microphysics,
+and tag #tb is used if the changes linked to the tesbed module
+
+### Improvements
+
+* Enhanced implementation of microphysics scheme of Seifert and Beheng (2005)
+  * full 3-phase 2-moment scheme
+  * explicit calculation of cloud nucleation rate
+  * CCN concentration as a prognostic variables
+  * modification of thermodynamic calculations in case this scheme is used
+* Additional model output related to microphysics:
+  * horizontally averaged profiles of microphysical tendencies: mphysprofiles.nnn.nc
+  * field dumps of hydrometeor mass and number concentrations: hydrodump.xxx.yyy.nnn.nc 
+* Microphysicsl scheme connected with radiation schemes:
+   - full radiation scheme
+   - parameterized radiation  
+* Adding minimum nudging height to modtestbed
+* Bypassing reading of many input files in case the modtestbed is used, including:
+  * scm.inp.001  
+  * lsfluxsv.inp.001 
+
+
+### Bugs fixed
+
+* modtimedepsv improved to be consistent with modtimedepsv
+* modtestbed : commenting out ! lforce_user = .true.
+* modstartup : increasing values of e12 by the surface
+               e12prof(k) = e12min+exp(-0.02*zf(k))  ! e12prof(k) = e12min
+
+### Known Issues
+
+* Rapid Radiation Model does not work together with sb3 microphysics
+  * Crash due to "Generalised size of ice out of bound". 
+  * However, there is an ongoing work to fix this issue and connect .
+
+* Full radiation model assumes a constant number concentration of dropets and ice crystals.
+  * A better link between the microphysical scheme will be introduced soon.
+
+
 Version 4.3 - 2020
 ------------------
 

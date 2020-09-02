@@ -165,7 +165,7 @@ contains
 
       if (ltestbed) then
 
-        write(*,*) 'inittimedep: testbed mode: data for time-dependent forcing obtained from scm_in.nc'
+        write(6,*) 'inittimedep: testbed mode: data for time-dependent forcing obtained from scm_in.nc'
       
         timeflux(1:kflux) = tb_time
         timels  (1:kls  ) = tb_time

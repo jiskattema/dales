@@ -1,0 +1,134 @@
+&RUN
+iexpnr     =  068
+lwarmstart =  .false.
+startfile  =  'initd09h00m000.043'
+runtime    =  52200. 
+trestart   =  3600
+dtmax      =  5.
+ladaptive  = .true.
+irandom    =  43
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  12 ! 2
+nprocx     = 1
+nprocy     = 1 ! 8
+/
+
+&DOMAIN
+itot       =  128 ! 512 
+jtot       =  128 ! 512
+kmax       =  167
+
+xsize      =  1600 ! 102400.
+ysize      =  1600 ! 102400.
+
+xlat       =  65.
+xlon       =  -10.
+xday       =  31.
+xtime      =  0.
+/
+
+&PHYSICS
+z0         =  6.6e-4
+ps         =  100900.
+thls       = 275.495697
+lmoist     =  .true.
+irad       =  -1
+iradiation =  1  ! 4
+timerad    =  60.
+lcoriol    =  .true.
+ltimedep   =  .true.
+useMcICA   = .true.
+/
+
+&NAMSURFACE
+isurf      = 2
+z0mav      = 6.6e-4
+z0hav      = 3.7e-6
+ps         = 100700.
+ustin      = 0.3
+lsmoothflux = .true.
+albedoav   = 0.07
+/
+
+&NAMMICROPHYSICS
+imicro          =  11 ! 2
+l_sb            =  .false.
+l_rain          =  .true.
+l_sedc          =  .true.
+l_mur_cst       =  .false.
+mur_cst         =  0
+Nc_0            = 50e6
+sig_g           = 1.2
+/
+&NAMBULKMICROSTAT
+lmicrostat      =  .true.
+dtav            =  60
+timeav          =  600
+/
+&NAMBULK3
+Nc0             = 50.0e6   ! i.e.  50 cm^{-3}
+Nccn0           = 100.0e6  ! i.e. 100 cm^{-3}
+/
+
+&DYNAMICS
+llsadv     =  .false.
+lqlnr      =  .false.
+cu         =  2
+cv         =  -18
+
+iadv_mom    =  2
+iadv_tke    =  55
+iadv_thl    =  55
+iadv_qt     =  55
+iadv_sv     =  55 55
+/
+&NAMCHECKSIM
+tcheck      = 60
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+dtav        = 60 
+/
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 60
+timeav      = 600
+/
+&NAMSTATTEND
+dtav        = 60
+timeav      = 600
+ltend       = .true.
+/
+&SUBGRID
+ldelta      = .false.
+cm          = 0.12
+cn          = 0.76
+ch1         = 1.
+ch2         = 2.
+ce1         = 0.19
+ce2         = 0.51
+/
+&NAMBUDGET
+lbudget     = .false.
+dtav        = 60.
+timeav      = 600. 
+/
+&NAMRADSTAT
+dtav        = 60
+timeav      = 600.
+lstat       = .true.
+/
+
+&NAMNETCDFSTATS
+lnetcdf = .true.
+/
+
+&NAMFIELDDUMP
+ DTAV        =   1800.0
+ LFIELDDUMP  = .true.
+ LDIRACC     = .false.
+ LBINARY     = .false.
+ KLOW        =   1
+ KHIGH       =   167
+/

@@ -62,7 +62,13 @@ save
   real   :: cc, wmax, qlmax
   real   :: qlint
   logical:: store_zi = .false.
-
+  integer:: nvar0
+  real ::   cl_c,ci_c,c_totc                                       & !#sb3 START variables for mixed-phase microphysics 
+           ,zt_cl_av,zt_ci_av,zt_cl_max,zt_ci_max                  &
+           ,zb_cl_av,zb_ci_av,zb_cl_min,zb_ci_min                  &
+           ,qcl_intav,qci_intav,qhr_intav,qhs_intav,qhg_intav      &
+           ,qcl_intmax,qci_intmax,qhr_intmax,qhs_intmax,qhg_intmax &
+           ,sfc_prec_av, sfc_precw_av                               !#sb3 END
   !Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
@@ -77,16 +83,20 @@ save
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
 
+
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
     use mpi
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
-                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
+                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,       &
+                          checknamelisterror, eps1 ! #sb3
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
+    use modmicrodata, only : imicro,imicro_bulk3               ! #sb3
+    use modmicrodata3, only: iq_cl, iq_ci, iq_hr, iq_hs, iq_hg  ! #sb3
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
@@ -233,6 +243,11 @@ contains
         else
           nvar = 21
         end if
+        if (imicro.eq.imicro_bulk3)then ! #sb3 START
+           nvar0 = nvar
+           nvar = nvar0 +23  ! +21 number of statistics for 3-phase SB microphysics
+        endif ! #sb3 END
+
 
         allocate(ncname(nvar,4))
 
@@ -272,6 +287,32 @@ contains
           call ncinfo(ncname(31,:),'rssoil','Soil evaporation resistance','s/m','time')
           call ncinfo(ncname(32,:),'rsveg','Vegitation resistance','s/m','time')
         end if
+        if (imicro.eq.imicro_bulk3)then        ! #sb3 START
+          call ncinfo(ncname( nvar0+1,:),'cl_frac','Liquid Cloud fraction','-','time')
+          call ncinfo(ncname( nvar0+2,:),'ci_frac','Ice Cloud fraction','-','time')
+          call ncinfo(ncname( nvar0+3,:),'ctot_frac','Total Cloud fraction','-','time')
+          call ncinfo(ncname( nvar0+4,:),'zb_l_av','Average Liquid Cloud-base height','m','time')
+          call ncinfo(ncname( nvar0+5,:),'zb_l_min','Minimal Liquid Cloud-base height','m','time')
+          call ncinfo(ncname( nvar0+6,:),'zc_l_av','Average Liquid Cloud-top height','m','time')
+          call ncinfo(ncname( nvar0+7,:),'zc_l_max','Maximum Liquid Cloud-top height','m','time')
+          call ncinfo(ncname( nvar0+8,:),'zb_i_av','Average Ice Cloud-base height','m','time')
+          call ncinfo(ncname( nvar0+9,:),'zb_i_min','Minimal Ice Cloud-base height','m','time')
+          call ncinfo(ncname( nvar0+10,:),'zc_i_av','Average Ice Cloud-top height','m','time')
+          call ncinfo(ncname( nvar0+11,:),'zc_i_max','Maximum Ice Cloud-top height','m','time')          
+          call ncinfo(ncname( nvar0+12,:),'clwp_bar','Cloud Liquid-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+13,:),'clwp_max','Maximum Cloud Liquid-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+14,:),'rlwp_bar','Rain Liquid-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+15,:),'rlwp_max','Maximum Rain Liquid-water path','kg/m^2','time') 
+          call ncinfo(ncname( nvar0+16,:),'icwp_bar','Cloud Ice-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+17,:),'icwp_max','Maximum Cloud Ice-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+18,:),'siwp_bar','Snow Ice-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+19,:),'siwp_max','Maximum Snow Ice-water path','kg/m^2','time')            
+          call ncinfo(ncname( nvar0+20,:),'giwp_bar','Graupel Ice-water path','kg/m^2','time')
+          call ncinfo(ncname( nvar0+21,:),'giwp_max','Graupel Snow Ice-water path','kg/m^2','time')  
+          call ncinfo(ncname( nvar0+22,:),'sfc_precw_av','Average surface precipitation','kg/m^2 /s','time')
+          call ncinfo(ncname( nvar0+23,:),'sfc_prec_av','Average surface precipitation','W/m^2','time')
+           ! - to add more
+        endif      ! #sb3 END     
         call open_nc(fname,  ncid,nrec)
         if(nrec==0) call define_nc( ncid, NVar, ncname)
       end if
@@ -338,9 +379,10 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
-                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput &
+                          ,rlv   ! #sb3
 !
-    use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
+    use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0, sv0 !#sb3
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -349,6 +391,11 @@ contains
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+    use modmicrodata,  only : imicro,imicro_bulk3                          ! #sb3
+    use modmicrodata3, only : iq_cl,iq_ci,iq_hr, iq_hs,iq_hg,rlvi       &  ! #sb3
+                             ,precep_l, precep_i                        &  ! #sb3
+                             ,q_cl_statmin,q_ci_statmin                    ! #sb3
+
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -367,6 +414,21 @@ contains
 
     ! heterogeneity variables
     integer:: patchx, patchy
+    
+    !  stats for SB mixed-phase microphysics #sb3 START 
+    real :: clcl,cicl,ctcl                                     &
+           ,zb_cl_avl,zb_cl_minl,zt_cl_avl,zt_cl_maxl          &
+           ,zb_ci_avl,zb_ci_minl,zt_ci_avl,zt_ci_maxl          & 
+           ,qcl_intavl,qci_intavl,qhr_intavl,qhs_intavl        &
+           ,qhg_intavl                                         &
+           ,qcl_intmaxl,qci_intmaxl,qhr_intmaxl,qhs_intmaxl    &
+           ,qhg_intmaxl                                        &
+           ,qcl_int,qci_int,qhr_int,qhs_int,qhg_int            &
+           ,ztopcl,ztopci                                      &
+           ,sfc_precw_avl, sfc_prec_avl
+    !- add more if needed
+    ! #sb3 end
+
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return
@@ -510,6 +572,273 @@ contains
       call MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches,  MY_REAL,  MPI_MAX, comm3d,mpierr)
       call MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches,  MY_REAL,  MPI_MIN, comm3d,mpierr)
     endif
+    
+   !     --------------------------------------------------------------
+   !     9.2 B  ice. waterpath, cloudcover, cloudbase and cloudtop
+   !     --------------------------------------------------------------
+   ! #sb3 START
+     if (imicro.eq.imicro_bulk3) then 
+     
+     zb_cl_avl = 0.0
+     zb_cl_minl = zf(kmax)
+     zt_cl_avl = 0.0
+     zt_cl_maxl = 0.0
+     
+     zb_ci_avl = 0.0
+     zb_ci_minl = zf(kmax)
+     zt_ci_avl = 0.0
+     zt_ci_maxl = 0.0   
+     
+     clcl      = 0.0 ! ccl      = 0.0
+     cicl      = 0.0 
+     ctcl      = 0.0
+     qcl_intavl = 0.0 ! qlintavl = 0.0 
+     qci_intavl = 0.0 
+     qhr_intavl = 0.0 
+     qhs_intavl = 0.0
+     qhg_intavl = 0.0
+     qcl_intmaxl= 0.0 ! qlintmaxl= 0.0
+     qci_intmaxl = 0.0 
+     qhr_intmaxl = 0.0 
+     qhs_intmaxl = 0.0
+     qhg_intmaxl = 0.0   
+     !
+     sfc_prec_avl = 0.0
+     sfc_precw_avl = 0.0
+     !tke_totl = 0.0 ! tke_totl = 0.0 
+     
+     do j=2,j1
+       !if (lhetero) then
+       !  patchy = patchynr(j)
+       !endif
+       do i=2,i1
+        ! if (lhetero) then
+        !   patchx = patchxnr(i)
+        ! endif
+ 
+         qcl_int     = 0.0 ! qlint     = 0.0
+         qci_int     = 0.0
+         qhr_int     = 0.0
+         qhs_int     = 0.0
+         qhg_int     = 0.0
+         ztopcl      = 0.0
+         ztopci      = 0.0
+         
+         do k=1,kmax
+          qcl_int=qcl_int+sv0(i,j,k,iq_cl)*rhof(k)*dzf(k) ! qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+          qci_int=qci_int+sv0(i,j,k,iq_ci)*rhof(k)*dzf(k)
+          qhr_int=qhr_int+sv0(i,j,k,iq_hr)*rhof(k)*dzf(k)
+          qhs_int=qhs_int+sv0(i,j,k,iq_hs)*rhof(k)*dzf(k)
+          qhg_int=qhg_int+sv0(i,j,k,iq_hg)*rhof(k)*dzf(k)
+         end do
+         if (qcl_int.gt.0.) then
+           qcl_intavl = qcl_intavl + qcl_int
+           qcl_intmaxl = max(qcl_int,qcl_intmaxl)
+           !if (lhetero) then
+           !  cc_field(i,j)                  = 1.0
+           !  qlint_field(i,j)               = qlint
+           !  qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
+           !endif
+         end if
+         if (qcl_int.gt.q_cl_statmin) then ! used to be 0.0
+           clcl      = clcl      + 1.0
+         endif
+         if (qci_int.gt.q_ci_statmin) then ! used to be 0.0
+           cicl      = cicl      + 1.0    
+         endif
+         if (qci_int.gt.0.) then
+           qci_intavl = qci_intavl + qci_int
+           qci_intmaxl = max(qci_int,qci_intmaxl)
+           !if (lhetero) then
+           !  cc_field(i,j)                  = 1.0
+           !  qlint_field(i,j)               = qlint
+           !  qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
+           !endif
+         end if
+         if ((qci_int.gt.q_ci_statmin).or.(qcl_int.gt.q_cl_statmin)) then
+           ctcl = ctcl +1.0
+         endif
+         if (qhr_int>0.) then
+           ! ci_c      = ci_c      + 1.0
+           qhr_intavl = qhr_intavl + qhr_int
+           qhr_intmaxl = max(qhr_int,qhr_intmaxl)
+           !if (lhetero) then
+           !  cc_field(i,j)                  = 1.0
+           !  qlint_field(i,j)               = qlint
+           !  qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
+           !endif
+         end if        
+         if (qhs_int>0.) then
+           ! ci_c      = ci_c      + 1.0
+           qhs_intavl = qhs_intavl + qhs_int
+           qhs_intmaxl = max(qhs_int,qhs_intmaxl)
+           !if (lhetero) then
+           !  cc_field(i,j)                  = 1.0
+           !  qlint_field(i,j)               = qlint
+           !  qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
+           !endif
+         end if        
+         if (qhg_int>0.) then
+           ! ci_c      = ci_c      + 1.0
+           qhg_intavl = qhg_intavl + qhg_int
+           qhg_intmaxl = max(qhg_int,qhg_intmaxl)
+           !if (lhetero) then
+           !  cc_field(i,j)                  = 1.0
+           !  qlint_field(i,j)               = qlint
+           !  qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
+           !endif
+         end if
+         ! loop for liquid cloud top
+         do k=1,kmax 
+           if (sv0(i,j,k,iq_cl) > q_cl_statmin) then ! (sv0(i,j,k,iq_cl) > 0.) then
+             zb_cl_avl = zb_cl_avl + zf(k) ! zbaseavl = zbaseavl + zf(k)
+             zb_cl_minl = min(zf(k),zb_cl_minl)! zbaseminl = min(zf(k),zbaseminl)
+             ! if (lhetero) then
+             !   zbase_field(i,j)               = zf(k)
+             !   zbasemin_patchl(patchx,patchy) = min(zbasemin_patchl(patchx,patchy),zf(k))
+             ! endif
+             exit
+           end if
+         end do
+         ! loop for ice cloud base
+         do k=1,kmax 
+           if (sv0(i,j,k,iq_ci) > q_ci_statmin) then ! (sv0(i,j,k,iq_ci) > 0.) then
+             zb_ci_avl = zb_ci_avl + zf(k) ! zbaseavl = zbaseavl + zf(k)
+             zb_ci_minl = min(zf(k),zb_ci_minl)! zbaseminl = min(zf(k),zbaseminl)
+             ! if (lhetero) then
+             !   zbase_field(i,j)               = zf(k)
+             !   zbasemin_patchl(patchx,patchy) = min(zbasemin_patchl(patchx,patchy),zf(k))
+             ! endif
+             exit
+           end if
+         end do
+         !
+         ! cloud tops
+          do  k=1,kmax
+            if (sv0(i,j,k,iq_cl) >q_cl_statmin) then  ! (sv0(i,j,k,iq_cl) > 0) then    !if (ql0(i,j,k) > 0) then
+              ztopcl = zf(k)               ! ztop = zf(k)
+            endif                        !endif
+            ! wmaxl = max(wm(i,j,k),wmaxl) !wmaxl = max(wm(i,j,k),wmaxl)
+            ! qlmaxl = max(ql0(i,j,k),qlmaxl) !qlmaxl = max(ql0(i,j,k),qlmaxl)
+            if (sv0(i,j,k,iq_ci) > q_ci_statmin ) then ! (sv0(i,j,k,iq_ci) > 0) then   !if (ql0(i,j,k) > 0) then
+              ztopci = zf(k)               ! ztop = zf(k)
+            endif                        !endif           
+          end do
+          !if (lhetero) then
+          !do  k=1,kmax
+          !   if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
+          !   wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),wm (i,j,k))
+          !   qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
+          !enddo
+          !endif
+ 
+         zt_cl_avl = zt_cl_avl + ztopcl
+         zt_ci_avl = zt_ci_avl + ztopci
+         if (ztopcl > zt_cl_maxl) then
+           zt_cl_maxl = ztopcl
+         endif 
+         if (ztopci > zt_ci_maxl) then
+           zt_ci_maxl = ztopci
+         endif 
+         
+         ! if (lhetero) then
+         !  ztop_field = ztop
+         !  if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
+         ! endif
+       end do
+     end do
+     
+     ! and th surface precipitation 
+     ! send to other processors
+      do j=2,j1
+      do i=2,i1
+       ! calculate surface precipitation
+       sfc_precw_avl = sfc_precw_avl+1000.0*rhof(1)           &
+                       *(precep_l(i,j,1)+precep_i(i,j,1))
+       sfc_prec_avl = sfc_prec_avl                            &
+                      +rlv*rhof(1)*precep_l(i,j,1)            &
+                      +rlvi*rhof(1)*precep_i(i,j,1)
+      enddo 
+      enddo
+      
+     !call MPI_ALLREDUCE(ccl   , cc   , 1,    MY_REAL, &
+     !                      MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(clcl   , cl_c   , 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(cicl   , ci_c   , 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr) 
+      call MPI_ALLREDUCE(ctcl   , c_totc   , 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)                     
+     !call MPI_ALLREDUCE(qlintavl, qlintav, 1,    MY_REAL, &
+     !                      MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(qcl_intavl, qcl_intav, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr) 
+     call MPI_ALLREDUCE(qci_intavl, qci_intav, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr) 
+     call MPI_ALLREDUCE(qhr_intavl, qhr_intav, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr) 
+     call MPI_ALLREDUCE(qhs_intavl, qhs_intav, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr) 
+     call MPI_ALLREDUCE(qhg_intavl, qhg_intav, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)  
+                           
+     !call MPI_ALLREDUCE(qlintmaxl, qlintmax, 1,    MY_REAL, &
+     !                      MPI_MAX, comm3d,mpierr)
+     call MPI_ALLREDUCE(qcl_intmaxl, qcl_intmax, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)
+     call MPI_ALLREDUCE(qci_intmaxl, qci_intmax, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)
+     call MPI_ALLREDUCE(qhr_intmaxl, qhr_intmax, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)
+     call MPI_ALLREDUCE(qhs_intmaxl, qhs_intmax, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)  
+     call MPI_ALLREDUCE(qhg_intmaxl, qhg_intmax, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)                          
+                        
+     !call MPI_ALLREDUCE(zbaseavl, zbaseav, 1,    MY_REAL, &
+     !                      MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(zb_cl_avl, zb_cl_av, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(zb_ci_avl, zb_ci_av, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)                          
+                           
+     !call MPI_ALLREDUCE(zbaseminl, zbasemin, 1,    MY_REAL, &
+     !                      MPI_MIN, comm3d,mpierr)
+      call MPI_ALLREDUCE(zb_cl_minl, zb_cl_min, 1,    MY_REAL, &
+                           MPI_MIN, comm3d,mpierr)                         
+      call MPI_ALLREDUCE(zb_ci_minl, zb_ci_min, 1,    MY_REAL, &
+                           MPI_MIN, comm3d,mpierr)                         
+ 
+     !if (lhetero) then
+     !  cc_patch    = patchsum_1level(cc_field   )
+     !  qlint_patch = patchsum_1level(qlint_field)
+     !  zbase_patch = patchsum_1level(zbase_field)
+     !  call MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches,  MY_REAL,  MPI_MAX, comm3d,mpierr)
+     !  call MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches,  MY_REAL,  MPI_MIN, comm3d,mpierr)
+     !endif
+     !endif
+     ! call MPI_ALLREDUCE(ztopavl, ztopav, 1,    MY_REAL, &
+     !                      MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(zt_cl_avl, zt_cl_av, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(zt_ci_avl, zt_ci_av, 1,    MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)
+                           
+     ! call MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,    MY_REAL, &
+     !                      MPI_MAX, comm3d,mpierr)
+      call MPI_ALLREDUCE(zt_cl_maxl, zt_cl_max, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)
+      call MPI_ALLREDUCE(zt_ci_maxl, zt_ci_max, 1,    MY_REAL, &
+                           MPI_MAX, comm3d,mpierr)    
+      
+     ! sum precipitation  
+      call MPI_ALLREDUCE(sfc_precw_avl,sfc_precw_av, 1, MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(sfc_prec_avl, sfc_prec_av, 1,  MY_REAL, &
+                           MPI_SUM, comm3d,mpierr)               
+                           
+     endif ! imicro #sb3    
+
   !     ---------------------------------------
   !     9.3  determine maximum ql_max and w_max
   !     ---------------------------------------
@@ -598,6 +927,73 @@ contains
         enddo
       enddo
     endif
+    
+   !     -------------------------
+   !     9.4 B normalise the fields
+   !     -------------------------
+    if (imicro.eq.imicro_bulk3)then ! #sb3 START
+     !if (lhetero) then
+     !  do j=1,ypatches
+     !     do i=1,xpatches
+     !       if (cc_patch(i,j) > 0.0) then
+     !         zbase_patch(i,j) = zbase_patch(i,j)/cc_patch(i,j)
+     !         ztop_patch (i,j) = ztop_patch(i,j) /cc_patch(i,j)
+     !       else
+     !         zbase_patch(i,j) = 0.0
+     !         ztop_patch (i,j) = 0.0
+     !       endif
+     !       cc_patch    = cc_patch    * (xpatches*ypatches/ijtot)
+     !       qlint_patch = qlint_patch * (xpatches*ypatches/ijtot)
+     !    enddo
+     !  enddo
+     !  endif
+
+        if (cl_c > 0.0) then        ! if (cc > 0.0) then
+         zb_cl_av = zb_cl_av/cl_c    ! zbaseav = zbaseav/cc
+         zt_cl_av = zt_cl_av/cl_c    ! ztopav  = ztopav/cc
+       else
+         zb_cl_av = 0.0            ! zbaseav = 0.0
+         zt_cl_av = 0.0            ! ztopav = 0.0
+       end if
+       if (ci_c > 0.0) then        ! if (cc > 0.0) then
+         zb_ci_av = zb_ci_av/ci_c    ! zbaseav = zbaseav/cc
+         zt_ci_av = zt_ci_av/ci_c    ! ztopav  = ztopav/cc
+       else
+         zb_ci_av = 0.0            ! zbaseav = 0.0
+         zt_ci_av = 0.0            ! ztopav = 0.0
+       end if     
+       
+       cl_c      = cl_c/ijtot      ! cc      = cc/ijtot
+       ci_c      = ci_c/ijtot      !
+       c_totc    = c_totc/ijtot
+       !domain averaged  water path
+       qcl_intav = qcl_intav / ijtot   ! qlintav = qlintav / ijtot
+       qci_intav = qci_intav / ijtot
+       qhr_intav = qhr_intav / ijtot
+       qhs_intav = qhs_intav / ijtot
+       qhg_intav = qhg_intav / ijtot
+       
+       ! domain averaged precipitation       
+       sfc_precw_av = sfc_precw_av / ijtot
+       sfc_prec_av  = sfc_prec_av / ijtot
+ 
+       !if (lhetero) then
+       !   do j=1,ypatches
+       !   do i=1,xpatches
+       !     if (cc_patch(i,j) > 0.0) then
+       !       zbase_patch(i,j) = zbase_patch(i,j)/cc_patch(i,j)
+       !       ztop_patch (i,j) = ztop_patch(i,j) /cc_patch(i,j)
+       !     else
+       !       zbase_patch(i,j) = 0.0
+       !       ztop_patch (i,j) = 0.0
+       !     endif
+       !     cc_patch    = cc_patch    * (xpatches*ypatches/ijtot)
+       !     qlint_patch = qlint_patch * (xpatches*ypatches/ijtot)
+       !  enddo
+       !  enddo
+       !endif      
+    endif ! #sb3 END
+
 
   !     -------------------------
   !     9.5  Domain Averaged TKE
@@ -857,6 +1253,33 @@ contains
           vars(31) = rssoilav
           vars(32) = rsvegav
         end if
+        if (imicro.eq.imicro_bulk3)then ! #sb3 START
+           vars(nvar0+1)  = cl_c          ! ('cl_frac','Liquid Cloud fraction','-','time')
+           vars(nvar0+2)  = ci_c          ! ('ci_frac','Ice Cloud fraction','-','time')
+           vars(nvar0+3)  = c_totc        ! ('ctot_frac','Total Cloud fraction','-','time')
+           vars(nvar0+4)  = zb_cl_av      ! ('zb_l_av','Average Liquid Cloud-base height','m','time')
+           vars(nvar0+5)  = zb_cl_min     ! ('zb_l_min','Minimal Liquid Cloud-base height','m','time')
+           vars(nvar0+6)  = zt_cl_av      ! ('zc_l_av','Average Liquid Cloud-top height','m','time')
+           vars(nvar0+7)  = zt_cl_max     ! ('zc_l_max','Maximum Liquid Cloud-top height','m','time')
+           vars(nvar0+8)  = zb_ci_av      ! ('zb_i_av','Average Ice Cloud-base height','m','time')
+           vars(nvar0+9)  = zb_ci_min     ! ('zb_i_min','Minimal Ice Cloud-base height','m','time')
+           vars(nvar0+10) = zt_ci_av      ! ('zc_i_av','Average Ice Cloud-top height','m','time')
+           vars(nvar0+11) = zt_ci_max     ! ('zc_i_max','Maximum Ice Cloud-top height','m','time')          
+           vars(nvar0+12) = qcl_intav     ! ('clwp_bar','Cloud Liquid-water path','kg/m^2','time')
+           vars(nvar0+13) = qcl_intmax    ! ('clwp_max','Maximum Cloud Liquid-water path','kg/m^2','time')
+           vars(nvar0+14) = qhr_intav     ! ('rlwp_bar','Rain Liquid-water path','kg/m^2','time')
+           vars(nvar0+15) = qhr_intmax    ! ('rlwp_max','Maximum Rain Liquid-water path','kg/m^2','time') 
+           vars(nvar0+16) = qci_intav     ! ('icwp_bar','Cloud Ice-water path','kg/m^2','time')
+           vars(nvar0+17) = qci_intmax    ! ('icwp_max','Maximum Cloud Ice-water path','kg/m^2','time')
+           vars(nvar0+18) = qhs_intav     ! ('siwp_bar','Snow Ice-water path','kg/m^2','time')
+           vars(nvar0+19) = qhs_intmax    ! ('siwp_max','Maximum Snow Ice-water path','kg/m^2','time')            
+           vars(nvar0+20) = qhg_intav     ! ('giwp_bar','Graupel Ice-water path','kg/m^2','time')
+           vars(nvar0+21) = qhg_intmax    ! ('giwp_max','Graupel Snow Ice-water path','kg/m^2','time')
+           vars(nvar0+22) = sfc_precw_av
+           vars(nvar0+23) = sfc_prec_av
+           ! vars(nvar0+22) = 
+           ! - to add more    
+        endif ! #sb3 END
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
       end if
