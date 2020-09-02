@@ -3833,52 +3833,39 @@ end subroutine cor_deposit3
     nrex = 0.0
     x_hrf= 0.0
 
-    ! evap(2:i1,2:j1,1:k1) = 0.
-    ! Nevap(2:i1,2:j1,1:k1) = 0.
-
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      ! #sb3 adjusting variable name
       if (q_hr_mask(i,j,k)) then
-      ! old: if (qrmask(i,j,k)) then
         ! adjusting the calculation for saturation
         S (i,j,k) = min(0.,((qt0(i,j,k)-q_cl(i,j,k))/qvsl(i,j,k)- 1.0))
-        !#iceout  S (i,j,k) = min(0.,((qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))/qvsl(i,j,k)- 1.0))
-        ! old: S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
         G   (i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(rv*tmp0(i,j,k)) -1.)
         G   (i,j,k) = 1./G(i,j,k)
+
         ! terminal velocity  (from mixed scheme)
         vihr(i,j,k) = al_hr*((rho0s/rhof(k))**0.5)*x_hr(i,j,k)**be_hr  ! xr in this calculation !!
-        !or: (ala warm scheme)
-        !vihr(i,j,k) = ((rho0s/rhof(k))**0.5)*    &
-        !   max(0.,(a_tvsb-b_tvsb*exp(-1.0*c_tvsb*Dvr(i,j,k))))
+
         ! calculating  N_re Reynolds number
         nrex(i,j,k) = Dvr(i,j,k)*vihr(i,j,k)/nu_a
         x_hrf(i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
-        !  numel=nint(mur(i,j,k)*100.)
+
         f0(i,j,k) = aven_0r+bven_0r*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
         f1(i,j,k) = aven_1r+bven_1r*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
-        ! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
         f0(i,j,k) = max(0.0,f0(i,j,k))
-        ! #sb3 adjusting variable name
+
         dq_hr_ev(i,j,k) = 2*pi*n_hr(i,j,k)*G(i,j,k)*  &
              Dvr(i,j,k)*f1(i,j,k)*S(i,j,k)
-        ! o: dq_hr_ev(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
+
         dn_hr_ev(i,j,k) = 2*pi*n_hr(i,j,k)*G(i,j,k)* &
              Dvr(i,j,k)*f0(i,j,k)*S(i,j,k)/x_hrf(i,j,k) ! x_hr here, not xr
-        !and limiting it
+
+        ! and limiting it
         dn_hr_ev(i,j,k) = min(dn_hr_ev(i,j,k), 0.0)
         dn_hr_ev(i,j,k) = max(dn_hr_ev(i,j,k),dq_hr_ev(i,j,k)/x_hrf(i,j,k))
-        ! dn_hr_ev(i,j,k) = max(dn_hr_ev(i,j,k),dq_hr_ev(i,j,k)*x_hrf(i,j,k))
+
         if (((dq_hr_ev(i,j,k) +svm(i,j,k,iq_hr)/delt).lt.0).or.((dn_hr_ev(i,j,k) +svm(i,j,k,in_hr)/delt).lt.0)) then
-         ! old: if (dq_hr_ev(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
-          ! #sb3 adjusting variable name
           dn_hr_ev(i,j,k) = - svm(i,j,k,in_hr)/delt
-          ! old: dn_hr_ev(i,j,k) = - svm(i,j,k,in_hr)/delt
-          ! #sb3 adjusting variable name
-          dq_hr_ev (i,j,k) = - svm(i,j,k,iq_hr)/delt
-          ! old: dq_hr_ev (i,j,k) = - svm(i,j,k,iqr)/delt
+          dq_hr_ev(i,j,k) = - svm(i,j,k,iq_hr)/delt
         endif
       endif
     enddo
@@ -3888,15 +3875,11 @@ end subroutine cor_deposit3
     do k=1,k1
     do j=2,j1
     do i=2,i1
-     ! #sb3 adjusting variable name
      q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_ev(i,j,k)
-     ! old: qrp(i,j,k) = qrp(i,j,k) + dq_hr_ev(i,j,k)
-     ! #sb3 adjusting variable name
      n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_ev(i,j,k)
-     ! old: Nrp(i,j,k) = Nrp(i,j,k) + dn_hr_ev(i,j,k)
-     qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_hr_ev(i,j,k)
+     qtpmcr(i,j,k)  = qtpmcr(i,j,k) -dq_hr_ev(i,j,k)
      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ev(i,j,k)
-     !
+
      ! recovery of aerosols ?
      ret_cc(i,j,k) = ret_cc(i,j,k) - c_ccn_ev_r*min(0.0,dn_hr_ev(i,j,k))
     enddo
@@ -3906,9 +3889,7 @@ end subroutine cor_deposit3
     deallocate (f0, f1 ,S,G, vihr, nrex,x_hrf)
 
   end subroutine evap_rain3
-! #sb3 END
 
-!#sb3 START
 ! ****************************************
 ! Depositional growth of cloud ice particles
 !  later tunr into:
@@ -4001,31 +3982,32 @@ end subroutine cor_deposit3
       !->
       if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
         q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        !#iceout q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)
         Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k) !
-        ! Si (i,j,k) = (1.0/qvsi(i,j,k))*min(0.0,qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)) !
+
         ! calculating G_iv
-        esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k)) ! (Rv/rd)*presf(k)/(1-(1-Rv/Rd)*qvsi(i,j,k))
-        !
-        G (i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        ! G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        ! and now  **-1
-        G   (i,j,k) = 1./G(i,j,k)
+        esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+        G(i,j,k) = 1./G(i,j,k)
+
         ! diameter
         Dvic(i,j,k) = aip*xip(i,j,k)**bip
+
         ! terminal velocity
         viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
+
         ! N_re Reynolds number
         nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
+
         ! calculating from prepared ventilation coefficients
         F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
+
         !-> add there lines for the growth itself
-        ! oo: dq_dep(i,j,k) = (k_depos/rhof(k))*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
         dq_ci_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
+
         ! and limiting not to deposit more than available
-        dq_ci_dep(i,j,k) = max(dq_ci_dep(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k))) ! max(dq_ci_dep(i,j,k),-svm(i,j,k,iq_ci)/delt)
-        dq_ci_dep(i,j,k) = min(dq_ci_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt)) ! min(max(dq_ci_dep(i,j,k),-svm(i,j,k,iq_ci)/delt),max(0.0,q_avail(i,j,k)/delt))
         ! ie. allows any negative dq_ci_dep but positive only smaller than amount of available water
+        dq_ci_dep(i,j,k) = max(dq_ci_dep(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+        dq_ci_dep(i,j,k) = min(dq_ci_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
       endif
     enddo
     enddo
@@ -4056,13 +4038,13 @@ end subroutine cor_deposit3
         !           - in total amount of water
         ! n_cip(i,j,k) = n_cip(i,j,k)
         qtpmcr(i,j,k) = qtpmcr(i,j,k)- dq_ci_dep(i,j,k) !#iceout
+
         ! added heat by ice deposition
         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_ci_dep(i,j,k)
         !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rl_dif/(cp*exnf(k)))*dq_ci_dep(i,j,k)
     enddo
     enddo
     enddo
-
 
     deallocate (F,q_avail,Si,G, Dvic, viic, nrex, xip,nip, relax_x)
     deallocate(qip_mask)
@@ -4080,14 +4062,10 @@ end subroutine cor_deposit3
 ! ****************************************
 
    subroutine deposit_snow3
-   ! vapour_deposit(aic,bic,alpaic,betaic,xic,dqdep)
-
     use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
     implicit none
     real:: aip,bip, cip ,alphaip,betaip, k_depos  ! constant describing ice particles
-    ! real:: xic(2-ih:i1+ih,2-jh:j1+jh,1:k1)
-    ! real:: dqdep(2-ih:i1+ih,2-jh:j1+jh,1:k1)  ! -> later chnage to be an input variable
     real ::  esi, cor_dq_dep
     integer :: i,j,k
     real:: avent1, bvent1  ! coefficients for ventilation
@@ -4141,8 +4119,7 @@ end subroutine cor_deposit3
               ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
               ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
              )
-             !  ,dq_dep (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! increase in the ice water mass
-             ! )
+
     ! - filling
     F = 0.0
     Si = 0.0
@@ -4156,37 +4133,39 @@ end subroutine cor_deposit3
     ! nulling the array for depositional growth
     dq_hs_dep = 0.0
 
-
     ! calculate G if water available
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
         q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        !#iceout q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k) !
-        ! Si (i,j,k) = (1.0/qvsi(i,j,k))*min(0.0,qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)) !
+        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
+
         ! calculating G_iv
         esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
-        !
-        G (i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        ! G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        ! and now  **-1
-        G   (i,j,k) = 1./G(i,j,k)
+        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+        G(i,j,k) = 1./G(i,j,k)
+
         ! diameter
         Dvic(i,j,k) = aip*xip(i,j,k)**bip
+
         ! terminal velocity
         viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
+
         ! N_re Reynolds number
         nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
+
         ! calculating from prepared ventilation coefficients
         F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
+
         ! depositional growth
         dq_hs_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
+
         ! and limiting not to deposit more than available
         ! dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
-        dq_hs_dep(i,j,k) = max(dq_hs_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))! max(dq_hs_dep(i,j,k),-svm(i,j,k,iq_hs)/delt)
-        dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt)) ! min(dq_hs_dep(i,j,k),,max(0.0,q_avail(i,j,k)/delt))
+        dq_hs_dep(i,j,k) = max(dq_hs_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
+        dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
+
         ! ie. allows any negative dq_hs_dep but positive only smaller than amount
       endif
     enddo
@@ -4217,7 +4196,9 @@ end subroutine cor_deposit3
         ! no change - in ice particle number
         !           - in total amount of water
         ! n_cip(i,j,k) = n_cip(i,j,k)
+
         qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_dep(i,j,k)
+
         ! added heat by ice deposition
         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hs_dep(i,j,k)
     enddo
@@ -4241,14 +4222,10 @@ end subroutine cor_deposit3
 ! ****************************************
 
    subroutine deposit_graupel3
-   ! vapour_deposit(aic,bic,alpaic,betaic,xic,dqdep)
-
     use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
     implicit none
     real:: aip,bip, cip ,alphaip,betaip, k_depos  ! constant describing ice particles
-    ! real:: xic(2-ih:i1+ih,2-jh:j1+jh,1:k1)
-    ! real:: dqdep(2-ih:i1+ih,2-jh:j1+jh,1:k1)  ! -> later chnage to be an input variable
     real ::  esi, cor_dq_dep
     integer :: i,j,k
     real:: avent1, bvent1  ! coefficients for ventilation
@@ -4299,8 +4276,7 @@ end subroutine cor_deposit3
               ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
               ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
              )
-             !  ,dq_hg_dep (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! increase in the ice water mass
-             ! )
+
     ! - filling
     F = 0.0
     Si = 0.0
@@ -4314,39 +4290,39 @@ end subroutine cor_deposit3
     ! nulling the array for depositional growth
     dq_hg_dep = 0.0
 
-
     ! calculate G if water available
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
         q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        !#iceout q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k) !
-        ! Si (i,j,k) = (1.0/qvsi(i,j,k))*min(0.0,qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k)- qvsi(i,j,k)) !
+        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
+
         ! calculating G_iv
         esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
-        !
-        G (i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        ! G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        ! and now  **-1
-        G   (i,j,k) = 1./G(i,j,k)
+        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+        G(i,j,k) = 1./G(i,j,k)
+
         ! diameter
         Dvic(i,j,k) = aip*xip(i,j,k)**bip
+
         ! terminal velocity
         viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
+
         ! N_re Reynolds number
         nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
+
         ! calculating from prepared ventilation coefficients
         F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
-        !d-> add there lines for the growth itself
+
+        ! add there lines for the growth itself
         dq_hg_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
+
         ! and limiting not to deposit more than available
-        ! dq_hg_dep(i,j,k) = min(dq_hg_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
-        dq_hg_dep(i,j,k) = max(dq_hg_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k))) ! max(dq_hg_dep(i,j,k),-svm(i,j,k,iq_hg)/delt)
         ! ie. allows to remove only water as much graupel as is available
-        dq_hg_dep(i,j,k) = min(dq_hg_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
         ! ie. allows any negative dq_hg_dep but positive only smaller than amount
+        dq_hg_dep(i,j,k) = max(dq_hg_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k)))
+        dq_hg_dep(i,j,k) = min(dq_hg_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
       endif
     enddo
     enddo
@@ -4383,10 +4359,8 @@ end subroutine cor_deposit3
     enddo
     enddo
 
-
     deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip, nip, relax_x)
     deallocate(qip_mask)
-
    end subroutine deposit_graupel3
 
 
@@ -4438,23 +4412,25 @@ end subroutine cor_deposit3
        if (q_cl_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
         dn_cl_het(i,j,k) = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_het(i,j,k)
         dq_cl_het(i,j,k) = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_het(i,j,k)
+
         ! basic correction
-        dn_cl_het(i,j,k) = max(dn_cl_het(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k))) ! min(dn_cl_het(i,j,k),svm(i,j,k,in_cl))
-        dq_cl_het(i,j,k) = max(dq_cl_het(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k))) ! min(dq_cl_het(i,j,k),svm(i,j,k,iq_cl))
+        dn_cl_het(i,j,k) = max(dn_cl_het(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
+        dq_cl_het(i,j,k) = max(dq_cl_het(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+
         ! changes in cloud water
         n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_het(i,j,k)
         q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_het(i,j,k)
+
         ! increase in cloud ice
         n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_het(i,j,k)
         q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_het(i,j,k)
+
         ! and consumption of aerosols for heterogeneous freezing  ?
         ! n_ccp(i,j,k) = n_ccp(i,j,k) + dn_cl_het(i,j,k)
+
         ! and the change in conditions
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)+dq_cl_het(i,j,k) !#iceout
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) -                   &
-           ((rlv+rlme)/(cp*exnf(k)))*dq_cl_het(i,j,k)
-        !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k) - &
-        !#iceout    (rlme/(cp*exnf(k)))*dq_cl_het(i,j,k)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)+dq_cl_het(i,j,k)
+        thlpmcr(i,j,k) = thlpmcr(i,j,k) - ((rlv+rlme)/(cp*exnf(k)))*dq_cl_het(i,j,k)
        endif
     enddo
     enddo
@@ -4491,7 +4467,7 @@ end subroutine cor_deposit3
     dq_hr_het = 0.0
 
     ! putting together masks
-    qfr_mask(2:i1,2:j1,1:k1) = q_hr_mask(2:i1,2:j1,1:k1) ! q_hr_mask(2:i1,2:j1,1:k1).or.q_cl_mask(2:i1,2:j1,1:k1)
+    qfr_mask(2:i1,2:j1,1:k1) = q_hr_mask(2:i1,2:j1,1:k1)
 
     ! performing calculation for the freezing rate
     do j=2,j1
@@ -4499,7 +4475,8 @@ end subroutine cor_deposit3
     do k=1,k1
       ! calculating for all cells with the value
       if (qfr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-          J_het(i,j,k) = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)  ! maybe only for temperatures below T_3 ?
+          ! maybe only for temperatures below T_3 ?
+          J_het(i,j,k) = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)
       endif
     enddo
     enddo
@@ -4510,26 +4487,30 @@ end subroutine cor_deposit3
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       if (q_hr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
+      if (q_hr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
         dn_hr_het(i,j,k) = -c_mmt_1hr *n_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
         dq_hr_het(i,j,k) = -c_mmt_2hr *q_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
         ! basic correction
-        dn_hr_het(i,j,k) = max(dn_hr_het(i,j,k),min(0.0,-svm(i,j,k,in_hr)/delt-n_hrp(i,j,k))) ! min(dn_hr_het(i,j,k),svm(i,j,k,in_hr))
-        dq_hr_het(i,j,k) = max(dq_hr_het(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k))) ! min(dq_hr_het(i,j,k),svm(i,j,k,iq_hr))
+        dn_hr_het(i,j,k) = max(dn_hr_het(i,j,k),min(0.0,-svm(i,j,k,in_hr)/delt-n_hrp(i,j,k)))
+        dq_hr_het(i,j,k) = max(dq_hr_het(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))
+
         ! decrease in raindrops
         n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_het(i,j,k)
         q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_het(i,j,k)
+
         ! increase in graupel
         n_hgp(i,j,k) = n_hgp(i,j,k) - dn_hr_het(i,j,k)
         q_hgp(i,j,k) = q_hgp(i,j,k) - dq_hr_het(i,j,k)
+
         ! and consumption of aerosols for heterogeneous freezing  ?
         ! n_ccp(i,j,k) = n_ccp(i,j,k) - dn_hr_het(i,j,k)
+
         ! no changes in the total amount of water
         ! qtpmcr(i,j,k) = qtpmcr(i,j,k)
+
         ! change in th_l due to freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) -                 &
-            (rlme/(cp*exnf(k)))*dq_hr_het(i,j,k)
-       endif
+        thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlme/(cp*exnf(k)))*dq_hr_het(i,j,k)
+      endif
     enddo
     enddo
     enddo
@@ -4565,10 +4546,7 @@ end subroutine cor_deposit3
      allocate( J_hom      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! freezing rate
               ,tmpj       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! adjusted temperature
              )
-             ! ,dn_cl_hom  (2-ih:i1+ih,2-jh:j1+jh,k1)  & !
-             ! ,dq_cl_hom  (2-ih:i1+ih,2-jh:j1+jh,k1)  & !
-             !  ,dq_dep (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! increase in the ice water mass
-             ! )
+
     ! - filling with 0
     J_hom     = 0.0
     dn_cl_hom = 0.0
@@ -4576,55 +4554,56 @@ end subroutine cor_deposit3
     tmpj     = 0.0
 
     ! inserting temperature values
-    tmpj(2:i1,2:j1,1:k1) = tmp0(2:i1,2:j1,1:k1)
     !  -- can be later adjusted to include the effect of chemicals in clouds
+    tmpj(2:i1,2:j1,1:k1) = tmp0(2:i1,2:j1,1:k1)
 
     ! performing calculation for the freezing rate
     do k=1,k1
     do j=2,j1
     do i=2,i1
-     ! calculating for all cells with the value
-     if (q_cl_mask(i,j,k)) then
-       if (tmpj(i,j,k)>tmp_lim1_Cf02) then
-           J_hom(i,j,k) = exp(C_Cf02+B_Cf02*(tmpj(i,j,k)+CC_Cf02))
-       else
-         if(tmpj(i,j,k)<tmp_lim2_Cf02) then
-           J_hom(i,j,k) = expC_30
-         else
-           J_hom(i,j,k) = exp(C_20_Cf02                 &
-              + B_21_Cf02*(tmpj(i,j,k)-offset_Cf02)     &
-              + B_22_Cf02*(tmpj(i,j,k)-offset_Cf02)**2  &
-              + B_23_Cf02*(tmpj(i,j,k)-offset_Cf02)**3  &
-              + B_24_Cf02*(tmpj(i,j,k)-offset_Cf02)**4 )
-         endif  ! quick freezing
-       endif   ! slow freezing
-     endif  ! cl_mask
+      ! calculating for all cells with the value
+      if (q_cl_mask(i,j,k)) then
+        if (tmpj(i,j,k)>tmp_lim1_Cf02) then
+            J_hom(i,j,k) = exp(C_Cf02+B_Cf02*(tmpj(i,j,k)+CC_Cf02))
+        else
+          if(tmpj(i,j,k)<tmp_lim2_Cf02) then
+            J_hom(i,j,k) = expC_30
+          else
+            J_hom(i,j,k) = exp(C_20_Cf02                 &
+               + B_21_Cf02*(tmpj(i,j,k)-offset_Cf02)     &
+               + B_22_Cf02*(tmpj(i,j,k)-offset_Cf02)**2  &
+               + B_23_Cf02*(tmpj(i,j,k)-offset_Cf02)**3  &
+               + B_24_Cf02*(tmpj(i,j,k)-offset_Cf02)**4 )
+          endif ! quick freezing
+        endif ! slow freezing
+      endif ! cl_mask
     enddo
     enddo
     enddo
-
 
     ! homogeneous freezing of cloud droplets
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       if (q_cl_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
+      if (q_cl_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
         dn_cl_hom(i,j,k) = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_hom(i,j,k)
         dq_cl_hom(i,j,k) = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_hom(i,j,k)
-        dn_cl_hom(i,j,k) = max(dn_cl_hom(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k))) ! min(dn_cl_hom(i,j,k),svm(i,j,k,in_cl))
-        dq_cl_hom(i,j,k) = max(dq_cl_hom(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k))) ! min(dq_cl_hom(i,j,k),svm(i,j,k,iq_cl))
+        dn_cl_hom(i,j,k) = max(dn_cl_hom(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
+        dq_cl_hom(i,j,k) = max(dq_cl_hom(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+
         ! changes in cloud water
         n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_hom(i,j,k)
         q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_hom(i,j,k)
+
         ! increase in cloud ice
         n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_hom(i,j,k)
         q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_hom(i,j,k)
+
         ! changes in the total amount of water
         qtpmcr(i,j,k) = qtpmcr(i,j,k)+ dq_cl_hom(i,j,k)  !#iceout
+
         ! change in th_l due to freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)              &
-             -((rlv+rlme)/(cp*exnf(k)))*dq_cl_hom(i,j,k)
-        !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)-(rlme/(cp*exnf(k)))*dq_cl_hom(i,j,k)
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*dq_cl_hom(i,j,k)
       endif
     enddo
     enddo
@@ -4655,16 +4634,15 @@ end subroutine cor_deposit3
                ,th_0a, th_0aa                        & ! th_0ab, th_0b
                ,th_1a, th_1aa ! th_1ab, th_1b
     real    :: dif_D_10, ntest, qtest,rem_cf,x_crit_ii, x_minagg_ii
-    real, allocatable, dimension(:,:,:) :: D_b, v_b ! D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick &
-             , dn_col_a, dq_col_a
+    real, allocatable, dimension(:,:,:) :: D_b, v_b
+    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_a, dq_col_a
     logical ,allocatable :: qcol_mask(:,:,:)
 
     ! start of the code
 
     ! allocate fields and fill
-     allocate( D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &  ! ,D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &  ! ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
+     allocate( D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
+              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
              )
 
       allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
@@ -4676,8 +4654,8 @@ end subroutine cor_deposit3
 
       qcol_mask = .false.
 
-      D_b      = 0.0 ! D_b      = 0.0
-      v_b      = 0.0 !  v_b      = 0.0
+      D_b      = 0.0
+      v_b      = 0.0
       E_ab     = 0.0
       E_stick  = 0.0
       dn_col_a = 0.0
@@ -4691,11 +4669,7 @@ end subroutine cor_deposit3
       al_b      = al_ci
       be_b      = be_ci
       ga_b      = ga_ci
-      ! a_b       = a_ci
-      ! b_b       = b_ci
-      ! al_b      = al_ci
-      ! be_b      = be_ci
-      E_coli = E_ee_m   !  E_coli    = E_ii_m ! collision efficienty
+      E_coli    = E_ee_m   !  E_coli    = E_ii_m ! collision efficienty
       dlt_0a    = dlt_i0
       dlt_0aa   = 2*dlt_i0 + dlt_i0i
       ! dlt_0b    = dlt_0a
@@ -4706,7 +4680,7 @@ end subroutine cor_deposit3
       th_0aa    = 2*th_i0 - th_i0i   ! from Seifert, 2002
       ! th_0b     = th_0a
       th_1a     = th_i1
-      th_1aa    = th_i0 - th_i1i + th_i1 ! th_i0i - th_i1i + th_i1 ! th_1ab    = th_i1i
+      th_1aa    = th_i0 - th_i1i + th_i1
       ! th_1b     = th_1a
 
       ! calculate constants
@@ -4715,24 +4689,26 @@ end subroutine cor_deposit3
       ! adjusting coefficient
       ! prepare coefficient for remaining water number
       rem_cf      =  (1.0-rem_n_ci_min)/delt
+
       ! and the minimal conversion size
       x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
+
       ! and the critical size for the start of conversion
       x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
 
-    ! setting up mask
+     ! setting up mask
      do k=1,k1
      do j=2,j1
      do i=2,i1
-      if(q_ci_mask(i,j,k).and.(x_ci(i,j,k).gt.x_crit_ii).and.(q_ci(i,j,k).gt.q_crit_ii)) then
-        qcol_mask(i,j,k) = .true.
-      endif
+       if(q_ci_mask(i,j,k).and.(x_ci(i,j,k).gt.x_crit_ii).and.(q_ci(i,j,k).gt.q_crit_ii)) then
+         qcol_mask(i,j,k) = .true.
+       endif
      enddo
      enddo
      enddo
-    ! initial values
+     ! initial values
 
-    ! setting up diameters and velocities
+     ! setting up diameters and velocities
      D_b (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
 
@@ -4742,10 +4718,10 @@ end subroutine cor_deposit3
      do k=1,k1
      do j=2,j1
      do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-        E_stick(i,j,k) =min(c_E_o_s,E_stick(i,j,k))
-      endif
+       if ( qcol_mask(i,j,k)) then ! 1
+         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+         E_stick(i,j,k) = min(c_E_o_s,E_stick(i,j,k))
+       endif
      enddo
      enddo
      enddo
@@ -4753,21 +4729,20 @@ end subroutine cor_deposit3
      do k=1,k1
      do j=2,j1
      do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
-        E_stick(i,j,k) = min(E_ii_maxst,E_stick(i,j,k))
-      endif
+       if ( qcol_mask(i,j,k)) then ! 1
+         E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
+         E_stick(i,j,k) = min(E_ii_maxst,E_stick(i,j,k))
+       endif
      enddo
      enddo
      enddo
     endif ! l_sb_stickyice
 
-
     ! collision efficiency
     if (l_sb_lim_aggr) then
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
         if ( qcol_mask(i,j,k)) then
           ! checking whether sufficient size
           if( D_b(i,j,k).gt.D_i_a ) then
@@ -4778,47 +4753,35 @@ end subroutine cor_deposit3
             endif
           endif
         endif
-     enddo
-     enddo
-     enddo
+      enddo
+      enddo
+      enddo
     else ! l_sb_lim_aggr
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
         if ( qcol_mask(i,j,k)) then
           E_ab(i,j,k) = E_coli*E_stick(i,j,k)
         endif
-     enddo
-     enddo
-     enddo
+      enddo
+      enddo
+      enddo
     endif ! l_sb_lim_aggr
 
 
-
     ! -- inner part -------------------
-
-    !t calculating
-    !t replace later:
-    !t write(6,*) 'starting aggregation of ice to snow in  '
-    !t write(6,*) ' in q_ci mask', count(q_ci_mask(2-ih:i1+ih,2-jh:j1+jh,k1)),' , qcol_mask ', count(qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if(qcol_mask(i,j,k)) then
-       !
         dn_col_a(i,j,k) = -rhof(k)*(pi/4)*E_ab(i,j,k)            &
                    *n_ci(i,j,k)**2 *dlt_0aa*D_b(i,j,k)**2        &
                    *(th_0aa *v_b(i,j,k)**2+2*sigma_b**2)**0.5
-        !
+
         dq_col_a(i,j,k) = - rhof(k)*(pi/4)*E_ab(i,j,k)           &
              * dlt_1aa*n_ci(i,j,k)*q_ci(i,j,k)*D_b(i,j,k)**2     &
              * ( th_1aa*v_b(i,j,k)**2+2*sigma_b**2)**0.5
-        !
-        !t write(6,*) '  update at (i,j,k) ', i, j, k
-        !t write(6,*) '  dn/dt_ice = ',dn_col_a(i,j,k), ' dq/dt_ice = ',dq_col_a(i,j,k),'  E_stick = ',E_stick(i,j,k)
-        !t write(6,*) '  update dq_s/sdt = ',q_hsp(i,j,k)  ,' new update dq_s/sdt =', q_hsp(i,j,k) - dq_col_a (i,j,k)
-        !
       endif
     enddo
     enddo
@@ -4834,22 +4797,19 @@ end subroutine cor_deposit3
     do i=2,i1
       if (qcol_mask(i,j,k)) then
         ! limiting dq_ci  --   limit x_cv_ii as per ICON 2017
-        dq_ci_col_iis(i,j,k) = max(dq_ci_col_iis(i,j,k), (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k))) !  max(dq_ci_col_iis(i,j,k), -rem_cf*svm(i,j,k,iq_ci))
-        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))) ! ,dq_ci_col_iis(i,j,k)/x_cv_ii ), -rem_cf*svm(i,j,k,in_ci))
+        dq_ci_col_iis(i,j,k) = max(dq_ci_col_iis(i,j,k), (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
         dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), dq_ci_col_iis(i,j,k)/x_minagg_ii )
+
         ! changes in cloud water
         n_cip(i,j,k)    = n_cip(i,j,k) + dn_ci_col_iis(i,j,k)
+
         ! change in q_ci
         q_cip(i,j,k)    = q_cip(i,j,k) + dq_ci_col_iis(i,j,k)
-        ! q_cip(i,j,k) = q_cip(i,j,k)
+
         ! aggregation to snow
         n_hsp (i,j,k)   = n_hsp(i,j,k) - 0.5 * dn_ci_col_iis (i,j,k)   ! as prescibed
         q_hsp (i,j,k)   = q_hsp(i,j,k) - dq_ci_col_iis (i,j,k)
-        !
-        ! changes in the total amount of water - removed to snow
-        !#iceout qtpmcr(i,j,k)   = qtpmcr(i,j,k) + dq_ci_col_iis (i,j,k)
-        ! change in th_l - removal of water in the form of snow
-        !#iceout thlpmcr(i,j,k)  = thlpmcr(i,j,k)-(rlv/(cp*exnf(k)))*dq_ci_col_iis (i,j,k)
       endif
     enddo
     enddo
@@ -4858,20 +4818,19 @@ end subroutine cor_deposit3
 
     ! #hh checking the sizes
     if (l_sb_dbg) then
-     if(any(( svm(2:i1,2:j1,1:k1,iq_ci)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: ice_aggr3 too high'
-      write(6,*) ' removing more ice than available in ', count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
+      if(any(( svm(2:i1,2:j1,1:k1,iq_ci)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice than available in ', count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
+      endif
 
-     if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: ice_aggr3 too high'
-      write(6,*) ' removing more ice particles then available in  ',count((svm(2:i1,2:j1,1:k1,in_ci) +delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too much ice particles in ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
+      if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice particles then available in  ',count((svm(2:i1,2:j1,1:k1,in_ci) +delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) ' removing too much ice particles in ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
+      endif
     endif
-
 
     ! cleanup
     deallocate (D_b, v_b, E_ab, E_stick, dn_col_a, dq_col_a)
@@ -4891,22 +4850,21 @@ end subroutine cor_deposit3
     implicit none
     integer :: i,j,k
     real    :: sigma_a, sigma_b ,E_coli              &
-               ,a_a, b_a, al_a, be_a, ga_a           & ! ,a_b, b_b, al_b, be_b                 &
-               ,dlt_0a, dlt_0aa                      & ! dlt_0ab, dlt_0b
-               ,dlt_1a, dlt_1aa                      & ! dlt_1ab, dlt_1b
-               ,th_0a, th_0aa                        & ! th_0ab, th_0b
+               ,a_a, b_a, al_a, be_a, ga_a           &
+               ,dlt_0a, dlt_0aa                      &
+               ,dlt_1a, dlt_1aa                      &
+               ,th_0a, th_0aa                        &
                ,th_1a, th_1aa  ! th_1ab, th_1b
     real    :: rem_cf ! c_s_rem
-    real, allocatable, dimension(:,:,:) :: D_a, v_a ! D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick &
-             , dn_col_a, dq_col_a, relax_x_hs
+    real, allocatable, dimension(:,:,:) :: D_a, v_a
+    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs
     logical ,allocatable :: qcol_mask(:,:,:)
 
     ! start of the code
 
     ! allocate fields and fill
-     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &  ! ,D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &  ! ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
+     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
+              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
              )
 
       allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
@@ -4917,16 +4875,15 @@ end subroutine cor_deposit3
              )
       allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
 
-      D_a      = 0.0 ! D_b      = 0.0
-      v_a      = 0.0 !  v_b      = 0.0
+      D_a      = 0.0
+      v_a      = 0.0
       E_ab     = 0.0
       E_stick  = 0.0
       dn_col_a = 0.0
       dq_col_a = 0.0
       relax_x_hs = 1.0
 
-
-    ! set constants
+      ! set constants
       sigma_a   = sigma_hs
       ! sigma_b   = sigma_ci
       a_a       = a_hs
@@ -4952,48 +4909,46 @@ end subroutine cor_deposit3
       th_1aa    = th_s0 - th_s1s + th_s1 ! th_1ab    = th_i1i
       ! th_1b     = th_1a
 
-     ! setting constant for the test of the ratio of
+      ! setting constant for the test of the ratio of
       ! prepare coefficient for remaining water number
       rem_cf = (1.0-rem_n_hs_min)/delt
-     !    remaining snow number after the self-collection
-     ! c_s_rem = 1.0-rem_n_hs_min
 
+      ! remaining snow number after the self-collection
+      ! c_s_rem = 1.0-rem_n_hs_min
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) = q_hs_mask(2:i1,2:j1,1:k1)
+      ! setting up mask
+      qcol_mask(2:i1,2:j1,1:k1) = q_hs_mask(2:i1,2:j1,1:k1)
 
-    ! setting up diameters and velocities
-     D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
-     v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
+      ! setting up diameters and velocities
+      D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
+      v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
 
-
-
-        ! calculating sticking efficiency
-    if (l_sb_stickyice) then
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-        E_stick(i,j,k) = min(c_E_o_s,E_stick(i,j,k))
-        E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
-      endif
-     enddo
-     enddo
-     enddo
-    else ! l_sb_stickyice
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
-        E_stick(i,j,k) = min(E_ss_maxst,E_stick(i,j,k))
-        E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
-      endif
-     enddo
-     enddo
-     enddo
-    endif ! l_sb_stickyice
+      ! calculating sticking efficiency
+      if (l_sb_stickyice) then
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
+          if ( qcol_mask(i,j,k)) then ! 1
+            E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+            E_stick(i,j,k) = min(c_E_o_s,E_stick(i,j,k))
+            E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
+          endif
+        enddo
+        enddo
+        enddo
+      else ! l_sb_stickyice
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
+          if ( qcol_mask(i,j,k)) then ! 1
+            E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
+            E_stick(i,j,k) = min(E_ss_maxst,E_stick(i,j,k))
+            E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
+          endif
+        enddo
+        enddo
+        enddo
+      endif ! l_sb_stickyice
 
 
     ! -- inner part -------------------
@@ -5002,11 +4957,9 @@ end subroutine cor_deposit3
     do j=2,j1
     do i=2,i1
       if ( qcol_mask(i,j,k)) then
-        !
         dn_col_a(i,j,k) = -rhof(k)*(pi/4)*E_ab(i,j,k)            &
                    *n_hs(i,j,k)**2 *dlt_0aa*D_a(i,j,k)**2        &
                    *(th_0aa *v_a(i,j,k)**2+2*sigma_a**2)**0.5
-        !
       endif
     enddo
     enddo
@@ -5014,15 +4967,15 @@ end subroutine cor_deposit3
 
     ! -- outputs
     dn_hs_col_sss(2:i1,2:j1,1:k1) = dn_col_a(2:i1,2:j1,1:k1)
-    !r write(6,*) " dn_col_a=, dn_hs_col_sss=, svm(i,j,k,in_hs)/delt+n_hsp(i,j,k) "
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if(q_hs_mask(i,j,k)) then
-       dn_hs_col_sss (i,j,k) = max(min(0.0,dn_hs_col_sss(i,j,k)),-rem_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)) ! max(dn_hs_col_sss(i,j,k),-rem_cf*svm(i,j,k,in_cl))
+       dn_hs_col_sss (i,j,k) = max(min(0.0,dn_hs_col_sss(i,j,k)),-rem_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k))
+
        ! self-collection of snow
-       !r write(6,*) dn_col_a(i,j,k), dn_hs_col_sss(i,j,k),svm(i,j,k,in_hs)/delt+n_hsp(i,j,k)
        n_hsp (i,j,k)   = n_hsp(i,j,k) + dn_hs_col_sss (i,j,k) ! adjusted
+
        ! q_hsp - no change
       endif
     enddo
@@ -5030,18 +4983,18 @@ end subroutine cor_deposit3
     enddo
 
 
-     if (l_sb_dbg) then
+    if (l_sb_dbg) then
       ! #hh checking the sizes
       if(any(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-       write(6,*) 'WARNING: snow self-collection too high '
-       write(6,*) ' decreasing number of snowflakes below 0 in ', count(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
-       write(6,*) ' decreasing number of snowflakes too much in ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) 'WARNING: snow self-collection too high '
+        write(6,*) ' decreasing number of snowflakes below 0 in ', count(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) ' decreasing number of snowflakes too much in ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
       endif
-     endif
+    endif
 
-     ! cleanup
-     deallocate (D_a, v_a, E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs)
-     deallocate (qcol_mask)
+    ! cleanup
+    deallocate (D_a, v_a, E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs)
+    deallocate (qcol_mask)
 
     end subroutine snow_self3
 
@@ -5120,9 +5073,8 @@ end subroutine cor_deposit3
 
       rem_cf      =  (1.0-rem_n_ci_min)/delt
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_hs_mask(2:i1,2:j1,1:k1).and.q_ci_mask(2:i1,2:j1,1:k1)
+     ! setting up mask
+     qcol_mask(2:i1,2:j1,1:k1) = q_hs_mask(2:i1,2:j1,1:k1).and.q_ci_mask(2:i1,2:j1,1:k1)
 
      ! setting up diameters and velocities
      D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
@@ -5130,18 +5082,18 @@ end subroutine cor_deposit3
      D_b (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
 
-    ! calculating sticking efficiency
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-        E_stick(i,j,k) =min(c_E_o_s,E_stick(i,j,k))
-        E_ab(i,j,k) = E_coli*E_stick(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
+     ! calculating sticking efficiency
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
+       if ( qcol_mask(i,j,k)) then
+         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+         E_stick(i,j,k) =min(c_E_o_s,E_stick(i,j,k))
+         E_ab(i,j,k) = E_coli*E_stick(i,j,k)
+       endif
+     enddo
+     enddo
+     enddo
 
 
 
@@ -5152,18 +5104,16 @@ end subroutine cor_deposit3
     do j=2,j1
     do i=2,i1
       if ( qcol_mask(i,j,k)) then
-       !
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)    &
-            *q_ci(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)   &
-            *n_ci(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+        dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)    &
+             *q_ci(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+               +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
+             *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
+               +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+        dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)   &
+             *n_ci(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+               +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
+             *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
+               +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
       endif
     enddo
     enddo
@@ -5179,42 +5129,38 @@ end subroutine cor_deposit3
     do i=2,i1
       if(qcol_mask(i,j,k)) then
         dq_hsci_col(i,j,k) = min(dq_hsci_col(i,j,k),max(0.0,svm(i,j,k,iq_ci)/delt+q_cip(i,j,k)))   ! following ICON, 2017
-        ! dq_hsci_col(i,j,k) = min(dq_hsci_col(i,j,k),svm(i,j,k,iq_ci)/delt)
-        dn_ci_col_hs(i,j,k) = max(dn_ci_col_hs(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k))) ! min(dn_ci_col_hs(i,j,k),-svm(i,j,k,in_ci)/delt)
+        dn_ci_col_hs(i,j,k) = max(dn_ci_col_hs(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
+
         ! change in the amount of snow
-         q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hsci_col (i,j,k)
+        q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hsci_col (i,j,k)
+
         ! change in the amount of cloudice
-         n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_col_hs (i,j,k)
-         q_cip (i,j,k) = q_cip(i,j,k) - dq_hsci_col (i,j,k)
-        !
-        ! changes in the total amount of water - removed to snow
-        !#noice qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hsci_col (i,j,k)
-        ! change in th_l - removal of water in the form of snow
-        !#noice thlpmcr(i,j,k)=thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*dq_hsci_col (i,j,k)
+        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_col_hs (i,j,k)
+        q_cip (i,j,k) = q_cip(i,j,k) - dq_hsci_col (i,j,k)
       endif
     enddo
     enddo
     enddo
 
-     ! #hh checking the sizes
-     if (l_sb_dbg) then
-       if(any(( svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+    ! #hh checking the sizes
+    if (l_sb_dbg) then
+      if(any(( svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
         write(6,*) 'WARNING: coll_sis3 too high removing more ice than available'
         write(6,*) ' removing more ice than available ', count(( svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
       endif
 
-     if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_sis3 too high'
-      write(6,*) ' removing more ice particles then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_hs(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too many ice particles in gridpoints ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_hs(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
+      if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+        write(6,*) 'WARNING: coll_sis3 too high'
+        write(6,*) ' removing more ice particles then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_hs(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        write(6,*) ' removing too many ice particles in gridpoints ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_hs(2:i1,2:j1,1:k1) ).lt. 0.0 )
+      endif
     endif
 
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
-     deallocate (qcol_mask)
+    ! deallocating
+    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
+    deallocate (qcol_mask)
 
    end subroutine coll_sis3
 
@@ -5237,7 +5183,7 @@ end subroutine cor_deposit3
                ,th_0a, th_0ab, th_0b                 &
                ,th_1ab, th_1b
     real    :: ntest, qtest, rem_cf
-    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
+    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b
     real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_b, dq_col_a
     logical ,allocatable :: qcol_mask(:,:,:)
 
@@ -5293,9 +5239,8 @@ end subroutine cor_deposit3
 
       rem_cf      =  (1.0-rem_n_hs_min)/delt
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_hg_mask(2:i1,2:j1,1:k1).and.q_hs_mask(2:i1,2:j1,1:k1)
+     ! setting up mask
+     qcol_mask(2:i1,2:j1,1:k1) = q_hg_mask(2:i1,2:j1,1:k1).and.q_hs_mask(2:i1,2:j1,1:k1)
 
      ! setting up diameters and velocities
      D_a (2:i1,2:j1,1:k1) = D_hg (2:i1,2:j1,1:k1)
@@ -5303,43 +5248,42 @@ end subroutine cor_deposit3
      D_b (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
 
-    ! calculating sticking efficiency
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then ! 1
-        E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-        E_stick(i,j,k) =min(c_E_o_s,E_stick(i,j,k))
-        E_ab(i,j,k) = E_coli*E_stick(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
+     ! calculating sticking efficiency
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
+       if ( qcol_mask(i,j,k)) then
+         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+         E_stick(i,j,k) =min(c_E_o_s,E_stick(i,j,k))
+         E_ab(i,j,k) = E_coli*E_stick(i,j,k)
+       endif
+     enddo
+     enddo
+     enddo
 
 
-    ! -- inner part -------------------
+     ! -- inner part -------------------
 
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       !
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_hg(i,j,k)    &
-            *q_hs(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hg(i,j,k)   &
-            *n_hs(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
+     ! calculating
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
+       if ( qcol_mask(i,j,k)) then
+         dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_hg(i,j,k)    &
+              *q_hs(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+                +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
+              *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
+                +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+
+         dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hg(i,j,k)   &
+              *n_hs(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+                +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
+              *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
+                +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+       endif
+     enddo
+     enddo
+     enddo
 
     ! -- outputs -----------------------
 
@@ -5351,43 +5295,38 @@ end subroutine cor_deposit3
     do i=2,i1
       if(qcol_mask(i,j,k)) then
         dq_hghs_col(i,j,k) = min(dq_hghs_col(i,j,k),max(0.0,svm(i,j,k,iq_hs)/delt+q_hsp(i,j,k)))   ! following ICON, 2017
-        ! dq_hghs_col(i,j,k) = min(dq_hghs_col(i,j,k),svm(i,j,k,iq_hs)/delt)
-        dn_hs_col_hg(i,j,k) = max(dn_hs_col_hg(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k))) ! min(dn_hs_col_hg(i,j,k),-svm(i,j,k,in_hs)/delt)
+        dn_hs_col_hg(i,j,k) = max(dn_hs_col_hg(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
+
         ! change in the amount of snow
-         q_hgp (i,j,k) = q_hgp(i,j,k) + dq_hghs_col (i,j,k)
+        q_hgp (i,j,k) = q_hgp(i,j,k) + dq_hghs_col (i,j,k)
+
         ! change in the amount of cloudice
-         n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_col_hg (i,j,k)
-         q_hsp (i,j,k) = q_hsp(i,j,k) - dq_hghs_col (i,j,k)
-        !
-        ! changes in the total amount of water - removed to snow
-        !#noice qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hghs_col (i,j,k)
-        ! change in th_l - removal of water in the form of snow
-        !#noice thlpmcr(i,j,k)=thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*dq_hghs_col (i,j,k)
+        n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_col_hg (i,j,k)
+        q_hsp (i,j,k) = q_hsp(i,j,k) - dq_hghs_col (i,j,k)
       endif
     enddo
     enddo
     enddo
 
-     ! #hh checking the sizes
-     if (l_sb_dbg) then
-       if(any(( svm(2:i1,2:j1,1:k1,iq_hs)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+    ! #hh checking the sizes
+    if (l_sb_dbg) then
+      if(any(( svm(2:i1,2:j1,1:k1,iq_hs)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
         write(6,*) 'WARNING: coll_gsg3 too high removing more ice than available'
         write(6,*) ' removing more ice than available ', count(( svm(2:i1,2:j1,1:k1,iq_hs)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' removing too much ice in ', count(( q_hs(2:i1,2:j1,1:k1)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*q_hsp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-        !
-      endif
+       endif
 
-     if(any(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_gsg3 too high'
-      write(6,*) ' removing more ice particles then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too many ice particles in gridpoints ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
+       if(any(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+         write(6,*) 'WARNING: coll_gsg3 too high'
+         write(6,*) ' removing more ice particles then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
+         write(6,*) ' removing too many ice particles in gridpoints ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
+       endif
     endif
 
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
-     deallocate (qcol_mask)
+    ! deallocating
+    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
+    deallocate (qcol_mask)
 
    end subroutine coll_gsg3
 
@@ -5416,7 +5355,7 @@ end subroutine cor_deposit3
                ,th_0a, th_0ab, th_0b                 &
                ,th_1ab, th_1b
     real    :: dif_D_10, ntest, qtest, rem_cf, k_enhm
-    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
+    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b
     real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_b, dq_col_a
     logical ,allocatable :: qcol_mask(:,:,:)
 
@@ -5478,139 +5417,137 @@ end subroutine cor_deposit3
       ! remain coefficient
       rem_cf = (1.0-rem_n_cl_min)/delt
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_ci_mask(2:i1,2:j1,1:k1).and.q_cl_mask(2:i1,2:j1,1:k1)
+      ! setting up mask
+      qcol_mask(2:i1,2:j1,1:k1) = q_ci_mask(2:i1,2:j1,1:k1).and.q_cl_mask(2:i1,2:j1,1:k1)
 
-    ! setting up diameters and velocities
-     D_a (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
-     v_a (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
-     D_b (2:i1,2:j1,1:k1) = D_cl (2:i1,2:j1,1:k1)
-     v_b (2:i1,2:j1,1:k1) = v_cl (2:i1,2:j1,1:k1)
+      ! setting up diameters and velocities
+      D_a (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
+      v_a (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
+      D_b (2:i1,2:j1,1:k1) = D_cl (2:i1,2:j1,1:k1)
+      v_b (2:i1,2:j1,1:k1) = v_cl (2:i1,2:j1,1:k1)
 
-    ! -- inner part -------------------
+      ! -- inner part -------------------
 
-    ! collision efficiency
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        if ( qcol_mask(i,j,k)) then
-          ! checking whether sufficient size
-          if( (D_b(i,j,k).gt.D_c_a).and.(D_a(i,j,k).gt.D_i0)) then
-            if( D_b(i,j,k).gt.D_c_b ) then
-              E_ab(i,j,k) = E_coli
-            else
-              E_ab(i,j,k) = (E_coli /dif_D_10)* (D_b(i,j,k)- D_c_a)
+      ! collision efficiency
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+          if ( qcol_mask(i,j,k)) then
+            ! checking whether sufficient size
+            if( (D_b(i,j,k).gt.D_c_a).and.(D_a(i,j,k).gt.D_i0)) then
+              if( D_b(i,j,k).gt.D_c_b ) then
+                E_ab(i,j,k) = E_coli
+              else
+                E_ab(i,j,k) = (E_coli /dif_D_10)* (D_b(i,j,k)- D_c_a)
+              endif
             endif
           endif
+      enddo
+      enddo
+      enddo
+
+      ! calculating
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if (qcol_mask(i,j,k)) then
+          dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)    &
+               *q_cl(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+                 +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
+               *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
+                 +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+
+          dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)   &
+               *n_cl(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
+                 +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
+               *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
+                 +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
         endif
-    enddo
-    enddo
-    enddo
+      enddo
+      enddo
+      enddo
 
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       !
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)    &
-            *q_cl(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)   &
-            *n_cl(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+      ! -- outputs -----------------------
+
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if(qcol_mask(i,j,k)) then
+          if(tmp0(i,j,k).lt.T_3) then
+            ! riming
+            dq_ci_rime(i,j,k) = min(dq_col_a(i,j,k),max(0.0,svm(i,j,k,iq_cl)/delt+q_clp(i,j,k)))   ! following ICON, 2017
+            dn_cl_rime_ci(i,j,k) =max(dn_col_b(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
+
+            ! change in the amount of cloud ice
+            q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_rime (i,j,k)
+
+            ! change in the amount of cloud water
+            n_clp (i,j,k) = n_clp(i,j,k) + dn_cl_rime_ci (i,j,k)
+            q_clp (i,j,k) = q_clp(i,j,k) - dq_ci_rime (i,j,k)
+
+            qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_ci_rime(i,j,k) !#iceout
+
+            ! change in th_l - both freezing and a removal of water
+            thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_ci_rime (i,j,k)
+          else
+            ! not riming, but scheding and enhanced melting
+
+            ! calculating the melting
+            dq_ci_eme_ic(i,j,k) = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a(i,j,k),q_cl(i,j,k)/delt)
+            dq_ci_eme_ic(i,j,k) = max(dq_ci_eme_ic(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+
+            ! calculating number of melted particles
+            ! - expected to be proportional to melted mass
+            dn_ci_eme_ic(i,j,k) = dq_ci_eme_ic(i,j,k)*n_ci(i,j,k)/(q_ci(i,j,k)+eps0)
+
+            ! - but not more than number of interacting particles
+            dn_ci_eme_ic(i,j,k) = max(dn_ci_eme_ic(i,j,k), max(dn_col_b(i,j,k),-n_cl(i,j,k)/delt))
+
+            ! - and not more than total number of particles
+            dn_ci_eme_ic(i,j,k) = max(dn_ci_eme_ic(i,j,k),-svm(i,j,k,in_ci)/delt-n_cip(i,j,k))
+
+            ! updating tendencies
+
+            ! updating rain
+            ! not expected - melted is turning into cloud droplets
+
+            ! cloud ice
+            q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_eme_ic (i,j,k)
+            n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_eme_ic (i,j,k)
+
+            ! updating cloud water
+            q_clp (i,j,k) = q_clp(i,j,k) - dq_ci_eme_ic (i,j,k)
+
+            ! updating thermodynamic
+            ! qtp : increased by melted water
+            qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_ci_eme_ic(i,j,k)
+
+            ! thlp : melting and adding liquid water
+            thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_ci_eme_ic(i,j,k)
+          endif
+        endif
+      enddo
+      enddo
+      enddo
+
+      ! #hh checking the sizes
+      if (l_sb_dbg) then
+        if(any(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_col_a(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+          write(6,*) 'WARNING: coll_ici3 too high'
+          write(6,*) ' removing more cloud water then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
+          write(6,*) ' removing too much water in gridpoints ', count(( q_cl(2:i1,2:j1,1:k1)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
+          write(6,*) ' getting negative q_t in gridpoints ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        endif
+        if(any(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
+          write(6,*) 'WARNING: coll_ici3 too high'
+          write(6,*) ' removing more droplets then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_cl_rime_ci(2:i1,2:j1,1:k1) ).lt. 0.0 )
+          write(6,*) ' removing too many droplets in gridpoints ', count(( n_cl(2:i1,2:j1,1:k1)+delt*dn_cl_rime_ci(2:i1,2:j1,1:k1) ).lt. 0.0 )
+        endif
       endif
-    enddo
-    enddo
-    enddo
 
-    ! -- outputs -----------------------
-    !dq_ci_rime (2:i1,2:j1,1:k1) = dq_col_a(2:i1,2:j1,1:k1)
-    !dn_cl_rime_ci(2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if(qcol_mask(i,j,k)) then
-      if(tmp0(i,j,k).lt.T_3) then
-       ! riming
-        dq_ci_rime(i,j,k) = min(dq_col_a(i,j,k),max(0.0,svm(i,j,k,iq_cl)/delt+q_clp(i,j,k)))   ! following ICON, 2017
-        ! = min(dq_ci_rime(i,j,k),svm(i,j,k,iq_cl)/delt)
-        dn_cl_rime_ci(i,j,k) =max(dn_col_b(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k)))  ! min(dn_cl_rime_ci(i,j,k),-svm(i,j,k,in_cl)/delt)
-        ! record the change
-        !o dq_ci_rime (i,j,k) = dq_col_a (i,j,k)
-        ! change in the amount of cloud ice
-         q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_rime (i,j,k)
-        ! change in the amount of cloud water
-         n_clp (i,j,k) = n_clp(i,j,k) + dn_cl_rime_ci (i,j,k)
-         q_clp (i,j,k) = q_clp(i,j,k) - dq_ci_rime (i,j,k)
-        !
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a (i,j,k)
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_ci_rime(i,j,k) !#iceout
-        !#iceout  ! change in th_l - just heat release from freezing
-        ! change in th_l - both freezing and a removal of water
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+  &
-            (rlvi/(cp*exnf(k)))*dq_ci_rime (i,j,k)
-        !#noice thlpmcr(i,j,k) = thlpmcr(i,j,k)+  &
-        !#noice    (rlme/(cp*exnf(k)))*dq_ci_rime (i,j,k)
-      else
-       !not riming,but scheding and enhanced melting
-       ! calculating the melting
-        dq_ci_eme_ic(i,j,k) = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a(i,j,k),q_cl(i,j,k)/delt)
-        dq_ci_eme_ic(i,j,k) = max(dq_ci_eme_ic(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
-       ! calculating number of melted particles
-        ! - expected to be proportional to melted mass
-        dn_ci_eme_ic(i,j,k) = dq_ci_eme_ic(i,j,k)*n_ci(i,j,k)/(q_ci(i,j,k)+eps0)
-        ! - but not more than number of interacting particles
-        dn_ci_eme_ic(i,j,k) = max(dn_ci_eme_ic(i,j,k), max(dn_col_b(i,j,k),-n_cl(i,j,k)/delt))
-        ! - and not more than total number of particles
-        dn_ci_eme_ic(i,j,k) = max(dn_ci_eme_ic(i,j,k),-svm(i,j,k,in_ci)/delt-n_cip(i,j,k))
-       ! updating tendencies
-       ! updating rain
-        ! not expected - melted is turning into cloud droplets
-        ! cloud ice
-        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_eme_ic (i,j,k)
-        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_eme_ic (i,j,k)
-        ! updating cloud water
-        q_clp (i,j,k) = q_clp(i,j,k) - dq_ci_eme_ic (i,j,k)
-         ! n_clp (i,j,k) = n_clp(i,j,k) + dn_cl_rime_ci (i,j,k)
-       ! updating thermodynamic
-        ! qtp : increased by melted water
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_ci_eme_ic(i,j,k)
-        ! thlp : melting and adding liquid water
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_ci_eme_ic(i,j,k)
-      endif
-     endif
-    enddo
-    enddo
-    enddo
-
-    ! #hh checking the sizes
-    if (l_sb_dbg) then
-     if(any(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_col_a(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_ici3 too high'
-      write(6,*) ' removing more cloud water then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too much water in gridpoints ', count(( q_cl(2:i1,2:j1,1:k1)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' getting negative q_t in gridpoints ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-
-     if(any(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_ici3 too high'
-      write(6,*) ' removing more droplets then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_cl_rime_ci(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too many droplets in gridpoints ', count(( n_cl(2:i1,2:j1,1:k1)+delt*dn_cl_rime_ci(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-    endif
-
-
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
-     deallocate (qcol_mask)
+      ! deallocating
+      deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
+      deallocate (qcol_mask)
 
    end subroutine coll_ici3
 
@@ -9213,10 +9150,5 @@ end subroutine cor_deposit3
    esl_at_te = max(0.0,esl_try)
 
   end function esl_at_te
-  ! #sb3 END
-
-
 
 end module modbulkmicro3
-
-
