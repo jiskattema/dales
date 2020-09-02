@@ -4,7 +4,7 @@
 !>
 !! Calculates bulk microphysics using a two moment scheme of S&B, 2006
 !! further sources:
-!! \see   Seifert and Beheng (Atm. Res., 2001)
+!! \see  Seifert and Beheng (Atm. Res., 2001)
 !! \see  Seifert and Beheng (Met Atm Phys, 2006)
 !! \see  Stevens and Seifert (J. Meteorol. Soc. Japan, 2008)  (rain sedim, mur param)
 !! \see  Seifert (J. Atm Sc., 2008) (rain evap)
@@ -35,9 +35,7 @@
 
 
 module modbulkmicro3
-
-!
-!
+!*********************************************************************
 !
 !   Amount of liquid water is splitted into cloud water and precipitable
 !   water (as such it is a two moment scheme). Cloud droplet number conc. is
@@ -152,8 +150,8 @@ module modbulkmicro3
      call MPI_BCAST(l_sb_dumpall,      1, MPI_LOGICAL ,0,comm3d,ierr)
      call MPI_BCAST(l_sb_all_or,       1, MPI_LOGICAL ,0,comm3d,ierr)
      call MPI_BCAST(l_sb_dbg,          1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_clouds_init,       1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_ccn_init,          1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_clouds_init,     1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_ccn_init,        1, MPI_LOGICAL ,0,comm3d,ierr)
      call MPI_BCAST(l_corr_neg_qt,     1, MPI_LOGICAL ,0,comm3d,ierr)
      !
      call MPI_BCAST(l_sb_lim_aggr,     1, MPI_LOGICAL ,0,comm3d,ierr)
@@ -162,39 +160,35 @@ module modbulkmicro3
      !
      call MPI_BCAST(l_c_ccn,           1, MPI_LOGICAL ,0,comm3d,ierr)
      call MPI_BCAST(l_sb_sat_max,      1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_nuc_sat    ,  1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_nuc_expl   ,  1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_nuc_diff   ,  1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_inuc_sat   ,  1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_inuc_expl  ,  1, MPI_LOGICAL ,0,comm3d,ierr)
-     call MPI_BCAST(l_sb_reisner    ,  1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_nuc_sat,      1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_nuc_expl,     1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_nuc_diff,     1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_inuc_sat,     1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_inuc_expl,    1, MPI_LOGICAL ,0,comm3d,ierr)
+     call MPI_BCAST(l_sb_reisner,      1, MPI_LOGICAL ,0,comm3d,ierr)
      !
-     call MPI_BCAST(l_sb_reisner,    1, MPI_LOGICAL ,0,comm3d,ierr)     
+     call MPI_BCAST(l_sb_reisner,      1, MPI_LOGICAL ,0,comm3d,ierr)     
      !
-     call MPI_BCAST(N_inuc_R ,            1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(c_inuc_R ,            1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(a1_inuc_R ,           1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(a2_inuc_R ,           1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(N_inuc_R ,         1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(c_inuc_R ,         1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(a1_inuc_R ,        1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(a2_inuc_R ,        1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(n_i_max ,          1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(N_inuc ,            1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(N_inuc ,           1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST( tmp_inuc,         1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(x_inuc ,           1, MY_REAL     ,0,comm3d,ierr)  
      call MPI_BCAST(c_ccn,             1, MY_REAL     ,0,comm3d,ierr) 
      call MPI_BCAST(n_clmax,           1, MY_REAL     ,0,comm3d,ierr) 
      call MPI_BCAST(kappa_ccn ,        1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(sat_max ,           1, MY_REAL     ,0,comm3d,ierr)
-     call MPI_BCAST(x_cnuc ,          1, MY_REAL     ,0,comm3d,ierr)  
+     call MPI_BCAST(sat_max ,          1, MY_REAL     ,0,comm3d,ierr)
+     call MPI_BCAST(x_cnuc ,           1, MY_REAL     ,0,comm3d,ierr)  
      !
      call MPI_BCAST(Nc0,               1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(xc0_min,           1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(Nccn0,             1, MY_REAL     ,0,comm3d,ierr)
-    ! #sb3 END
     
     
-
     
-    ! #sb3 - removing variables that no logner needed    
-
     allocate( qltot    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,nuc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -214,25 +208,7 @@ module modbulkmicro3
              ,Nr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,wfall_qr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1)) 
-             ! ,Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  & #sb3 removed
-             !,sc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             !,br       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             !,evap     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             !,Nevap    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             !,au       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ! ,ac       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              
-      !old :
-      !    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-      !       ,Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-      !       ,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-      !       ,qrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-      !       ...
-      !       ...  
-             
-     ! #sb3 END
-             
-    !#sb3
     allocate( n_cc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! N_{ccn} number content [ kg^{-1}] of cloud condensation nuclei
              ,n_ccp     (2-ih:i1+ih,2-jh:j1+jh,k1)  & 
              ,n_cl      (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! N_{c,l}  number content [ kg^{-1}] for liquid cloud droplets,
@@ -261,33 +237,21 @@ module modbulkmicro3
              ,x_hg       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean graupel size
              ,x_hr       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean raindrop size
             )            
-    !#sb3 END 
              
-    ! #sb3 START 
-    !o allocate( precep    (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate( precep_l    (2-ih:i1+ih,2-jh:j1+jh,k1)   &
              ,precep_i    (2-ih:i1+ih,2-jh:j1+jh,k1)   &
             )
-    ! #sb3 END
-    ! #sb3
     allocate( qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    ! old: allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-    ! old:        ,qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1))
-    ! #sb3 START - mask allocation
     allocate( q_ci_mask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &             
              ,q_cl_mask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,q_hr_mask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,q_hs_mask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,q_hg_mask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
             )    
-    ! #sb3 END
 
-!
   gamma25=lacz_gamma(2.5)
   gamma3=2.
   gamma35=lacz_gamma(3.5)
-  
-  ! #sb3 START
   
   ! adding calculation of the constant part for moment 
   c_mmt_1cl = calc_cons_mmt (1, mu_cl_cst, nu_cl_cst)
@@ -458,19 +422,19 @@ module modbulkmicro3
     
   ! #sb3 START write settings
    if (myid .eq. 0) then
-    write (6,*) ' === Settings of Mphys ===='
-    write (6,*) 'imicro = ', imicro
-!     write (6,*) 'l_sb = ', l_sb
-!     write (6,*) 'l_sb_classic = ', l_sb_classic
-!     write (6,*) 'l_sb_all_or = ', l_sb_all_or
-!     write (6,*) 'l_sb_dumpall = ', l_sb_dumpall
-!     write (6,*) 'l_sb_lim_aggr = ',  l_sb_lim_aggr
-!     write (6,*) 'l_sedc = ', l_sedc
-!     write (6,*) 'l_rain = ', l_rain
-!     write (6,*) 'l_mur_cst  = ', l_mur_cst
-    
-    write (6,*)   ' --------------------------------------------------- '
-    write (6,*)   '  ' 
+     write (6,*) ' === Settings of Mphys ===='
+     write (6,*) 'imicro = ', imicro
+     write (6,*) 'l_sb = ', l_sb
+     write (6,*) 'l_sb_classic = ', l_sb_classic
+     write (6,*) 'l_sb_all_or = ', l_sb_all_or
+     write (6,*) 'l_sb_dumpall = ', l_sb_dumpall
+     write (6,*) 'l_sb_lim_aggr = ',  l_sb_lim_aggr
+     write (6,*) 'l_sedc = ', l_sedc
+     write (6,*) 'l_rain = ', l_rain
+     write (6,*) 'l_mur_cst  = ', l_mur_cst
+     
+     write (6,*)   ' --------------------------------------------------- '
+     write (6,*)   '  ' 
      write (6,*)   ' some calculated Mphys integrals' 
      write (6,*)   '    2*dlt_s0 + dlt_s0s = ',        2*dlt_s0 + dlt_s0s
      write (6,*)   '    2*dlt_i0 + dlt_i0i = ',        2*dlt_i0 + dlt_i0i
@@ -522,9 +486,8 @@ module modbulkmicro3
      write (6,*)   '  th_1aa    = th_i0 - th_i1i + th_i1 = ', th_i0 - th_i1i + th_i1  ! th_i0i - th_i1i + th_i1 ! th_1ab    = th_i1i
       write (6,*)   ' --------------------------------------------------- '  
       ! th_1b     = th_1a    
-    
+     
    endif
-  ! #sb3 END
   end subroutine initbulkmicro3
 
 !> Cleaning up after the run
@@ -537,35 +500,23 @@ module modbulkmicro3
 
     deallocate(sedc,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr      &
                ,phi,tau,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
-    ! deallocate(au,ac,sc,br,evap,Nevap)
-               
-    !#sb3 deallocation
     deallocate(qltot,nuc,thlpmcr,qtpmcr)
-    !old:  deallocate(Nr,Nrp,qltot,qr,qrp,Nc,nuc,thlpmcr,qtpmcr)
     deallocate(n_cc,n_ccp                                     &
       ,n_cl,n_clp,n_ci,n_cip,n_hr,n_hrp,n_hs,n_hsp,n_hg,n_hgp &
       ,q_cl,q_clp,q_ci,q_cip,q_hr,q_hrp,q_hs,q_hsp,q_hg,q_hgp &
       ,x_cl, x_ci, x_hr, x_hs, x_hg                           &
       )
     deallocate(qcmask,q_ci_mask,q_cl_mask, q_hr_mask, q_hs_mask, q_hg_mask )
-    !#sb3 END   
-    
-    ! #sb3 START
     deallocate(precep_l, precep_i)
-    ! o:  deallocate(precep)
-    !#sb3 END 
-    
 
   end subroutine exitbulkmicro3
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro3
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp, ih, jh
-    !#sb3 -adding used of qvsl, qvsi, qt0
+
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,qvsl,qvsi,qt0, thl0
     use modbulkmicrostat3, only : bulkmicrotend3,bulkmicrostat3 ! #sb3 #t7
-    !#sb3 -calling adjusted statistical routines
-    ! use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
@@ -581,9 +532,8 @@ module modbulkmicro3
     allocate( xtest(2-ih:i1+ih,2-jh:j1+jh,k1))  ! #d 
     xtest = 0.0
     
-    !#sb3 START - allocating extra processes 
-    allocate( dn_cl_nu    (2-ih:i1+ih,2-jh:j1+jh,k1)  &  !< droplet nucleation rate  
-             ,dn_ci_inu       (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< ice nucleation rate
+    allocate( dn_cl_nu      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< droplet nucleation rate  
+             ,dn_ci_inu     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< ice nucleation rate
              ,dn_cl_au      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< change in number of cloud droplets due to autoconversion
              ,dq_hr_au      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< change in mass of raindrops due to autoconversion
              ,dn_hr_au      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< change in number of raindrops due to autoconversion
@@ -662,23 +612,23 @@ module modbulkmicro3
              ,dq_hg_eme_gc  (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< mass tendency enhanced melting of graupel            
              ,dn_hg_eme_gr  (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< number tendency enhanced melting of graupel by rain
              ,dq_hg_eme_gr  (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< mass tendency enhanced melting of graupel by rain
-             ,dn_cl_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< sedimentation for clouds water - number
-             ,dq_cl_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<      -||-- mixing ration
-             ,dn_ci_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< sedimentation for cloud ice - number
-             ,dq_ci_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<       -||-- mixing ration
-             ,dn_hr_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< sedimentation for rain - number
-             ,dq_hr_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<       -||-- mixing ration 
-             ,dn_hs_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< sedimentation for snow - number
-             ,dq_hs_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<       -||-- mixing ration    
-             ,dn_hg_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< sedimentation for graupel - number
-             ,dq_hg_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<       -||-- mixing ration    
-             ,precep_hr     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< precipitation of raindrops
-             ,precep_ci     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< precipitation of ice crystals
-             ,precep_hs     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< precipitation of snow
-             ,precep_hg     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< precipitation of graupel
-             ,dq_cl_sa      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< saturation adjustment
-             ,dn_cl_sa      (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< change in n_cl due to saturation adjustment
-             ,ret_cc        (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< recovery of ccn
+             ,dn_cl_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< sedimentation for clouds water - number
+             ,dq_cl_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !<       -||-- mixing ration
+             ,dn_ci_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< sedimentation for cloud ice - number
+             ,dq_ci_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !<       -||-- mixing ration
+             ,dn_hr_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< sedimentation for rain - number
+             ,dq_hr_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !<       -||-- mixing ration 
+             ,dn_hs_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< sedimentation for snow - number
+             ,dq_hs_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !<       -||-- mixing ration    
+             ,dn_hg_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< sedimentation for graupel - number
+             ,dq_hg_se      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !<       -||-- mixing ration    
+             ,precep_hr     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of raindrops
+             ,precep_ci     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of ice crystals
+             ,precep_hs     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of snow
+             ,precep_hg     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of graupel
+             ,dq_cl_sa      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< saturation adjustment
+             ,dn_cl_sa      (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< change in n_cl due to saturation adjustment
+             ,ret_cc        (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< recovery of ccn
             )
             
     allocate( D_cl          (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! \bar{D}_cl mean diameter for cloud water particle  
@@ -692,20 +642,8 @@ module modbulkmicro3
              ,v_hs          (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! \bar{v}_hs mean velocity for snow particle
              ,v_hg          (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! \bar{v}_hg mean velocity for graupel particle 
              )
-            ! ,n_clm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! N_{c,l}  number content [ kg^{-1}] kg^{-1}] for liquid cloud droplets, 
-            ! ,n_cim         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! N_{c,i}  number content [ kg^{-1}] kg^{-1}] for ice cloud droplets,
-            ! ,n_hrm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! N_{h,r} number content [ kg^{-1}] kg^{-1}] for rain
-            ! ,n_hsm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! N_{h,s} number content [ kg^{-1}] kg^{-1}] for snow
-            ! ,n_hgm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! N_{h,g} number content [ kg^{-1}] kg^{-1}] for graupel
-            ! ,q_clm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! q_{c,l}  water content [kg  kg^{-1}] for liquid cloud droplets,
-            ! ,q_cim         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! q_{c,i}  water content [kg  kg^{-1}] for ice cloud droplets,
-            ! ,q_hrm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! q_{h,r} water content [kg  kg^{-1}] for rain
-            ! ,q_hsm         (2-ih:i1+ih,2-jh:j1+jh,k1) &   ! q_{h,s} water content [kg  kg^{-1}] for snow
-            ! ,q_hgm                                        ! q_{h,g} water content [kg  kg^{-1}] for graupel
-            ! )            
-     !#sb3 END  
      
-    !#sb3 START- check if cloud were already initialised
+    ! check if cloud were already initialised
     if (.not. l_ccn_init) then
       call initccn3       ! initialise clouds
       l_ccn_init = .true.  
@@ -719,64 +657,36 @@ module modbulkmicro3
       if (myid.eq.0) then
         write(6,*) ' modbulkmicro3: clouds initialised by initcloud3'
       endif
-    endif !#sb3 END
+    endif
 
     ! loading cloud water number and cloud water densities
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      !write (6,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)  
-      !#sb3
-      ! reading values from scalar fields
-            ! aerosols:
-            n_cc  (i,j,k) = sv0(i,j,k,in_cc) 
-            ! possibly add other later
-            !
-            ! reading number densities:
-            n_cl  (i,j,k) = sv0(i,j,k,in_cl)     
-            n_ci  (i,j,k) = sv0(i,j,k,in_ci)  
-            n_hr  (i,j,k) = sv0(i,j,k,in_hr) 
-            n_hs  (i,j,k) = sv0(i,j,k,in_hs)  
-            n_hg  (i,j,k) = sv0(i,j,k,in_hg)
-            !
-            ! reading mass densities  
-            q_cl  (i,j,k) = sv0(i,j,k,iq_cl)
-            q_ci  (i,j,k) = sv0(i,j,k,iq_ci)  
-            q_hr  (i,j,k) = sv0(i,j,k,iq_hr)     
-            q_hs  (i,j,k) = sv0(i,j,k,iq_hs)    
-            q_hg  (i,j,k) = sv0(i,j,k,iq_hg)  
-            !
-            ! and in the previous step 
-            ! n_clm (i,j,k) = svm(i,j,k,in_cl)  
-            ! n_cim (i,j,k) = svm(i,j,k,in_ci)
-            ! n_hrm (i,j,k) = svm(i,j,k,in_hr) 
-            ! n_hsm (i,j,k) = svm(i,j,k,in_hs) 
-            ! n_hgm (i,j,k) = svm(i,j,k,in_hg) 
-            ! q_clm (i,j,k) = svm(i,j,k,iq_cl)   
-            ! q_cim (i,j,k) = svm(i,j,k,iq_ci)    
-            ! q_hrm (i,j,k) = svm(i,j,k,iq_hr)   
-            ! q_hsm (i,j,k) = svm(i,j,k,iq_hs)   
-            ! q_hgm (i,j,k) = svm(i,j,k,iq_hg)   
-            
-      !old: Nr  (i,j,k) = sv0(i,j,k,inr)
-      !old:  qr  (i,j,k) = sv0(i,j,k,iqr)   
-      !#sb3 END      
+      ! aerosols:
+      n_cc  (i,j,k) = sv0(i,j,k,in_cc) 
+
+      ! reading number densities:
+      n_cl  (i,j,k) = sv0(i,j,k,in_cl)     
+      n_ci  (i,j,k) = sv0(i,j,k,in_ci)  
+      n_hr  (i,j,k) = sv0(i,j,k,in_hr) 
+      n_hs  (i,j,k) = sv0(i,j,k,in_hs)  
+      n_hg  (i,j,k) = sv0(i,j,k,in_hg)
+      !
+      ! reading mass densities  
+      q_cl  (i,j,k) = sv0(i,j,k,iq_cl)
+      q_ci  (i,j,k) = sv0(i,j,k,iq_ci)  
+      q_hr  (i,j,k) = sv0(i,j,k,iq_hr)     
+      q_hs  (i,j,k) = sv0(i,j,k,iq_hs)    
+      q_hg  (i,j,k) = sv0(i,j,k,iq_hg)  
     enddo
     enddo
     enddo
-    !#sb3 START
+
     ! allocating fields for processes
-    
-    
-    !#sb3 END   
-    
-    !#sb3 - removing old variables
-    ! old: Nrp    = 0.0
-    ! old: qrp    = 0.0
     thlpmcr = 0.0
     qtpmcr  = 0.0
-    ! old: Nc     = 0.0
-    ! #sb3 
+
     ! 0 to values of the update
     n_ccp  = 0.0
     n_clp  = 0.0
@@ -806,121 +716,117 @@ module modbulkmicro3
     v_hr   = 0.0
     v_hs   = 0.0
     v_hg   = 0.0  
-    !
-    ! #sb3 END
-    
-    ! #sb3 
+
     ! 0 to values of the update
-      dn_cl_nu      = 0.0  
-      dn_ci_inu     = 0.0
-      dn_cl_au      = 0.0
-      dq_hr_au      = 0.0
-      dn_hr_au      = 0.0
-      dq_hr_ac      = 0.0
-      dn_cl_ac      = 0.0
-      dn_hr_br      = 0.0
-      dn_hr_sc      = 0.0
-      dq_hr_ev      = 0.0
-      dn_hr_ev      = 0.0
-      dq_ci_dep     = 0.0
-      dq_hs_dep     = 0.0
-      dq_hg_dep     = 0.0
-      dq_ci_rime    = 0.0
-      dn_cl_rime_ci = 0.0 
-      dq_hs_rime    = 0.0
-      dn_cl_rime_hs = 0.0   
-      dq_hg_rime    = 0.0
-      dn_cl_rime_hg = 0.0 
-      dq_hshr_rime  = 0.0
-      dn_hr_rime_hs = 0.0 
-      dq_hr_col_rs  = 0.0
-      dq_hs_col_rs  = 0.0 
-      dn_hr_col_rs  = 0.0 
-      dn_hs_col_rs  = 0.0      
-      dq_hr_col_ri  = 0.0 
-      dq_ci_col_ri  = 0.0 
-      dn_ci_col_ri  = 0.0 
-      dn_hr_col_ri  = 0.0  
-      dq_hghr_rime  = 0.0
-      dn_hr_rime_hg = 0.0   
-      dq_cl_het     = 0.0
-      dn_cl_het     = 0.0
-      dq_hr_het     = 0.0
-      dn_hr_het     = 0.0
-      dq_cl_hom     = 0.0
-      dn_cl_hom     = 0.0
-      dq_ci_col_iis = 0.0
-      dn_ci_col_iis = 0.0   
-      dn_hs_col_sss = 0.0   
-      dq_hsci_col   = 0.0
-      dn_ci_col_hs  = 0.0 
-      dq_hghs_col   = 0.0 
-      dn_hs_col_hg  = 0.0  
-      dq_ci_cv      = 0.0
-      dn_ci_cv      = 0.0
-      dq_hs_cv      = 0.0 
-      dn_hs_cv      = 0.0
-      dn_cl_sc      = 0.0
-      dn_ci_mul     = 0.0
-      dq_ci_mul     = 0.0
-      dn_ci_me      = 0.0  
-      dq_ci_me      = 0.0 
-      dn_hs_me      = 0.0 
-      dq_hs_me      = 0.0 
-      dn_hg_me      = 0.0 
-      dq_hg_me      = 0.0   
-      dn_ci_ev      = 0.0 
-      dq_ci_ev      = 0.0     
-      dn_hs_ev      = 0.0 
-      dq_hs_ev      = 0.0  
-      dn_hg_ev      = 0.0  
-      dq_hg_ev      = 0.0  
-      dn_ci_eme_ic  = 0.0  
-      dq_ci_eme_ic  = 0.0  
-      dn_ci_eme_ri  = 0.0   
-      dq_ci_eme_ri  = 0.0   
-      dn_hs_eme_sc  = 0.0 
-      dq_hs_eme_sc  = 0.0   
-      dn_hs_eme_rs  = 0.0  
-      dq_hs_eme_rs  = 0.0  
-      dn_hg_eme_gc  = 0.0 
-      dq_hg_eme_gc  = 0.0            
-      dn_hg_eme_gr  = 0.0 
-      dq_hg_eme_gr  = 0.0       
-      dn_cl_se      = 0.0
-      dq_cl_se      = 0.0 
-      dn_ci_se      = 0.0 
-      dq_ci_se      = 0.0 
-      dn_hr_se      = 0.0
-      dq_hr_se      = 0.0
-      dn_hs_se      = 0.0 
-      dq_hs_se      = 0.0    
-      dn_hg_se      = 0.0  
-      dq_hg_se      = 0.0  
-      precep_hr     = 0.0 
-      precep_ci     = 0.0       
-      precep_hs     = 0.0  
-      precep_hg     = 0.0   
-      dq_cl_sa      = 0.0 
-      dn_cl_sa      = 0.0
-      ret_cc        = 0.0 
-      ! 
-      precep_l      = 0.0
-      precep_i      = 0.0
+    dn_cl_nu      = 0.0  
+    dn_ci_inu     = 0.0
+    dn_cl_au      = 0.0
+    dq_hr_au      = 0.0
+    dn_hr_au      = 0.0
+    dq_hr_ac      = 0.0
+    dn_cl_ac      = 0.0
+    dn_hr_br      = 0.0
+    dn_hr_sc      = 0.0
+    dq_hr_ev      = 0.0
+    dn_hr_ev      = 0.0
+    dq_ci_dep     = 0.0
+    dq_hs_dep     = 0.0
+    dq_hg_dep     = 0.0
+    dq_ci_rime    = 0.0
+    dn_cl_rime_ci = 0.0 
+    dq_hs_rime    = 0.0
+    dn_cl_rime_hs = 0.0   
+    dq_hg_rime    = 0.0
+    dn_cl_rime_hg = 0.0 
+    dq_hshr_rime  = 0.0
+    dn_hr_rime_hs = 0.0 
+    dq_hr_col_rs  = 0.0
+    dq_hs_col_rs  = 0.0 
+    dn_hr_col_rs  = 0.0 
+    dn_hs_col_rs  = 0.0      
+    dq_hr_col_ri  = 0.0 
+    dq_ci_col_ri  = 0.0 
+    dn_ci_col_ri  = 0.0 
+    dn_hr_col_ri  = 0.0  
+    dq_hghr_rime  = 0.0
+    dn_hr_rime_hg = 0.0   
+    dq_cl_het     = 0.0
+    dn_cl_het     = 0.0
+    dq_hr_het     = 0.0
+    dn_hr_het     = 0.0
+    dq_cl_hom     = 0.0
+    dn_cl_hom     = 0.0
+    dq_ci_col_iis = 0.0
+    dn_ci_col_iis = 0.0   
+    dn_hs_col_sss = 0.0   
+    dq_hsci_col   = 0.0
+    dn_ci_col_hs  = 0.0 
+    dq_hghs_col   = 0.0 
+    dn_hs_col_hg  = 0.0  
+    dq_ci_cv      = 0.0
+    dn_ci_cv      = 0.0
+    dq_hs_cv      = 0.0 
+    dn_hs_cv      = 0.0
+    dn_cl_sc      = 0.0
+    dn_ci_mul     = 0.0
+    dq_ci_mul     = 0.0
+    dn_ci_me      = 0.0  
+    dq_ci_me      = 0.0 
+    dn_hs_me      = 0.0 
+    dq_hs_me      = 0.0 
+    dn_hg_me      = 0.0 
+    dq_hg_me      = 0.0   
+    dn_ci_ev      = 0.0 
+    dq_ci_ev      = 0.0     
+    dn_hs_ev      = 0.0 
+    dq_hs_ev      = 0.0  
+    dn_hg_ev      = 0.0  
+    dq_hg_ev      = 0.0  
+    dn_ci_eme_ic  = 0.0  
+    dq_ci_eme_ic  = 0.0  
+    dn_ci_eme_ri  = 0.0   
+    dq_ci_eme_ri  = 0.0   
+    dn_hs_eme_sc  = 0.0 
+    dq_hs_eme_sc  = 0.0   
+    dn_hs_eme_rs  = 0.0  
+    dq_hs_eme_rs  = 0.0  
+    dn_hg_eme_gc  = 0.0 
+    dq_hg_eme_gc  = 0.0            
+    dn_hg_eme_gr  = 0.0 
+    dq_hg_eme_gr  = 0.0       
+    dn_cl_se      = 0.0
+    dq_cl_se      = 0.0 
+    dn_ci_se      = 0.0 
+    dq_ci_se      = 0.0 
+    dn_hr_se      = 0.0
+    dq_hr_se      = 0.0
+    dn_hs_se      = 0.0 
+    dq_hs_se      = 0.0    
+    dn_hg_se      = 0.0  
+    dq_hg_se      = 0.0  
+    precep_hr     = 0.0 
+    precep_ci     = 0.0       
+    precep_hs     = 0.0  
+    precep_hg     = 0.0   
+    dq_cl_sa      = 0.0 
+    dn_cl_sa      = 0.0
+    ret_cc        = 0.0 
+    ! 
+    precep_l      = 0.0
+    precep_i      = 0.0
       
-     ! reset flags 
-      flag_warn_update = .false.
-      flag_warn_test   = .false.
-      flag_warn_size   = .true. ! .false.
-      flag_nan         = .false.
-      if (l_sb_dbg) then  
-       flag_do_dbg_up  = .true. ! .false. ! .true.
-      endif
-    ! #sb3 END
+    ! reset flags 
+    flag_warn_update = .false.
+    flag_warn_test   = .false.
+    flag_warn_size   = .true.
+    flag_nan         = .false.
+    if (l_sb_dbg) then  
+      flag_do_dbg_up  = .true.
+    endif
 
     delt = rdt/ (4. - dble(rk3step))
 
-    if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
+    if (timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
       write(*,*) 'l_lognormal',l_lognormal
       write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
@@ -931,29 +837,6 @@ module modbulkmicro3
   ! remove negative values for hydrometereors and clouds
   !*********************************************************************
     if (l_rain) then
-! old:
-!        if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-!          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-!        end if
-!        if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-!           write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-!        end if
-      !#sb3 doing similar for other precipitation
-       ! following so far commented out, not yet loaded 
-       ! if ( sum(q_cl, q_cl<0.) > 0.000001*sum(q_cl) ) then
-       !  write(*,*)'amount of neg. q_cl thrown away is too high  ',timee,' sec'
-       ! end if 
-       ! if ( sum(q_ci, q_ci<0.) > 0.000001*sum(q_ci) ) then
-       !  write(*,*)'amount of neg. q_ci thrown away is too high  ',timee,' sec'
-       ! end if        
-       ! if ( sum(n_cl, n_cl<0.) > 0.000001*sum(n_cl) ) then
-       !  write(*,*)'amount of neg. n_cl thrown away is too high  ',timee,' sec'
-       ! end if  
-       ! if ( sum(n_ci, n_ci<0.) > 0.000001*sum(n_ci) ) then
-       !  write(*,*)'amount of neg. n_ci thrown away is too high  ',timee,' sec'
-       ! end if  
-       ! snow and graupel
-       ! + other to be added later      
        if ( sum(q_hr, q_hr<0.) > 0.000001*sum(q_hr) ) then
          write(*,*)'amount of neg. q_hr thrown away is too high  ',timee,' sec'
        end if 
@@ -975,25 +858,8 @@ module modbulkmicro3
        if ((sum(n_cc,n_cc<0.))>0.000001*(sum(n_cc))) then
           write(*,*)'amount of neg. n_cc thrown away is too high ',timee,' sec'
        end if        
-      !#sb3 END        
        
-       ! #sb3 START - removing old part of the code
-        !        do j=2,j1
-        !        do i=2,i1
-        !        do k=1,k1
-        !           if (Nr(i,j,k) < 0.)  then
-        !             Nr(i,j,k) = 0.
-        !           endif
-        !           if (qr(i,j,k) < 0.)  then
-        !             qr(i,j,k) = 0.
-        !           endif
-        !        enddo
-        !        enddo
-        !        enddo
-       ! #sb3 END
-       
-       !#sb3
-       ! replacing negative values 
+       ! replacing negative values
        do k=1,k1
        do j=2,j1
        do i=2,i1
@@ -1034,648 +900,411 @@ module modbulkmicro3
        enddo
        enddo
        enddo
-       !#sb3 END       
        
     end if   ! l_rain
-    ! old:
-    !     do j=2,j1
-    !     do i=2,i1
-    !     do k=1,k1
-    !        if (qr(i,j,k) .gt. qrmin.and.Nr(i,j,k).gt.0)  then
-    !           qrmask (i,j,k) = .true.
-    !        else
-    !           qrmask (i,j,k) = .false.
-    !        endif
-    !     enddo
-    !     enddo
-    !     enddo
-    !    !write (6,*) 'second part done'
 
-     !#sb3 testing for a noticable amount of graupel and snow    
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-     ! rain :
-       if ((q_hr(i,j,k) .gt. q_hr_min).and.(n_hr(i,j,k).gt.0.0))  then
-          q_hr_mask (i,j,k) = .true.
-       else
-          q_hr_mask (i,j,k) = .false.
-       endif    
-     ! snow :
-       if ((q_hs(i,j,k) .gt. q_hs_min).and.(n_hs(i,j,k).gt.0.0))  then
-          q_hs_mask (i,j,k) = .true.
-       else
-          q_hs_mask (i,j,k) = .false.
-       endif 
-     ! graupel :
-       if ((q_hg(i,j,k) .gt. q_hg_min).and.(n_hg(i,j,k).gt.0.0))  then
-          q_hg_mask (i,j,k) = .true.
-       else
-          q_hg_mask (i,j,k) = .false.
-       endif
-     enddo
-     enddo
-     enddo 
-    !#sb3 END     
+    !testing for a noticable amount of graupel and snow    
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      ! rain :
+      if ((q_hr(i,j,k) .gt. q_hr_min).and.(n_hr(i,j,k).gt.0.0))  then
+         q_hr_mask (i,j,k) = .true.
+      else
+         q_hr_mask (i,j,k) = .false.
+      endif    
+      ! snow :
+      if ((q_hs(i,j,k) .gt. q_hs_min).and.(n_hs(i,j,k).gt.0.0))  then
+         q_hs_mask (i,j,k) = .true.
+      else
+         q_hs_mask (i,j,k) = .false.
+      endif 
+      ! graupel :
+      if ((q_hg(i,j,k) .gt. q_hg_min).and.(n_hg(i,j,k).gt.0.0))  then
+         q_hg_mask (i,j,k) = .true.
+      else
+         q_hg_mask (i,j,k) = .false.
+      endif
+    enddo
+    enddo
+    enddo 
    
    
   !******************************************************
   ! calculate qltot and initialize cloud droplet number Nc
   !******************************************************
-  ! #sb3 START
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       ! ql0   (i,j,k) = ql0 (i,j,k)
-       qltot (i,j,k) = q_cl(i,j,k) + q_hr (i,j,k) ! instead of: ql0  (i,j,k) + q_hr (i,j,k)
-       ! i.e - cloud water + rain areas
-       !
-       ! calculating ice water content already existing
-       qicew = q_ci(i,j,k) ! +q_hs(i,j,k)+q_hg(i,j,k)
-       !
-       ! liquid clouds - if there is enough liquid in clouds
-       qcliq =  q_cl(i,j,k) ! ql0(i,j,k)-q_ci(i,j,k)
-       ! clouds- original definition
-       if (ql0(i,j,k) .ge. qcmin)  then ! if (ql0(i,j,k) >qcmin)  then
-          qcmask (i,j,k) = .true.
-       else
-          qcmask (i,j,k) = .false.
-       end if
-       !
-       ! liquid clouds
-       if ((q_cl(i,j,k).ge. qcliqmin).and.(n_cl(i,j,k).gt.0.0))  then
-          q_cl_mask (i,j,k) = .true.
-       else
-          q_cl_mask (i,j,k) = .false.
-       end if
-       !      
-       ! ice clouds
-       if ((qicew.ge. qicemin).and.(n_ci(i,j,k).gt.0.0))  then
-          ! if already ice 
-          q_ci_mask (i,j,k) = .true.
-       !n elseif( qvsi(i,j,k)>qt0(i,j,k) ) then
-       !n   ! if newly saturated with respect to ice
-       !n   q_ci_mask (i,j,k) = .true.
-       else
-          q_ci_mask (i,j,k) = .false.
-       endif      
+      qltot (i,j,k) = q_cl(i,j,k) + q_hr (i,j,k)
+      ! instead of: ql0  (i,j,k) + q_hr (i,j,k)
+      ! i.e - cloud water + rain areas
+
+      ! calculating ice water content already existing
+      qicew = q_ci(i,j,k) ! +q_hs(i,j,k)+q_hg(i,j,k)
+
+      ! liquid clouds - if there is enough liquid in clouds
+      qcliq =  q_cl(i,j,k) ! ql0(i,j,k)-q_ci(i,j,k)
+
+      ! clouds- original definition
+      if (ql0(i,j,k) .ge. qcmin)  then ! if (ql0(i,j,k) >qcmin)  then
+         qcmask (i,j,k) = .true.
+      else
+         qcmask (i,j,k) = .false.
+      end if
+
+      ! liquid clouds
+      if ((q_cl(i,j,k).ge. qcliqmin).and.(n_cl(i,j,k).gt.0.0))  then
+         q_cl_mask (i,j,k) = .true.
+      else
+         q_cl_mask (i,j,k) = .false.
+      end if
+
+      ! ice clouds
+      if ((qicew.ge. qicemin).and.(n_ci(i,j,k).gt.0.0))  then
+         q_ci_mask (i,j,k) = .true.
+      else
+         q_ci_mask (i,j,k) = .false.
+      endif      
     enddo
     enddo
     enddo
     
     
     if(l_sb_dbg_extra) then 
-    ! #sb3 count cloud
-    write(6,*) 'total count of q_cl_mask ',count(q_cl_mask(2:i1,2:j1,1:k1))
-    write(6,*) 'total count of q_ci_mask ',count(q_ci_mask(2:i1,2:j1,1:k1))
-    write(6,*) 'total count of q_hr_mask ',count(q_hr_mask(2:i1,2:j1,1:k1))
-    write(6,*) 'total count of q_hs_mask ',count(q_hs_mask(2:i1,2:j1,1:k1))
-    write(6,*) 'total count of q_hg_mask ',count(q_hg_mask(2:i1,2:j1,1:k1))
+      write(6,*) 'total count of q_cl_mask ',count(q_cl_mask(2:i1,2:j1,1:k1))
+      write(6,*) 'total count of q_ci_mask ',count(q_ci_mask(2:i1,2:j1,1:k1))
+      write(6,*) 'total count of q_hr_mask ',count(q_hr_mask(2:i1,2:j1,1:k1))
+      write(6,*) 'total count of q_hs_mask ',count(q_hs_mask(2:i1,2:j1,1:k1))
+      write(6,*) 'total count of q_hg_mask ',count(q_hg_mask(2:i1,2:j1,1:k1))
     
-!     if (any((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)).lt. 0.)) then
-!       write(6,*) 'undersaturated clouds in gridpoints ',count((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)).lt. 0.)
-!     endif
-!     if (any((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)).lt. 0.)) then
-!       write(6,*) 'undersaturated clouds in gridpoints ',count((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)).lt. 0.)
-!     endif
-    if (any((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-q_cl(2:i1,2:j1,1:k1)-q_ci(2:i1,2:j1,1:k1)).lt. 0.)) then
-      write(6,*) 'undersaturated clouds in gridpoints ',count((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-q_cl(2:i1,2:j1,1:k1)-q_ci(2:i1,2:j1,1:k1)).lt. 0.)
-    endif    
+      if (any((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-q_cl(2:i1,2:j1,1:k1)-q_ci(2:i1,2:j1,1:k1)).lt. 0.)) then
+        write(6,*) 'undersaturated clouds in gridpoints ', &
+          count((qt0(2:i1,2:j1,1:k1)-qvsl(2:i1,2:j1,1:k1)-q_cl(2:i1,2:j1,1:k1)-q_ci(2:i1,2:j1,1:k1)).lt. 0.)
+      endif    
     
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      nrtest=n_cl(i,j,k) ! considering n_clp only
-      ! in clouds only
-      if (nrtest.le.0.0) then
-        xtest(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xtest(i,j,k) =  q_cl(i,j,k) / ( n_cl(i,j,k)+eps0)
-                ! o: rhof(k) * (svm(i,j,k,iqsv) +  delt*q_clp(i,j,k)) / (svm(i,j,k,insv)+delt*n_clp(i,j,k))
-      endif
-    enddo
-    enddo
-    enddo
-    ! warning if droplets too large
-    if(any( xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
-      write(6,*) 'warning: cloud droplets at the start of the step too large'
-      write(6,*) '   in gridpoints ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' larger than ',xc_bmax
-      write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
-      ! #dbg START and list it
-!         do k=1,k1
-!         do j=2,j1
-!         do i=2,i1
-!             if( xc(i,j,k) .gt. xc_bmax) then  
-!                 write(6,*) 'i,j,k =', i, j, k, ' xc1= ', xc(i,j,k), ' ql0= ', ql0(i,j,k)
-!                 write(6,*) '  n_cl-1 = ', svm(i,j,k,insv),  ' n_cl0  = ', sv0(i,j,k,insv),  ' n_cl1  = ', svm(i,j,k,insv)+delt*n_clp(i,j,k) ! svp(i,j,k,insv) 
-!                 write(6,*) '  q_cl-1 = ', svm(i,j,k,iqsv),  ' q_cl0  = ', sv0(i,j,k,iqsv),  ' q_cl1  = ', svm(i,j,k,iqsv)+delt*q_clp(i,j,k) ! svp(i,j,k,iqsv)
-!                 write(6,*) '  n_ci-1 = ', svm(i,j,k,in_ci), ' n_ci0  = ', sv0(i,j,k,in_ci), ' n_ci1  = ', svm(i,j,k,in_ci)+delt*n_cip(i,j,k) ! svp(i,j,k,insv) 
-!                 write(6,*) '  q_ci-1 = ', svm(i,j,k,iq_ci), ' q_ci0  = ', sv0(i,j,k,iq_ci), ' q_ci1  = ', svm(i,j,k,iq_ci)+delt*q_cip(i,j,k) ! svp(i,j,k,iqsv)
-!                 write(6,*) '  delta q_cl1_mphys= ', delt*q_clp(i,j,k),' delta q_cl1_other= ', delt*svp(i,j,k,iqsv)
-!                 ! write(6,*) ' sat adjustment ', (1.0/delt)*(ql0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))-max(0.0,(q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))
-!                 ! i.e. listing water already in clouds vs total amount of water
-!             endif  ! #dbg END          
-!         enddo
-!         enddo
-!         enddo ! #dbg END   
-    endif
-   endif ! l_sb_dbg_extra
-    
-    
-  ! old :
-  !*********************************************************************
-  ! calculate qltot and initialize cloud droplet number Nc
-  !*********************************************************************
-    !  
-    !     do j=2,j1
-    !     do i=2,i1
-    !     do k=1,k1
-    !        ql0    (i,j,k) = ql0 (i,j,k)
-    !        qltot (i,j,k) = ql0  (i,j,k) + qr (i,j,k)
-    !        if (ql0(i,j,k) > qcmin)  then
-    !           Nc     (i,j,k) = Nc_0
-    !           qcmask (i,j,k) = .true.
-    !        else
-    !           qcmask (i,j,k) = .false.
-    !        end if
-    !     enddo
-    !     enddo
-    !     enddo
-   ! #sb3 END    
-    
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        nrtest=n_cl(i,j,k) ! considering n_clp only
+        ! in clouds only
+        if (nrtest.le.0.0) then
+          xtest(i,j,k) =0.0
+        else
+          !  calculating new droplet size
+          xtest(i,j,k) =  q_cl(i,j,k) / ( n_cl(i,j,k)+eps0)
+                  ! o: rhof(k) * (svm(i,j,k,iqsv) +  delt*q_clp(i,j,k)) / (svm(i,j,k,insv)+delt*n_clp(i,j,k))
+        endif
+      enddo
+      enddo
+      enddo
 
+      ! warning if droplets too large
+      if(any( xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
+        write(6,*) 'warning: cloud droplets at the start of the step too large'
+        write(6,*) '   in gridpoints ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' larger than ',xc_bmax
+        write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
+      endif
+    endif ! l_sb_dbg_extra
+    
   !*********************************************************************
   ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
   !*********************************************************************
-   call integrals_bulk3
-    ! #sb3 START
-    ! calculating water particle sizes
-        
-    ! #sb3 END
-    
-    
-
-    ! #sb3 output
-    !  write  (6,*) 'the substep length is', delt ! #dbg 
-  !*********************************************************************
-  ! call microphysical processes subroutines
-  !*********************************************************************
-   ! #t if (l_sedc)  call sedim_cloud3 ! #sb3 orig: sedimentation_cloud
-
-   ! if (l_rain) then ! <- move to some other part
-      ! call bulkmicrotend ! call bulkmicrotend3
-      ! #sb3 adding other processes  
-      !
-      ! -- we already have amount of liquid and ice water from the previous step
-      !
-      ! --------------------------------------------------------------
-      ! cloud forming processes
-      ! --------------------------------------------------------------
-       if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'before.')! #d 
-       call nucleation3      ! cloud nucleation
-        if(l_sb_dbg_extra)call check_nan(flag_do_dbg,flag_nan,'nuclea.')! #d
-       call icenucle3        ! ice nucleation  ! #Bb ! #iceout 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice nuc')! #d     
-       ! not needed -treated automatically in nucleation_3
-       !call cor_nucl3        ! limits nucleation so there are still ccn left 
-       ! if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cor.nuc')! #d 
+    call integrals_bulk3
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'before.')! #d 
+    call nucleation3      ! cloud nucleation
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'nuclea.')! #d
+    call icenucle3        ! ice nucleation  ! #Bb ! #iceout 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice nuc')! #d     
  
-      ! --------------------------------------------------------------
-      ! freezing of water droplets
-      ! --------------------------------------------------------------
-       call homfreez3        ! homogeneous freezing of cloud droplets ! #iceout 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'hom.fre')! #d    
-       call hetfreez3        ! heterogeneous freezing! #iceout 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'het.fre')! #d
+    ! --------------------------------------------------------------
+    ! freezing of water droplets
+    ! --------------------------------------------------------------
+    call homfreez3        ! homogeneous freezing of cloud droplets
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'hom.fre')! #d    
+    call hetfreez3        ! heterogeneous freezing
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'het.fre')! #d
 
  
-      ! --------------------------------------------------------------
-      ! deposition processes
-      ! --------------------------------------------------------------
-       call deposit_ice3      ! deposition of vapour to cloud ice
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice dep')! #d
-       call deposit_snow3     ! deposition of vapour to snow 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'sno.dep')! #d
-       call deposit_graupel3  ! deposition of vapour to graupel 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'gra.dep')! #d
-       call cor_deposit3      ! correction for deposition
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cor.con')! #d
+    ! --------------------------------------------------------------
+    ! deposition processes
+    ! --------------------------------------------------------------
+    call deposit_ice3      ! deposition of vapour to cloud ice
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice dep')! #d
+    call deposit_snow3     ! deposition of vapour to snow 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'sno.dep')! #d
+    call deposit_graupel3  ! deposition of vapour to graupel 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'gra.dep')! #d
+    call cor_deposit3      ! correction for deposition
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cor.con')! #d
 
-      ! --------------------------------------------------------------
-      ! snow aggregation and self-collection 
-      ! --------------------------------------------------------------
-       call ice_aggr3   ! ice selfcollection !#b5 ! #a4d1 ! #Ba !#b2t2 !#b2t1 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice agg')! ice aggregation - tendencies only
-       call snow_self3  ! snow selfcollection - tendency only
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'snow sc')! #d 
+    ! --------------------------------------------------------------
+    ! snow aggregation and self-collection 
+    ! --------------------------------------------------------------
+    call ice_aggr3   ! ice selfcollection !#b5 ! #a4d1 ! #Ba !#b2t2 !#b2t1 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice agg')! ice aggregation - tendencies only
+    call snow_self3  ! snow selfcollection - tendency only
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'snow sc')! #d 
         
-      ! --------------------------------------------------------------
-      ! collision processes for snow
-      ! --------------------------------------------------------------
-       call coll_sis3  ! snow selfcollection !#t1
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'s+i->s ')! #d  
-        
-       call coll_gsg3  ! snow selfcollection !#t1
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+s->g ')! #d          
-        
-      ! --------------------------------------------------------------
-      ! - rimings
-      ! --------------------------------------------------------------
-       call coll_ici3  !  riming i+c -> i ! #t1
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'i+c->i ')! #d      
-       call coll_scs3 ! riming s+c -> s ! #t1 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'s+c->s ')! #d
-       call coll_gcg3 ! riming g+c -> g !#t2 !#t4 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+c->g ')! #d 
-       !o call rime_srs3 ! riming g+r -> g  !#t2 !#t4 
-       !o if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'s+r->s ')! #d  
-       call coll_grg3 ! riming g+r -> g  !#t2 !#t4 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+r->g ')! #d 
+    ! --------------------------------------------------------------
+    ! collision processes for snow
+    ! --------------------------------------------------------------
+    call coll_sis3  ! snow selfcollection !#t1
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'s+i->s ')! #d  
       
-      ! --------------------------------------------------------------
-      ! - raindrop freezing
-      ! --------------------------------------------------------------      
+    call coll_gsg3  ! snow selfcollection !#t1
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+s->g ')! #d          
+        
+    ! --------------------------------------------------------------
+    ! - rimings
+    ! --------------------------------------------------------------
+    call coll_ici3  !  riming i+c -> i ! #t1
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'i+c->i ')! #d      
+    call coll_scs3 ! riming s+c -> s ! #t1 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'s+c->s ')! #d
+    call coll_gcg3 ! riming g+c -> g !#t2 !#t4 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+c->g ')! #d 
+    call coll_grg3 ! riming g+r -> g  !#t2 !#t4 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+r->g ')! #d 
       
-       call rainhetfreez3        ! heterogeneous freezing! #iceout 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'fre.rai')! #d    
+    ! --------------------------------------------------------------
+    ! - raindrop freezing
+    ! --------------------------------------------------------------      
+    
+    call rainhetfreez3        ! heterogeneous freezing! #iceout 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'fre.rai')! #d    
         
-        
-      ! --------------------------------------------------------------
-      ! - collision with conversion 
-      ! --------------------------------------------------------------        
-      call coll_rig3 ! riming r+i -> g  !#t2 !#t4 
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+i->g ')! #d 
-        
-      call coll_rsg3 ! riming r+i -> g  !#t7
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+s->g ')! #d          
+    ! --------------------------------------------------------------
+    ! - collision with conversion 
+    ! --------------------------------------------------------------        
+    call coll_rig3 ! riming r+i -> g  !#t2 !#t4 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+i->g ')! #d 
+    call coll_rsg3 ! riming r+i -> g  !#t7
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+s->g ')! #d          
    
-      !--------------------------------------------------------------  
-      ! conversions
-      !-------------------------------------------------------------- 
-      
-      ! ice multiplication of Hallet and Mossop
-      call ice_multi3
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice.mul')! #d
+    !--------------------------------------------------------------  
+    ! conversions
+    !-------------------------------------------------------------- 
+    call ice_multi3 ! ice multiplication of Hallet and Mossop
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice.mul')! #d
         
-      ! partial conversion
-      if (l_sb_conv_par) then
-        call conv_partial3 !#t3 !#b2t2 
-      endif
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'par.con')! #d
+    if (l_sb_conv_par) then
+      call conv_partial3 ! partial conversion
+      if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'par.con')! #d
+    endif
       
-      ! --------------------------------------------------------------
-      ! - melting and evaporation of ice particles 
-      ! --------------------------------------------------------------         
-             
-      ! melting of ice particles 
-      call evapmelting3
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'melting')! #d
+    ! --------------------------------------------------------------
+    ! - melting and evaporation of ice particles 
+    ! --------------------------------------------------------------         
+           
+    call evapmelting3 ! melting of ice particles 
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'melting')! #d
       
-
-      ! --------------------------------------------------------------
-      ! - basic warm processes
-      !  -------------------------------------------------------------- 
-       call autoconversion3 
-        ! call bulkmicrotend
-        if(l_sb_dbg_extra)   call check_nan(flag_do_dbg,flag_nan,'autocon')! #d
-       call cloud_self3
-        ! call bulkmicrotend
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cl self')! #d 
-       call accretion3
-       ! call bulkmicrotend
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'accret.')! #d
-        
-       ! rain evaporation       
-       call evap_rain3
-        ! call bulkmicrotend
-        if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'evap_r.')! #d        
+    ! --------------------------------------------------------------
+    ! - basic warm processes
+    !  -------------------------------------------------------------- 
+    call autoconversion3 
+    if(l_sb_dbg_extra)   call check_nan(flag_do_dbg,flag_nan,'autocon')! #d
+    call cloud_self3
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cl self')! #d 
+    call accretion3
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'accret.')! #d
+      
+    call evap_rain3 ! rain evaporation       
+    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'evap_r.')! #d        
     
   ! =============================
   ! saturation adjustment
   ! =============================
-     call satadj3    
+    call satadj3    
  
-    
   !==================================
   ! sedimentation part 
   !==================================
-    
-      call sedim_rain3
-      call sedim_cl3
-      call sedim_ice3
-      call sedim_snow3
-      call sedim_graupel3 !#b2t3 
+    call sedim_rain3
+    call sedim_cl3
+    call sedim_ice3
+    call sedim_snow3
+    call sedim_graupel3 !#b2t3 
       
-  ! == CCN recovery ==
     ! recovery of ccn aerosols
-      call recover_cc
+    call recover_cc
       
-  !*******************************************
-  ! statistics microphysics 
-  !*******************************************
-    
-   
-   
-   !
-      !#d2  call cor_loss_cl3
-       ! #d4 call check_update(flag_do_dbg,flag_warn_update,'cor.lcl')! #d 
-       ! #d1 call check_sizes(flag_do_dbg,flag_warn_size,'cor.lcl') ! #d 
-      ! call check_nan(flag_do_dbg,flag_nan,'cor.lcl') ! #d
-      ! : call bulkmicrotend
-      ! #t_evap: testing without evaporation of rain
-       
-      ! : call bulkmicrotend
-      !
-      ! - and finally the saturation adjustment      
-      !    - actually within this code
-      ! #sb3 END
-   ! endif  ! <- it should happen even with rain off
-
-    ! saving water number and mixing ratios into 
-    ! #sb3
-    ! 
-    ! svp(2:i1,2:j1,1:k1,in_cl)=n_clp(2:i1,2:j1,1:k1)
-    ! svp(2:i1,2:j1,1:k1,iq_cl)=q_clp(2:i1,2:j1,1:k1)    
-    !? not sure why are there these lines, variables should be unchanged so far 
-    ! 
-    ! previously: 
-    ! sv0(2:i1,2:j1,1:k1,inr)=Nr(2:i1,2:j1,1:k1)
-    ! sv0(2:i1,2:j1,1:k1,iqr)=qr(2:i1,2:j1,1:k1)    
-    ! #sb3 END
-    
   !*********************************************************************
   ! remove negative values and non physical low values
   !*********************************************************************
-   if (l_corr_neg_qt) then 
+  if (l_corr_neg_qt) then 
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      ! #sb3 changing the variable name 
       qrtest=svm(i,j,k,iq_hr)+(svp(i,j,k,iq_hr)+q_hrp(i,j,k))*delt
-      ! old: qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-      ! #sb3 changing the variable name 
       nrtest=svm(i,j,k,in_hr)+(svp(i,j,k,in_hr)+n_hrp(i,j,k))*delt
-      ! old: nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt     
-      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then ! correction, after Jerome's implementation in Gales
-        ! #sb3 changing the variable name, removing qtpmcr
+      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k)
-        ! old: qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-        ! #sb3 changing the variable name, removing thlpmcr
         thlp(i,j,k) = thlp(i,j,k)  -  &
                (rlv/(cp*exnf(k)))*(svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k))
-        ! old: thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))       
-        ! #sb3 changing the variable name 
+
         svp(i,j,k,iq_hr) = - svm(i,j,k,iq_hr)/delt
-        ! old: svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        ! #sb3 changing the variable name 
         svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
-        ! old: svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
-        ! 
-        ! recovery of aerosols - note here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)          
       else 
-       ! #sb3 START
-       svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-       svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)  !<- no change here
-       ! qtp(i,j,k)=qtp(i,j,k) !<- no change here qtpmcr(i,j,k)
-       ! #sb3 END
-       ! old: 
-       ! svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-       ! svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-       ! adjust negative qr tendencies at the end of the time-step
-     end if
+        svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
+        svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
+        ! adjust negative qr tendencies at the end of the time-step
+      end if
     enddo
     enddo
     enddo
-    ! check update
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_r.') ! #d 
-    ! #sb3 START
-    ! testing negative values also for other variables
-    !
+
     ! == snow ==
     iqsv = iq_hs
     insv = in_hs
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
-      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then ! correction, after Jerome's implementation in Gales
+        qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
+        nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
+      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k)
         thlp(i,j,k) = thlp(i,j,k)  -  &
                (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k))
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols - not here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)        
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hsp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_hsp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hsp(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hsp(i,j,k)
       end if       
     enddo
     enddo
     enddo
-    ! 
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_s.') ! #d 
-    !
+
     ! == graupel ==
     iqsv = iq_hg
     insv = in_hg
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
-      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then ! correction, after Jerome's implementation in Gales
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
+      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k)
         thlp(i,j,k) = thlp(i,j,k) -  &
                (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k))
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols - not here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)        
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
-      end if       
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
+      endif       
     enddo
     enddo
     enddo  
-    !
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_g.')! #d 
-    !
+
     ! == cloud ice ==
     iqsv = iq_ci
     insv = in_ci
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_cip(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_cip(i,j,k))*delt
-      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then ! (nrtest < 0.0)  correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) no change - the change already included in qtpmcr
-        ! check this again !!! :
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_cip(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_cip(i,j,k))*delt
+      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k)
         thlp(i,j,k) = thlp(i,j,k) -  &
                (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k))       
-        ! #iceout thlp(i,j,k) = thlp(i,j,k)  -  &
-        ! #iceout       (rlme/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_cip(i,j,k))
-              ! ie. only melting/freezing
-              ! the water that ism meant to be removed in the form of ice os removed in form of liquid water
+
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
         ! recovery of aerosols
         ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)    
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
-      end if       
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
+      endif       
     enddo
     enddo
     enddo  
-    !
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_ci')! #d 
-    !
+
     ! == cloud liquid water ==
     iqsv = iq_cl
     insv = in_cl
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
-      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then ! (nrtest < n_c_min) ) then ! (nrtest < 0.0) ) correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) no change - the change already included in qlpmcr
-        ! thlp(i,j,k) no change - the change already included in thlpmcr
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
+      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        !
-        ! balance ccn count - if moving more droplets than available, decrease count
-        ! svp(i,j,k,in_cc) = svp(i,j,k,in_cc)+min(0.0,nrtest/delt)
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
-      end if       
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
+      endif       
     enddo
     enddo
     enddo 
-   else  ! l_corr_neg_qt
+  else  ! l_corr_neg_qt
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      ! #sb3 changing the variable name 
       qrtest=svm(i,j,k,iq_hr)+(svp(i,j,k,iq_hr)+q_hrp(i,j,k))*delt
-      ! old: qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-      ! #sb3 changing the variable name 
       nrtest=svm(i,j,k,in_hr)+(svp(i,j,k,in_hr)+n_hrp(i,j,k))*delt
-      ! old: nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt     
-      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then ! correction, after Jerome's implementation in Gales
-        ! #sb3 changing the variable name, removing qtpmcr
-        ! qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k)
-        ! old: qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-        ! #sb3 changing the variable name, removing thlpmcr
-        ! thlp(i,j,k) = thlp(i,j,k)  -  &
-        !       (rlv/(cp*exnf(k)))*(svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k))
-        ! old: thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))       
-        ! #sb3 changing the variable name 
+      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         svp(i,j,k,iq_hr) = - svm(i,j,k,iq_hr)/delt
-        ! old: svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        ! #sb3 changing the variable name 
         svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
-        ! old: svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
-        ! 
-        ! recovery of aerosols - note here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)          
       else 
-       ! #sb3 START
-       svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-       svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)  !<- no change here
-       ! qtp(i,j,k)=qtp(i,j,k) !<- no change here qtpmcr(i,j,k)
-       ! #sb3 END
-       ! old: 
-       ! svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-       ! svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-       ! adjust negative qr tendencies at the end of the time-step
-     end if
+        svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
+        svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
+      end if
     enddo
     enddo
     enddo
-    ! check update
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_r.') ! #d 
-    ! #sb3 START
-    ! testing negative values also for other variables
-    !
+
     ! == snow ==
     iqsv = iq_hs
     insv = in_hs
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
-      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then ! correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k)
-        !thlp(i,j,k) = thlp(i,j,k)  -  &
-        !       (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k))
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
+      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols - not here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)        
       else 
        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hsp(i,j,k)
        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hsp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
       end if       
     enddo
     enddo
     enddo
-    ! 
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_s.') ! #d 
-    !
+
     ! == graupel ==
     iqsv = iq_hg
     insv = in_hg
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
-      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then ! correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k)
-        !thlp(i,j,k) = thlp(i,j,k) -  &
-        !       (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k))
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
+      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then
+        ! correction, after Jerome's implementation in Gales
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols - not here
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)        
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
       end if       
     enddo
     enddo
     enddo  
-    !
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_g.')! #d 
-    !
+
     ! == cloud ice ==
     iqsv = iq_ci
     insv = in_ci
@@ -1684,152 +1313,106 @@ module modbulkmicro3
     do i=2,i1
        qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_cip(i,j,k))*delt
        nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_cip(i,j,k))*delt
-      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then ! (nrtest < 0.0)  correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) no change - the change already included in qtpmcr
-        ! check this again !!! :
-        ! qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k)
-        !thlp(i,j,k) = thlp(i,j,k) -  &
-        !       (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k))       
-        ! #iceout thlp(i,j,k) = thlp(i,j,k)  -  &
-        ! #iceout       (rlme/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_cip(i,j,k))
-              ! ie. only melting/freezing
-              ! the water that ism meant to be removed in the form of ice os removed in form of liquid water
+      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then
+        ! (nrtest < 0.0)  correction, after Jerome's implementation in Gales
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)    
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
-      end if       
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
+      endif       
     enddo
     enddo
     enddo  
-    !
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_ci')! #d 
-    !
+
     ! == cloud liquid water ==
     iqsv = iq_cl
     insv = in_cl
     do k=1,k1
     do j=2,j1
     do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
-      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then ! (nrtest < n_c_min) ) then ! (nrtest < 0.0) ) correction, after Jerome's implementation in Gales
-        ! qtp(i,j,k) no change - the change already included in qlpmcr
-        ! thlp(i,j,k) no change - the change already included in thlpmcr
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
+      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then
+        ! (nrtest < n_c_min) ) then ! (nrtest < 0.0) ) correction, after Jerome's implementation in Gales
         svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
         svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        !
-        ! balance ccn count - if moving more droplets than available, decrease count
-        ! svp(i,j,k,in_cc) = svp(i,j,k,in_cc)+min(0.0,nrtest/delt)
       else 
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
-       ! thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k) !<- pass, updated later
-       ! qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)    !<- pass, updated later
-      end if       
+        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
+      endif       
     enddo
     enddo
     enddo   
-   endif ! l_corr__neg_qt
-    !
-    ! #d4 call check_test(flag_do_dbg,flag_warn_test,'test_cl')! #d 
-    !
-    
+
+  endif ! l_corr__neg_qt
+
     ! == CCN checking ==
     if(.not.l_c_ccn) then
-     insv = in_cc
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
+      insv = in_cc
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
         nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_ccp(i,j,k))*delt
-      if (nrtest .le.0.0 ) then ! correction
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else 
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
-       ! no change for qt and th
-      end if       
-     enddo
-     enddo
-     enddo  
+        if (nrtest .le.0.0 ) then ! correction
+          svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
+        else 
+          svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
+          ! no change for qt and th
+        end if       
+      enddo
+      enddo
+      enddo  
     endif ! not l_c_ccn
-    ! #sb3 END
-    
-     ! call check_ssat(flag_do_dbg)  ! #sb3 
-    
+
     ! == update =====
     ! and updating main prognostic variables by contribution from mphys processes
     do k=1,k1
     do j=2,j1
     do i=2,i1     
-          thlp(i,j,k)   =thlp(i,j,k)+thlpmcr(i,j,k)
-          qtp(i,j,k)    =qtp(i,j,k)+qtpmcr(i,j,k)
+      thlp(i,j,k) = thlp(i,j,k)+thlpmcr(i,j,k)
+      qtp(i,j,k) = qtp(i,j,k)+qtpmcr(i,j,k)
     enddo
     enddo
     enddo 
       
-    ! #t START
     if(l_sb_dbg_extra) then 
-    ! estimating new xc
-    insv = in_cl
-    iqsv = iq_cl
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      nrtest=svm(i,j,k,insv)+delt*svp(i,j,k,insv) ! since n_clp already included
-      ! in clouds only
-      if (nrtest<0.0 ) then
-        xtest(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xtest(i,j,k) = (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv)+eps0)
-         ! rhof(k) * (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv))
+      ! estimating new xc
+      insv = in_cl
+      iqsv = iq_cl
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        nrtest=svm(i,j,k,insv)+delt*svp(i,j,k,insv) ! since n_clp already included
+        ! in clouds only
+        if (nrtest<0.0 ) then
+          xtest(i,j,k) =0.0
+        else
+          !  calculating new droplet size
+          xtest(i,j,k) = (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv)+eps0)
+        endif
+      enddo
+      enddo
+      enddo
+
+      ! warning if droplets too large
+      if(any(xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
+        write(6,*) 'warning: cloud droplets at the end of the step too large'
+        write(6,*) '   in ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' gridpoints larger than ',xc_bmax
+        write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
       endif
-    enddo
-    enddo
-    enddo
-    ! warning if droplets too large
-    if(any( xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
-      write(6,*) 'warning: cloud droplets at the end of the step too large'
-      write(6,*) '   in ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' gridpoints larger than ',xc_bmax
-      write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
-      ! #dbg START and list it
-!         do k=1,k1
-!         do j=2,j1
-!         do i=2,i1
-!             if( xc(i,j,k) .gt. xc_bmax) then
-!                 write(6,*) 'i,j,k =', i, j, k, ' xc1= ', xc(i,j,k), ' ql0= ', ql0(i,j,k)                
-!                 write(6,*) '  n_cl-1 = ', svm(i,j,k,insv), ' n_cl0  = ', sv0(i,j,k,insv), ' n_cl1  = ', svm(i,j,k,insv)+delt*svp(i,j,k,insv) 
-!                 write(6,*) '  q_cl-1 = ', svm(i,j,k,iqsv), ' q_cl0  = ', sv0(i,j,k,iqsv), ' q_cl1  = ', svm(i,j,k,iqsv)+delt*svp(i,j,k,iqsv)
-!                 write(6,*) '  n_ci-1 = ', svm(i,j,k,in_ci), ' n_ci0  = ', sv0(i,j,k,in_ci), ' n_ci1  = ', svm(i,j,k,in_ci)+delt*svp(i,j,k,in_ci) 
-!                 write(6,*) '  q_ci-1 = ', svm(i,j,k,iq_ci), ' q_ci0  = ', sv0(i,j,k,iq_ci), ' q_ci1  = ', svm(i,j,k,iq_ci)+delt*svp(i,j,k,iq_ci)               
-!                 write(6,*) '  delta q_cl1_mphys= ', delt*q_clp(i,j,k),'  delta q_cl1_all= ', delt*svp(i,j,k,iqsv)
-!                 write(6,*) '  qt0 = ',    qt0(i,j,k),' delta q_t = ' ,  delt*qtp(i,j,k)
-!                 write(6,*) '  by qtpmcr = ', delt*qtp(i,j,k), ' by qtpmcr = ', delt*qtpmcr(i,j,k)
-!                ! write(6,*) ' old sat adjustment = ', (ql0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))-delt*max(0.0,(q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))
-!                ! write(6,*) ' new sat adjustment = ', 
-!                 ! i.e. listing water already in clouds vs total amount of water
-!             endif            
-!         enddo
-!         enddo
-!         enddo ! #dbg END
-    endif
     endif ! l_sb_dbg
-    ! #t END   
     
     
     ! # statistics
-     ! call microphysics statistics - just once per step 
-     call bulkmicrotend3 ! #t5 
-     call bulkmicrostat3 ! #t5  
+    ! call microphysics statistics - just once per step 
+    call bulkmicrotend3 ! #t5 
+    call bulkmicrostat3 ! #t5  
     
     
     if(l_sb_dbg_extra) call check_sizes(flag_do_dbg,flag_warn_size,'all_ups')
-    call check_allupdates(flag_do_dbg_up) ! if(l_sb_dbg) call check_allupdates(flag_do_dbg)
+    call check_allupdates(flag_do_dbg_up)
+
     ! ending line
     if(l_sb_dbg_extra) then 
         write(6,*) ' =========================='
@@ -1873,17 +1456,13 @@ module modbulkmicro3
                ,dq_cl_sa ,dn_cl_sa                                      &
                ,ret_cc                                                  &
               )
-    ! deallocate sizes 
+   ! deallocate sizes 
    deallocate( D_cl,D_ci,D_hr,D_hs,D_hg                                 &
               ,v_cl,v_ci,v_hr,v_hs,v_hg                                 &
              )
-             ! ,n_clm,n_cim ,n_hrm,n_hsm,n_hgm,n_ccm                     & 
-             ! ,q_clm,q_cim ,q_hrm,q_hsm,q_hgm                           &
-             ! )           
 
   end subroutine bulkmicro3
   
-! #sb3 
 ! ===============================
 !  cloud initialisation 
 ! ===============================
@@ -1897,61 +1476,57 @@ module modbulkmicro3
 !     - limit if mean x_cl smaller than xcmin  
 !
 subroutine initclouds3
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,zf
-    use modfields, only : rhof, qt0, svm, sv0, svp, qvsl, qsat  ! ,exnf,ql0, svm
-    ! use modmpi,    only : myid
-    implicit none
-    ! real , allocatable :: 
-    integer :: i,j,k
-    real ::   x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
-    
-    
-    ! prepare threshold values 
-    x_min = xc0_min ! minimal size of droplets
-    ! xc_max = xcmax ! max size of droplets
-    Nc_set =  Nc0    ! prescribed number of droplets
-    
-    ! initialisation itself
-    if (l_c_ccn) then
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-       q_tocl = qt0(i,j,k)-qvsl(i,j,k)         ! get amount of available water for liquid clouds
-       if (q_tocl>0.0) then
+  use modglobal, only : ih,i1,jh,j1,k1,kmax,zf
+  use modfields, only : rhof, qt0, svm, sv0, svp, qvsl, qsat
+  implicit none
+
+  integer :: i,j,k
+  real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+  
+  x_min = xc0_min  ! minimal size of droplets
+  Nc_set =  Nc0    ! prescribed number of droplets
+  
+  ! initialisation itself
+  if (l_c_ccn) then
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+      if (q_tocl>0.0) then
         ! prepare number of droplet
-         n_prop = Nc_set/rhof(k)           ! to get number of droplets in kg^{-1} 
-         ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN 
-         n_prop = min(n_prop,q_tocl/x_min)    ! droplets smaller than minimal size
+        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1} 
+        ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN 
+        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
         ! save values to arrays
-         sv0(i,j,k,in_cl) = n_prop
-         svm(i,j,k,in_cl) = n_prop
-         sv0(i,j,k,iq_cl) = q_tocl
-         svm(i,j,k,iq_cl) = q_tocl         
-       endif
-      enddo
-      enddo
-      enddo   
-     else
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-       q_tocl = qt0(i,j,k)-qvsl(i,j,k)         ! get amount of available water for liquid clouds
-       if (q_tocl>0.0) then
+        sv0(i,j,k,in_cl) = n_prop
+        svm(i,j,k,in_cl) = n_prop
+        sv0(i,j,k,iq_cl) = q_tocl
+        svm(i,j,k,iq_cl) = q_tocl         
+      endif
+    enddo
+    enddo
+    enddo   
+  else
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+      if (q_tocl>0.0) then
         ! prepare number of droplet
-         n_prop = Nc_set/rhof(k)           ! to get number of droplets in kg^{-1} 
-         n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN 
-         n_prop = min(n_prop,q_tocl/x_min)    ! droplets smaller than minimal size
+        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1} 
+        n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN 
+        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+
         ! save values to arrays
-         sv0(i,j,k,in_cl) = n_prop
-         svm(i,j,k,in_cl) = n_prop
-         sv0(i,j,k,iq_cl) = q_tocl
-         svm(i,j,k,iq_cl) = q_tocl         
-       endif
-      enddo
-      enddo
-      enddo
-     endif
-     ! write(6,*) ' clouds initialised by initcloud3'
+        sv0(i,j,k,in_cl) = n_prop
+        svm(i,j,k,in_cl) = n_prop
+        sv0(i,j,k,iq_cl) = q_tocl
+        svm(i,j,k,iq_cl) = q_tocl         
+      endif
+    enddo
+    enddo
+    enddo
+  endif
 
 end subroutine initclouds3
 
@@ -1964,38 +1539,31 @@ end subroutine initclouds3
 !     - based on proposed values Nc0 [ m^-3]
 !     - set ccn fields 
 !
-   subroutine initccn3
-    use modglobal, only : ih,i1,jh,j1,k1,kmax
-    use modfields, only : rhof, svm, sv0, svp  ! ,exnf,ql0, svm
-    ! use modmpi,    only : myid
-    implicit none
-    ! real , allocatable :: 
-    integer :: i,j,k
-    real ::   Nccn_set, n_prop  ! availabel water and proposed size
-    
-    
-    ! prepare threshold values 
-    Nccn_set = Nccn0 ! prescribed number of ccn
-    
-     
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-        ! prepare number of CCNs
-         n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1} 
-        ! save values to arrays
-         sv0(i,j,k,in_cc) = n_prop
-         svm(i,j,k,in_cc) = n_prop        
-     enddo
-     enddo
-     enddo 
-     ! write(6,*) ' ccn initialised by initccn3'
+subroutine initccn3
+  use modglobal, only : ih,i1,jh,j1,k1,kmax
+  use modfields, only : rhof, svm, sv0, svp
+  implicit none
 
-    end subroutine initccn3
-!#sb3 END
+  integer :: i,j,k
+  real ::   Nccn_set, n_prop  ! available water and proposed size
+ 
+  Nccn_set = Nccn0 ! prescribed number of ccn
+  
+   do k=1,k1
+   do j=2,j1
+   do i=2,i1
+     ! prepare number of CCNs
+     n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1} 
+     ! save values to arrays
+     sv0(i,j,k,in_cc) = n_prop
+     svm(i,j,k,in_cc) = n_prop        
+   enddo
+   enddo
+   enddo 
+
+end subroutine initccn3
  
  
-! #sb3 START
 ! =============================
 ! saturation adjustment
 ! ============================
@@ -2009,270 +1577,185 @@ end subroutine initclouds3
 !   In addition, check the average sie of cloud droplets
 !   and evaporates droplets that proportionally
 ! 
-  subroutine satadj3  
-    use modglobal, only : ih,i1,jh,j1,k1,kmax
-    use modfields, only : rhof, qt0, svm, svp, qvsl  ! ,exnf,ql0, svm
-    ! use modmpi,    only : myid
-    implicit none
-    ! real , allocatable :: 
-    integer :: i,j,k
-    real :: ntest, n_bmax, cogr_max, ql_res
-    ! logical :: l_sb_all_or
-        
-    ! initialisation of process updates
-    dq_cl_sa = 0.0
-    dn_cl_sa = 0.0
-    
-    ! calculation
-    if (l_sb_all_or) then 
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1   
+subroutine satadj3  
+  use modglobal, only : ih,i1,jh,j1,k1,kmax
+  use modfields, only : rhof, qt0, svm, svp, qvsl
+  implicit none
+
+  integer :: i,j,k
+  real :: ntest, n_bmax, cogr_max, ql_res
+      
+  ! initialisation of process updates
+  dq_cl_sa = 0.0
+  dn_cl_sa = 0.0
+  
+  ! calculation
+  if (l_sb_all_or) then 
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1   
       ! note: threshold might be lower then threshold for cloud computations, obviously
-      ! if (q_cl_mask(i,j,k)) then 
-       ! ntest= svm(i,j,k,in_cl) +(svp(i,j,k,in_cl)+n_clp(i,j,k))*delt ! #t2
-       ntest= svm(i,j,k,in_cl) +n_clp(i,j,k)*delt ! #t1
-       if (ntest.gt.0.0) then ! (ntest.gt.n_c_min ) then ! (ntest.gt.0.0) then
+      ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt ! #t1
+      if (ntest.gt.0.0) then ! (ntest.gt.n_c_min ) then ! (ntest.gt.0.0) then
         !
         ! remaining water = 
         !    + condesable water available 
         !    - already condensed
         !    - newly condendsed
         !    - removed by mphys processed
-        !     
-        !
         !    
         !  calculating amount of available water
-        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-                    delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
-        !ql_res=(1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-        !           0.0 - x_cnuc*dn_cl_nu(i,j,k)+qtpmcr(i,j,k)+       & 
-        !           dq_ci_eme_ic(i,j,k)+dq_hs_eme_sc(i,j,k)+dq_hg_eme_gc(i,j,k)
-        ! #iceout ql_res = (1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)) + &
-        ! #iceout          0.0 - (q_clp(i,j,k)+q_cip(i,j,k))+qtpmcr(i,j,k)         
-        !
+        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
         dq_cl_sa(i,j,k) = ql_res/delt
-        !
         if ((svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k))).lt.0.0) then
-          !
           dn_cl_sa(i,j,k) = -svm(i,j,k,in_cl)/delt-n_clp(i,j,k)
           dq_cl_sa(i,j,k) = -svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)
         endif
-        ! dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k), ql_res/delt)
-        !
-        ! dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),dq_cl_sa(i,j,k))
-       endif
-      ! endif
-     enddo
-     enddo
-     enddo         
-    else ! l_sb_all_or
+      endif
+    enddo
+    enddo
+    enddo         
+  else ! l_sb_all_or
     if (l_sb_dumpall) then
-     ! dump all water
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1   
-      ! note: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask(i,j,k)) then 
-       ! ntest= svm(i,j,k,in_cl) +(svp(i,j,k,in_cl)+n_clp(i,j,k))*delt ! #t2
-       ntest= svm(i,j,k,in_cl) +n_clp(i,j,k)*delt ! #t1
-       if (ntest.gt.0.0) then ! (ntest.gt.n_c_min ) then ! (ntest.gt.0.0) then
-        !
-        ! remaining water = 
-        !    + condesable water available 
-        !    - already condensed
-        !    - newly condendsed
-        !    - removed by mphys processed
-        !     
-        !
-        !    
-        !  calculating amount of available water
-        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-                    delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
-        !ql_res=(1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-        !           0.0 - x_cnuc*dn_cl_nu(i,j,k)+qtpmcr(i,j,k)+       & 
-        !           dq_ci_eme_ic(i,j,k)+dq_hs_eme_sc(i,j,k)+dq_hg_eme_gc(i,j,k)
-        ! #iceout ql_res = (1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)) + &
-        ! #iceout          0.0 - (q_clp(i,j,k)+q_cip(i,j,k))+qtpmcr(i,j,k)         
-        !
-        ! limiting so it does not remove more water than in clouds
-        dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),ql_res/delt)
-        !
-        ! q_clp(i,j,k) = max((-svm(i,j,k,iq_cl)/delt), q_clp(i,j,k)+ql_res ) ! q_clp(i,j,k)+ql_res ! 
-        ! 
-        ! adjusting number of cloud droplets
-        ! - calculate min size with this amount of water 
-        n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.1*x_cl_bmin)
-        n_bmax = max(n_bmax, 0.0)
-        ! of course we do not want negative values - but that is alread sorted above 
-        ! - remove droplets so that mean size in not less than 
-        dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
-        ! limit change so not in negative numbers
-        dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
-        !
-        !! old version:
-        !-------------------------------------
-        !! cloud water mixing ratio
-        ! + mphys changes in cloud water 
-        ! + remaining water:
-        !    + condesable water available 
-        !    - already condensed
-        !    - newly condendsed
-        !      ( {change in cloud water} = {newly condendsed or deposited} + {removed by cloud processes}  )
-        !      ( - {newly condendsed or deposited} = 
-        !          - ({change in liquid cloud water}+{change in ice cloud water})
-        !          + {removed by cloud processes}
-        !      )
-        !         !
-        ! check amount of remaining available liquid water
-        !: ql_res =  (1.0/delt)*(ql0(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)) + &
-        !:         0.0 - ((q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))
-        !    + qtp(i,j,k)
-        !
-        ! and update it 
-        !: q_clp(i,j,k) = max((-svm(i,j,k,iq_cl)/delt), q_clp(i,j,k)+ql_res )
-        !
-       endif
-      endif
-     enddo
-     enddo
-     enddo  
-   else 
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1   
-      ! note: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask(i,j,k)) then 
-       ! ntest= svm(i,j,k,in_cl) +(svp(i,j,k,in_cl)+n_clp(i,j,k))*delt ! #t2
-        ntest= svm(i,j,k,in_cl) +n_clp(i,j,k)*delt !#t1
-       if (ntest.gt.0.0) then ! (ntest.gt.n_c_min  ) then
-        !
-        ! and now if we want to enforce limit on cloud droplet size
-        !
-        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-                    delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
-        !ql_res=(1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+ &
-        !           0.0 - x_cnuc*dn_cl_nu(i,j,k)+qtpmcr(i,j,k)+       & 
-        !           dq_ci_eme_ic(i,j,k)+dq_hs_eme_sc(i,j,k)+dq_hg_eme_gc(i,j,k)
-        ! #iceout ql_res =  (1.0/delt)*(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci) )+ &
-        ! #iceout            0.0 - (q_clp(i,j,k)+q_cip(i,j,k))+qtpmcr(i,j,k)            
-        ! ql_res =  q_clp(i,j,k) + &
-        !    (1.0/delt)*(ql0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))+ &
-        !    min(0.0,qtp(i,j,k))- max(0.0,(q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))              
-        !
-        ! test what would be new droplet size
-        ! #t xc_avail = (svm(i,j,k,iqsv) + delt*ql_avail) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv))
-        ! calculate maximal available update
-        cogr_max =(1.0/delt)*(x_cogr_max*(svm(i,j,k,in_cl)+delt*n_clp(i,j,k))-svm(i,j,k,iq_cl))
-        ! cogr_max =(1.0/delt)*(x_cogr_max*(n_cl(i,j,k)+delt*n_clp(i,j,k))-q_cl(i,j,k) ) 
-        !
-        ! dump just what is bellow max size by condensation growth
-        dq_cl_sa(i,j,k) = min(cogr_max-q_clp(i,j,k),ql_res/delt)
-        ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max     
-        ! other possibility: require it to be larger than 0
-        ! and prevent negative values of svm + delt *svp
-        dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),dq_cl_sa(i,j,k))  !
-        ! 
-        !
-        ! adjusting number of cloud droplets
-        ! - calculate min size with this amount of water 
-        n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.5*x_cl_bmin)
-        n_bmax = max(n_bmax, 0.0)
-        ! - remove droplets so that mean size in not by order of magnitude less than x_cl_bmin
-        dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
-        ! limit change so not in negative numbers
-        dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
-        !
-        !-------------------------------------
-        !! cloud water mixing ratio
-        ! + mphys changes in cloud water 
-        ! + remaining water:
-        !    + condesable water available 
-        !    - already condensed
-        !    - newly condendsed
-        !      ( {change in cloud water} = {newly condendsed or deposited} + {removed by cloud processes}  )
-        !      ( - {newly condendsed or deposited} = 
-        !          - ({change in liquid cloud water}+{change in ice cloud water})
-        !          + {removed by cloud processes}
-        !      )
-        ! -----------------------------
-        !
-        ! check amount of available liquid water
-        !:  ql_res =  (1.0/delt)*(ql0(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci))+ &
-        !:     min(0.0,qtp(i,j,k))- max(0.0,(q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))
-        ! ql_res =  q_clp(i,j,k) + &
-        !    (1.0/delt)*(ql0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))+ &
-        !    min(0.0,qtp(i,j,k))- max(0.0,(q_clp(i,j,k)+q_cip(i,j,k))-qtpmcr(i,j,k))              
-        !
-        ! test what would be new droplet size
-        ! #t xc_avail = (svm(i,j,k,iqsv) + delt*ql_avail) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv))
-        ! calculate maximal available update
-        !: cogr_max =(1.0/delt)*(x_cogr_max*(svm(i,j,k,in_cl)+delt*n_clp(i,j,k))-svm(i,j,k,iq_cl) )
-        ! cogr_max =(1.0/delt)*(x_cogr_max*(n_cl(i,j,k)+delt*n_clp(i,j,k))-q_cl(i,j,k) ) 
-        !
-        ! dump just what is bellow max size by condensation growth
-        !: q_clp(i,j,k) = min(cogr_max,q_clp(i,j,k) + ql_res)
-        ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max     
-        ! other possibility: require it to be larger than 0
-        ! and prevent negative values of svm + delt *svp
-        !: q_clp(i,j,k) = max((-svm(i,j,k,iq_cl)/delt), q_clp(i,j,k) )
-        ! ---------------------------------------------
-       endif
-      endif
-     enddo
-     enddo
-     enddo   
+      ! dump all water
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1   
+        ! note: threshold might be lower then threshold for cloud computations, obviously
+        if (q_cl_mask(i,j,k)) then 
+          ntest= svm(i,j,k,in_cl)+n_clp(i,j,k)*delt ! #t1
+          if (ntest.gt.0.0) then
+            !
+            ! remaining water = 
+            !    + condesable water available 
+            !    - already condensed
+            !    - newly condendsed
+            !    - removed by mphys processed
+            !     
+            
+            !  calculating amount of available water
+            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
+            
+            ! limiting so it does not remove more water than in clouds
+            dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),ql_res/delt)
+            
+            ! adjusting number of cloud droplets
+            ! - calculate min size with this amount of water 
+            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.1*x_cl_bmin)
+            n_bmax = max(n_bmax, 0.0)
+            
+            ! of course we do not want negative values - but that is alread sorted above 
+            ! - remove droplets so that mean size in not less than 
+            dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
+            
+            ! limit change so not in negative numbers
+            dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
+          endif
+        endif
+      enddo
+      enddo
+      enddo  
+    else ! l_sb_dumpall
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1   
+        ! note: threshold might be lower then threshold for cloud computations, obviously
+        if (q_cl_mask(i,j,k)) then 
+          ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt !#t1
+          if (ntest.gt.0.0) then
+            !
+            ! and now if we want to enforce limit on cloud droplet size
+            !
+            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
+
+            ! calculate maximal available update
+            cogr_max =(1.0/delt)*(x_cogr_max*(svm(i,j,k,in_cl)+delt*n_clp(i,j,k))-svm(i,j,k,iq_cl))
+           
+            ! dump just what is below max size by condensation growth
+            dq_cl_sa(i,j,k) = min(cogr_max-q_clp(i,j,k),ql_res/delt)
+           
+            ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max     
+            ! other possibility: require it to be larger than 0
+            ! and prevent negative values of svm + delt *svp
+            dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),dq_cl_sa(i,j,k))
+           
+            ! adjusting number of cloud droplets
+            ! - calculate min size with this amount of water 
+            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.5*x_cl_bmin)
+            n_bmax = max(n_bmax, 0.0)
+           
+            ! - remove droplets so that mean size in not by order of magnitude less than x_cl_bmin
+            dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
+           
+            ! limit change so not in negative numbers
+            dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
+           
+            !-------------------------------------
+            !! cloud water mixing ratio
+            ! + mphys changes in cloud water 
+            ! + remaining water:
+            !    + condesable water available 
+            !    - already condensed
+            !    - newly condendsed
+            !      ( {change in cloud water} = {newly condendsed or deposited} + {removed by cloud processes}  )
+            !      ( - {newly condendsed or deposited} = 
+            !          - ({change in liquid cloud water}+{change in ice cloud water})
+            !          + {removed by cloud processes}
+            !      )
+            ! -----------------------------
+          endif
+        endif
+      enddo
+      enddo
+      enddo   
     endif
-    endif ! l_sb_all_or
-    
-    ! and update
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1  
-        ! and the update itself
-        q_clp(i,j,k)  = q_clp(i,j,k) + dq_cl_sa(i,j,k)
-        n_clp(i,j,k)  = n_clp(i,j,k) + dn_cl_sa(i,j,k)
-        ! - recover aerosols -already treated  
-        ! ret_cc(i,j,k) = ret_cc(i,j,k)-c_ccn_ev_c*dn_cl_sa(i,j,k)    
-     enddo
-     enddo
-     enddo       
-    
-   end subroutine satadj3 
-  ! #sb3 END 
+  endif ! l_sb_all_or
+  
+  ! and update
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1  
+    ! and the update itself
+    q_clp(i,j,k)  = q_clp(i,j,k) + dq_cl_sa(i,j,k)
+    n_clp(i,j,k)  = n_clp(i,j,k) + dn_cl_sa(i,j,k)
+    ! - recover aerosols -already treated  
+    ! ret_cc(i,j,k) = ret_cc(i,j,k)-c_ccn_ev_c*dn_cl_sa(i,j,k)    
+  enddo
+  enddo
+  enddo       
+end subroutine satadj3 
   
   
-   ! #sb3 START
-  ! calculating rain and other integrals
-  subroutine integrals_bulk3
-    use modglobal, only : ih,i1,jh,j1,k1,kmax
-    use modfields, only : rhof  ! ,exnf,ql0, svm
-    ! use modmpi,    only : myid
-    implicit none
-    real , allocatable :: N_r0(:,:,:), lbdr_try(:,:,:)  ! #sb3 
-    integer :: i,j,k
-    real :: xr_try, N_r0_try
-    
-    allocate ( N_r0     (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-              ,lbdr_try (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3 
-             )
-             
-    N_r0     = 0.0
-    lbdr_try = 0.0   ! #sb3   
-    ! calculations
-    if (l_rain) then
+! calculating rain and other integrals
+subroutine integrals_bulk3
+  use modglobal, only : ih,i1,jh,j1,k1,kmax
+  use modfields, only : rhof
+  implicit none
 
-      ! xr   (2:i1,2:j1,1:k1) = 0. !  <- not needed to write 0,a lready done
-      Dvr  (2:i1,2:j1,1:k1) = 0.
-      mur  (2:i1,2:j1,1:k1) = 30.
-      lbdr (2:i1,2:j1,1:k1) = 0.
+  real , allocatable :: N_r0(:,:,:), lbdr_try(:,:,:)  ! #sb3
+  integer :: i,j,k
+  real :: xr_try, N_r0_try
+  
+  allocate ( N_r0     (2-ih:i1+ih,2-jh:j1+jh,k1)      &
+            ,lbdr_try (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3 
+           )
+           
+  N_r0     = 0.0
+  lbdr_try = 0.0   ! #sb3   
 
-      if (l_sb ) then
-       if(l_sb_classic) then
+  ! calculations
+  if (l_rain) then
+
+    ! xr   (2:i1,2:j1,1:k1) = 0. !  <- not needed to write 0,a lready done
+    Dvr  (2:i1,2:j1,1:k1) = 0.
+    mur  (2:i1,2:j1,1:k1) = 30.
+    lbdr (2:i1,2:j1,1:k1) = 0.
+
+    if (l_sb) then
+      if(l_sb_classic) then
         do k=1,k1
         do j=2,j1
         do i=2,i1
-          ! #sb3 changing the variable name
           if (q_hr_mask(i,j,k)) then 
             ! limiting procedure (as per S&B)
             x_hr (i,j,k)   = q_hr(i,j,k)/(n_hr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
@@ -2291,23 +1774,19 @@ end subroutine initclouds3
             
             xr (i,j,k)     = rhof(k)*q_hr(i,j,k)*lbdr(i,j,k)/N_r0_try 
             xr (i,j,k)     = max(xrmin,min(xrmax, xr (i,j,k) )) ! to ensure xr is within borders 
-
           endif
         enddo
         enddo
         enddo
-        
+
       else ! l_sb_classic
-      
+    
         do k=1,k1
         do j=2,j1
         do i=2,i1        
            ! #sb3 changing the variable name 
            if (q_hr_mask(i,j,k)) then
-             ! old: if (qrmask(i,j,k)) then
-             ! #sb3 - changing variables
-             x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0) ! rhof(k)*q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
-             ! old: xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
+             x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
              xr (i,j,k) = min(max(x_hr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
              !
@@ -2317,161 +1796,143 @@ end subroutine initclouds3
         enddo
         enddo
         enddo
-        
+      
         if (l_mur_cst) then
-        ! mur = cst
+          ! mur = cst
           do k=1,k1
           do j=2,j1
           do i=2,i1
-            ! #sb3 changing the variable name
             if (q_hr_mask(i,j,k)) then
-            ! old: if (qrmask(i,j,k)) then
-               mur(i,j,k) = mur_cst
-               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        else
-        ! mur = f(Dv)
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-           ! #sb3 changing the variable name
-            if (q_hr_mask(i,j,k)) then
-            ! old: if (qrmask(i,j,k)) then!
-              !  mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014)))
-              !  Stevens & Seifert (2008) param!
-              ! #sb3 - changing the variable name 
-              mur(i,j,k) = min(mur0_G09b,- 1. + c_G09b/ (q_hr(i,j,k)*rhof(k))**exp_G09b)  ! G09b
-              ! old: mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
+              mur(i,j,k) = mur_cst
               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
             endif
           enddo
           enddo
           enddo
-
-        endif
-       endif !  l_sb_classic
-      else !  l_sb
-         do k=1,k1
-         do j=2,j1
-         do i=2,i1
-            ! #sb3 - changing the variable name 
-            if (q_hr_mask(i,j,k).and.n_hr(i,j,k).gt.0.) then
-              ! old: if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              ! #sb3 - changing the variable name 
-              x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0) ! o: rhof(k)*q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
-              ! JvdD Added eps0 to avoid floating point exception
-              ! old: xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
-              xr (i,j,k) = min(x_hr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
-              Dvr  (i,j,k) = (x_hr(i,j,k)/pirhow)**(1./3.)
-              !
-              !
-              D_hr(i,j,k) = a_hr *x_hr(i,j,k)**b_hr
-              v_hr(i,j,k) = al_hr*x_hr(i,j,k)**be_hr*(rho0s/rhof(k))**ga_hr
+        else
+          ! mur = f(Dv)
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            if (q_hr_mask(i,j,k)) then
+              mur(i,j,k) = min(mur0_G09b,- 1. + c_G09b/ (q_hr(i,j,k)*rhof(k))**exp_G09b)  ! G09b
+              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
             endif
-         enddo
-         enddo
-         enddo
-
-      endif ! l_sb
-    endif   ! l_rain
-    !write (6,*) 'parameters calculated'
-    
-     ! cloud water
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           if (q_cl_mask(i,j,k)) then
-             x_cl (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0)
-             ! xc (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0) 
-             xc (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! to ensure x is within borders
-             x_cl (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! as well - to limit extrme autoconversion
-             ! 
-             D_cl(i,j,k) = a_cl *x_cl(i,j,k)**b_cl
-             v_cl(i,j,k) = al_cl*x_cl(i,j,k)**be_cl*(rho0s/rhof(k))**ga_cl
-           endif
-        enddo
-        enddo
-        enddo
-        
-    ! cloud ice 
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           if (q_ci_mask(i,j,k)) then
-             x_ci (i,j,k) = q_ci(i,j,k)/(n_ci(i,j,k)+eps0) 
-             x_ci (i,j,k) = min(max(x_ci(i,j,k),x_ci_bmin),x_ci_bmax) ! to ensure x is within borders
-             !
-             D_ci(i,j,k) = a_ci *x_ci(i,j,k)**b_ci
-             v_ci(i,j,k) = al_ci*x_ci(i,j,k)**be_ci*(rho0s/rhof(k))**ga_ci            
-           endif
-        enddo
-        enddo
-        enddo
-        
-     ! snow
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           if (q_hs_mask(i,j,k)) then
-             x_hs (i,j,k) = q_hs(i,j,k)/(n_hs(i,j,k)+eps0) 
-             x_hs (i,j,k) = min(max(x_hs(i,j,k),x_hs_bmin),x_hs_bmax) ! to ensure x is within borders
-             !
-             D_hs(i,j,k) = a_hs *x_hs(i,j,k)**b_hs
-             v_hs(i,j,k) = al_hs*x_hs(i,j,k)**be_hs*(rho0s/rhof(k))**ga_hs                
-           endif
-        enddo
-        enddo
-        enddo
-        
-      ! graupel
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           if (q_hg_mask(i,j,k)) then
-             x_hg (i,j,k) = q_hg(i,j,k)/(n_hg(i,j,k)+eps0) 
-             x_hg (i,j,k) = min(max(x_hg(i,j,k),x_hg_bmin),x_hg_bmax) ! to ensure x is within borders
-             !
-             D_hg(i,j,k) = a_hg *x_hg(i,j,k)**b_hg
-             v_hg(i,j,k) = al_hg*x_hg(i,j,k)**be_hg*(rho0s/rhof(k))**ga_hg
-           endif
-        enddo
-        enddo
-        enddo   
-        
-    deallocate ( N_r0, lbdr_try)
-    
-  end subroutine integrals_bulk3
-  ! #sb3 END
+          enddo
+          enddo
+          enddo
+        endif
+      endif !  l_sb_classic
+    else !  l_sb
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if (q_hr_mask(i,j,k).and.n_hr(i,j,k).gt.0.) then
+          x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
+          xr (i,j,k) = min(x_hr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
+          Dvr  (i,j,k) = (x_hr(i,j,k)/pirhow)**(1./3.)
+          !
+          D_hr(i,j,k) = a_hr *x_hr(i,j,k)**b_hr
+          v_hr(i,j,k) = al_hr*x_hr(i,j,k)**be_hr*(rho0s/rhof(k))**ga_hr
+        endif
+      enddo
+      enddo
+      enddo
+    endif ! l_sb
+  endif   ! l_rain
   
+  ! cloud water
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_cl_mask(i,j,k)) then
+      x_cl (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0)
+      ! xc (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0) 
+      xc (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! to ensure x is within borders
+      x_cl (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! as well - to limit extrme autoconversion
+      ! 
+      D_cl(i,j,k) = a_cl *x_cl(i,j,k)**b_cl
+      v_cl(i,j,k) = al_cl*x_cl(i,j,k)**be_cl*(rho0s/rhof(k))**ga_cl
+    endif
+  enddo
+  enddo
+  enddo
+      
+  ! cloud ice 
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_ci_mask(i,j,k)) then
+      x_ci (i,j,k) = q_ci(i,j,k)/(n_ci(i,j,k)+eps0) 
+      x_ci (i,j,k) = min(max(x_ci(i,j,k),x_ci_bmin),x_ci_bmax) ! to ensure x is within borders
+      !
+      D_ci(i,j,k) = a_ci *x_ci(i,j,k)**b_ci
+      v_ci(i,j,k) = al_ci*x_ci(i,j,k)**be_ci*(rho0s/rhof(k))**ga_ci            
+    endif
+  enddo
+  enddo
+  enddo
+      
+  ! snow
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask(i,j,k)) then
+      x_hs (i,j,k) = q_hs(i,j,k)/(n_hs(i,j,k)+eps0) 
+      x_hs (i,j,k) = min(max(x_hs(i,j,k),x_hs_bmin),x_hs_bmax) ! to ensure x is within borders
+      !
+      D_hs(i,j,k) = a_hs *x_hs(i,j,k)**b_hs
+      v_hs(i,j,k) = al_hs*x_hs(i,j,k)**be_hs*(rho0s/rhof(k))**ga_hs                
+    endif
+  enddo
+  enddo
+  enddo
+      
+  ! graupel
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hg_mask(i,j,k)) then
+      x_hg (i,j,k) = q_hg(i,j,k)/(n_hg(i,j,k)+eps0) 
+      x_hg (i,j,k) = min(max(x_hg(i,j,k),x_hg_bmin),x_hg_bmax) ! to ensure x is within borders
+      !
+      D_hg(i,j,k) = a_hg *x_hg(i,j,k)**b_hg
+      v_hg(i,j,k) = al_hg*x_hg(i,j,k)**be_hg*(rho0s/rhof(k))**ga_hg
+    endif
+  enddo
+  enddo
+  enddo   
+      
+  deallocate ( N_r0, lbdr_try)
   
-  !> Determine autoconversion rate and adjust qrp and Nrp accordingly
-  !!
-  !!   The autoconversion rate is formulated for f(x)=A*x**(nuc)*exp(-Bx),
-  !!   decaying exponentially for droplet mass x.
-  !!   It can easily be reformulated for f(x)=A*x**(nuc)*exp(-Bx**(mu)) and
-  !!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
-  !!   -> faster rain formation. (Seifert)
-  subroutine autoconversion3
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp
-    use modmpi,    only : myid
-    use modfields, only : exnf,rhof,ql0, svm
-    implicit none
-    integer :: i,j,k
-    real :: rem_cf  ! #sb3
-    ! au = 0.
+end subroutine integrals_bulk3
 
-    if (l_sb) then
+
+!> Determine autoconversion rate and adjust qrp and Nrp accordingly
+!!
+!!   The autoconversion rate is formulated for f(x)=A*x**(nuc)*exp(-Bx),
+!!   decaying exponentially for droplet mass x.
+!!   It can easily be reformulated for f(x)=A*x**(nuc)*exp(-Bx**(mu)) and
+!!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
+!!   -> faster rain formation. (Seifert)
+subroutine autoconversion3
+  use modglobal, only : i1,j1,k1,kmax,rlv,cp
+  use modmpi,    only : myid
+  use modfields, only : exnf,rhof,ql0, svm
+  implicit none
+
+  integer :: i,j,k
+  real :: rem_cf
+
+  if (l_sb) then
     !
     ! SB autoconversion
     !
-      tau(2:i1,2:j1,1:k1) = 0.
-      phi(2:i1,2:j1,1:k1) = 0.
-      nuc(2:i1,2:j1,1:k1) = 0.
-      ! calculating the constant in the front part of the term
-            
+    tau(2:i1,2:j1,1:k1) = 0.
+    phi(2:i1,2:j1,1:k1) = 0.
+    nuc(2:i1,2:j1,1:k1) = 0.
+    ! calculating the constant in the front part of the term
+          
     if (l_sb_classic) then  ! l_sb_classic - ie. S&B version
 
       ! autoconversion coefficient
@@ -2482,46 +1943,35 @@ end subroutine initclouds3
       do k=1,k1
       do j=2,j1
       do i=2,i1
-         ! #sb3 START
-         if (q_cl_mask(i,j,k)) then
-         ! old: if (qcmask(i,j,k)) then
-            
-            dq_hr_au(i,j,k) = k_au * ( nu_cl_cst+2.) * ( nu_cl_cst +4.) / ( nu_cl_cst +1.)**2.    &
-                    * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)  ! #sb3
-                   ! originally:  * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
-            tau    (i,j,k) = 1.0 - q_cl(i,j,k) / qltot(i,j,k) ! #sb3
-            phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3   ! phi_au computation
-            dq_hr_au(i,j,k) = dq_hr_au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)         
-            
-            ! basic au correction
-            dq_hr_au(i,j,k)  = min(dq_hr_au(i,j,k),max(0.0,svm(i,j,k,iq_cl)/delt+q_clp(i,j,k)))! min(au(i,j,k),svm(i,j,k,iq_cl)/delt)
-            ! and calculate cloud droplet numbers 
-            dn_cl_au(i,j,k) = (-2.0/x_s)*dq_hr_au(i,j,k)                     ! and the droplet number   
-            dn_cl_au(i,j,k) = max(dn_cl_au(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k))) ! correct droplet number 
-            dn_hr_au(i,j,k) = -0.5*dn_cl_au(i,j,k)                     ! and the raindrop number 
-            
-            
-            ! and adding updates
-            q_hrp (i,j,k) = q_hrp (i,j,k) + dq_hr_au (i,j,k)
-            n_hrp (i,j,k) = n_hrp (i,j,k) + dn_hr_au(i,j,k)
-            q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_au (i,j,k)
-            n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_au(i,j,k)! #sb3
-            ! o:  n_clp (i,j,k) - (2.0/x_s)*rhof(k)*dq_hr_au(i,j,k)
-            !
-            ! extra tests
-            !if( (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)<0 .or. (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)>2.0) then
-            !   write(6,*)'warning: weird autoconversion update to theta_l at ',i,j,k, ' value: ', (rlv/ (cp*exnf(k)))*dq_hr_au(i,j,k)
-            !endif
-            !
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k) 
-            qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
+        if (q_cl_mask(i,j,k)) then
+          dq_hr_au(i,j,k) = k_au * ( nu_cl_cst+2.) * ( nu_cl_cst +4.) / ( nu_cl_cst +1.)**2.    &
+                  * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)
+          tau    (i,j,k) = 1.0 - q_cl(i,j,k) / qltot(i,j,k)
 
-            ! #sb3 END            
-         endif
+          ! phi_au computation
+          phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
+          dq_hr_au(i,j,k) = dq_hr_au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)         
+          
+          ! basic au correction
+          dq_hr_au(i,j,k)  = min(dq_hr_au(i,j,k),max(0.0,svm(i,j,k,iq_cl)/delt+q_clp(i,j,k)))
+
+          ! and calculate cloud droplet numbers 
+          dn_cl_au(i,j,k) = (-2.0/x_s)*dq_hr_au(i,j,k)                                          ! and the droplet number   
+          dn_cl_au(i,j,k) = max(dn_cl_au(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k))) ! correct droplet number 
+          dn_hr_au(i,j,k) = -0.5*dn_cl_au(i,j,k)                                                ! and the raindrop number 
+          
+          ! and adding updates
+          q_hrp (i,j,k) = q_hrp (i,j,k) + dq_hr_au (i,j,k)
+          n_hrp (i,j,k) = n_hrp (i,j,k) + dn_hr_au(i,j,k)
+          q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_au (i,j,k)
+          n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_au(i,j,k)! #sb3
+
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k) 
+          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
+        endif
       enddo
       enddo
       enddo
-  
     else ! l_sb_classic = .false. - original version in DALES
     
       k_au = k_c/(20.0*x_s)
@@ -2529,20 +1979,14 @@ end subroutine initclouds3
       do k=1,k1
       do j=2,j1
       do i=2,i1
-         ! #sb3 - renaming the variable
          if (q_cl_mask(i,j,k)) then
-         ! old: if (qcmask(i,j,k)) then
             nuc    (i,j,k) = k1nuc*(rhof(k)*q_cl(i,j,k)*1000.) +k2nuc-1. ! #sb3 G09a
-            ! originally:  nuc (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
-            !  nuc    (i,j,k) = 0. 
             dq_hr_au(i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
-                    * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)  ! #sb3
-                   ! originally:  * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
+                    * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)
             tau    (i,j,k) = 1.0 - q_cl(i,j,k) / qltot(i,j,k) ! #sb3
-            ! originally:  tau    (i,j,k) = 1.0 - ql0(i,j,k) / qltot(i,j,k)
             phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3   ! phi_au computation
             dq_hr_au(i,j,k) = dq_hr_au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2) 
-
+ 
             ! cloud water numbers 
             dn_hr_au(i,j,k) = dq_hr_au(i,j,k)/x_s
             dn_cl_au(i,j,k) =  (-2.0/x_s)*dq_hr_au(i,j,k) 
@@ -2552,1182 +1996,895 @@ end subroutine initclouds3
             n_hrp    (i,j,k) = n_hrp    (i,j,k) + dn_hr_au(i,j,k) 
             q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_au (i,j,k)
             n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_au(i,j,k) ! o:  n_clp (i,j,k) - (2.0/x_s)*rhof(k)*au(i,j,k)
-            !
+
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k) 
             qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
-            ! old:
-            ! qrp    (i,j,k) = qrp    (i,j,k) + dq_hr_au (i,j,k)
-            ! Nrp    (i,j,k) = Nrp    (i,j,k) + dq_hr_au (i,j,k)/x_s
-            ! qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
-            ! thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)           
-            
-            ! #sb3 END
-            
          endif
       enddo
       enddo
       enddo
-          
-     
-     endif ! l_sb_classic
-      
-    ! #sb3 START - removing switch to K00 autoconversion
-    endif
-    ! old;
-    !else
-    !
-    ! KK00 autoconversion
-    !
-    !  do j=2,j1
-    !  do i=2,i1
-    !  do k=1,k1
-    !
-    !     if (qcmask(i,j,k)) then
-    !        dq_hr_au     (i,j,k) = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
-    !
-    !        qrp    (i,j,k) = qrp    (i,j,k) + dq_hr_au(i,j,k)
-    !        Nrp    (i,j,k) = Nrp    (i,j,k) + dq_hr_au(i,j,k) * rhof(k)/(pirhow*D0_kk**3.)
-    !        qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au(i,j,k)
-    !        thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)
-    !     endif
-    ! 
-    !  enddo
-    !  enddo
-    !  enddo
-    !
-    ! end if !l_sb
+    endif ! l_sb_classic
     
-   if (l_sb_dbg) then  
+  endif ! l_sb
+  
+  if (l_sb_dbg) then  
     if (any(q_cl(2:i1,2:j1,1:kmax)/delt - dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)) then
       write(6,*) 'WARNING: autoconversion too high'
       write(6,*) '  removing more cloud water than available in ', count(q_cl(2:i1,2:j1,1:kmax)/delt - dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)
-      ! nn write(6,*) '  getting negative q_t in ', count(q_t0(2:i1,2:j1,1:kmax)/delt - dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)
     end if
-    
+  
     if (any(n_cl(2:i1,2:j1,1:kmax)/delt -(2.0/x_s)*dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)) then
       write(6,*) 'WARNING: autoconversion too high'
       write(6,*) '  removing more droplets than available in' , count(n_cl(2:i1,2:j1,1:kmax)/delt - (2.0/x_s)*dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)
     end if 
-   endif
-   
+  endif
 
-  end subroutine autoconversion3
+end subroutine autoconversion3
 
-  subroutine accretion3
-  !*********************************************************************
-  ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
-  ! base don S&B
-  !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
-    use modfields, only : exnf,rhof,ql0,qt0, svm, qvsl, qvsi
-    use modmpi,    only : myid
-    implicit none
-    real , allocatable :: phi_br(:,:,:), Dvrf(:,:,:)  ! #sb3 
-    real :: rem_cf, rem_clcf
-    integer :: i,j,k
-    allocate ( phi_br(2-ih:i1+ih,2-jh:j1+jh,k1)      &
-              ,Dvrf  (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3 
-             )
 
-    ! ac(2:i1,2:j1,1:k1)=0.0
-    phi_br=0.0   ! #sb3 
-    Dvrf =0.0  ! #sb3 
+subroutine accretion3
+!*********************************************************************
+! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
+! base don S&B
+!*********************************************************************
+  use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
+  use modfields, only : exnf,rhof,ql0,qt0, svm, qvsl, qvsi
+  use modmpi,    only : myid
+  implicit none
 
-    ! calculating coef for ratio for minimal remaing number of droplets #sb3
-    rem_cf = (1.0-rem_n_hr_min)/delt
-    ! remain coefficient for clouds #sb3
-    rem_clcf = (1.0-rem_n_cl_min)/delt
-    
-    if (l_sb ) then
+  real , allocatable :: phi_br(:,:,:), Dvrf(:,:,:)
+  real :: rem_cf, rem_clcf
+  integer :: i,j,k
+
+  allocate ( phi_br(2-ih:i1+ih,2-jh:j1+jh,k1)      &
+            ,Dvrf  (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3 
+           )
+
+  phi_br=0.0   ! #sb3 
+  Dvrf =0.0  ! #sb3 
+
+  ! calculating coef for ratio for minimal remaing number of droplets #sb3
+  rem_cf = (1.0-rem_n_hr_min)/delt
+  ! remain coefficient for clouds #sb3
+  rem_clcf = (1.0-rem_n_cl_min)/delt
+  
+  if (l_sb) then
     !
     ! SB accretion
     !
     ! #t write(6,*) 'l_sb accretion...'
-     if (l_sb_classic) then
+    if (l_sb_classic) then
       do k=1,k1
       do j=2,j1
       do i=2,i1
         if (q_hr_mask(i,j,k) .and. q_cl_mask(i,j,k)) then
-           ! #sb3 START
-           ! since it is forming only where rain 
-           tau    (i,j,k) = 1.0 - q_cl(i,j,k)/(qltot(i,j,k))
-           phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
-           dq_hr_ac(i,j,k) = k_cr *rhof(k)*q_cl(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
-                            (rho0s/rhof(k))**0.5  ! rho*rho / rho  = rho 
-           ! basic ac correction
-           dq_hr_ac     (i,j,k) = min(dq_hr_ac(i,j,k),q_cl(i,j,k)/delt) ! min(dq_hr_ac(i,j,k),svm(i,j,k,iq_cl)/delt)
-           ! number of cloud droplets 
-           dn_cl_ac(i,j,k) = -dq_hr_ac(i,j,k)/x_cl(i,j,k)
-           dn_cl_ac(i,j,k) = max(dn_cl_ac(i,j,k),min(0.0,-rem_clcf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
-           ! update 
-           q_hrp  (i,j,k) = q_hrp (i,j,k)  + dq_hr_ac(i,j,k)
-           ! no change n_hrp
-           ! and changes in water number for clouds
-           q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
-           n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_ac(i,j,k)  !o: n_clp (i,j,k) - rhof(k)*ac(i,j,k)/xc(i,j,k)
-           ! d-> adjust this later -correct now
-           !
-           ! q_t adjustment 
-           qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
-           ! theta_L adjustment           
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k) 
-           ! #sb3 END
-        endif
-      enddo
-      enddo
-      enddo
-     else
-      ! old sb version
-      !*********************************************************************
-      ! determine accr. rate and adjust qrp and Nrp
-      ! accordingly. Break-up : Seifert (2007), a
-      !*********************************************************************
-           tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
-           phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
-           dq_hr_ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
-                            (1.225/rhof(k))**0.5
-           q_hrp  (i,j,k) = q_hrp (i,j,k) + dq_hr_ac(i,j,k)
-           ! no change n_hrp
-           q_clp  (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
-           qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k) 
-           
-           ! and update on cloud water number
-           dn_cl_ac(i,j,k)= -dq_hr_ac(i,j,k)/x_cl(i,j,k)
-           n_clp (i,j,k)  = n_clp(i,j,k) + dn_cl_ac(i,j,k)
-     endif
-     
-    !
-    ! SB self-collection & Break-up
-    !
-     ! sc(2:i1,2:j1,1:k1)=0
-     ! br(2:i1,2:j1,1:k1)=0
-     
-     if (l_sb_classic) then
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        ! #sb3 START
-        ! adjusting variable names in accretion 
-        if (q_hr_mask(i,j,k)) then
-           dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
-             * (1.0 + kappa_r/lbdr(i,j,k))**(-9.)*(rho0s/rhof(k))**0.5  
-             !o :* (1.0 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)*(rho0s/rhof(k))**0.5  
-           ! and calculating size of droplets - adjusted
-           Dvrf(i,j,k)= Dvr(i,j,k) ! for now leaving the same
-           !OR: Dvrf(i,j,k)=  (max(xrmin,q_hr(i,j,k)/(n_hr(i,j,k)+eps0))/pirhow)**(1./3.)
-         if (Dvrf(i,j,k) .gt. dvrlim) then
-           if (Dvrf(i,j,k) .gt. dvrbiglim) then
-             ! for big drops
-             phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvrf(i,j,k)-D_eq))-1.0
-           else
-             ! for smaller drops
-             phi_br(i,j,k) = k_br * (Dvrf(i,j,k)-D_eq)
-           endif
-           dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
-         else
-           dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
-         endif
-        endif ! q_hr_mask
-      enddo
-      enddo
-      enddo
-      ! #sb3 END
-     else !l_sb_classic
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        ! adjusting variable names in accretion 
-        if (q_hr_mask(i,j,k)) then
-           dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
-             * (1.0 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)*(rho0s/rhof(k))**0.5  
-        endif
-        if ((Dvr(i,j,k) .gt. dvrlim) .and. q_hr_mask(i,j,k)) then
-           if (Dvr(i,j,k) .gt. dvrbiglim) then
-             ! for big drops
-             phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvr(i,j,k)-D_eq))-1.0
-           else
-             ! for smaller drops
-             phi_br(i,j,k) = k_br* (Dvr(i,j,k)-D_eq)
-           endif
-           dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
-        else
-           dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
-        endif
-        ! old:
-        ! if (qrmask(i,j,k)) then
-        !   dn_hr_sc(i,j,k) = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
-        !               * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
-        ! endif
-        ! if (Dvr(i,j,k) .gt. 0.30E-3 .and. qrmask(i,j,k)) then
-        !   phi_br(i,j,k) = k_br * (Dvr(i,j,k)-D_eq)
-        !   dn_hr_br(i,j,k) = (phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
-        ! else
-        !   dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
-        ! endif        
-      enddo
-      enddo
-      enddo        
-     endif  !l_sb_classic
-    endif ! #sb3 - end of loop
-    
-    
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-       if (q_hr_mask(i,j,k)) then
-        ! #sb3 adjusting variale names, correcting for low values         
-        n_hrp(i,j,k) = n_hrp(i,j,k)                         & 
-           +max(min(0.0,-rem_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)),dn_hr_sc(i,j,k)+dn_hr_br(i,j,k))
-           ! +max(-rem_cf*svm(i,j,k,in_hr),dn_hr_sc(i,j,k)+dn_hr_br(i,j,k))
-        ! old:Nrp(2:i1,2:j1,1:k1) = Nrp(2:i1,2:j1,1:k1) - dn_hr_sc(2:i1,2:j1,1:k1) + dn_hr_br(2:i1,2:j1,1:k1) 
-       endif
-      enddo
-      enddo
-      enddo       
+          ! since it is forming only where rain 
+          tau    (i,j,k) = 1.0 - q_cl(i,j,k)/(qltot(i,j,k))
+          phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
+          dq_hr_ac(i,j,k) = k_cr *rhof(k)*q_cl(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
+                           (rho0s/rhof(k))**0.5  ! rho*rho / rho  = rho 
       
-    if (l_sb_dbg) then       
-     if( any((svm(2:i1,2:j1,1:k1,iq_cl)/delt-dq_hr_ac(2:i1,2:j1,1:k1)).lt. 0) ) then
+          ! basic ac correction
+          dq_hr_ac     (i,j,k) = min(dq_hr_ac(i,j,k),q_cl(i,j,k)/delt) ! min(dq_hr_ac(i,j,k),svm(i,j,k,iq_cl)/delt)\
+      
+          ! number of cloud droplets 
+          dn_cl_ac(i,j,k) = -dq_hr_ac(i,j,k)/x_cl(i,j,k)
+          dn_cl_ac(i,j,k) = max(dn_cl_ac(i,j,k),min(0.0,-rem_clcf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
+      
+          ! update 
+          q_hrp  (i,j,k) = q_hrp (i,j,k)  + dq_hr_ac(i,j,k)
+      
+          ! no change n_hrp
+          ! and changes in water number for clouds
+          q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
+          n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_ac(i,j,k)  !o: n_clp (i,j,k) - rhof(k)*ac(i,j,k)/xc(i,j,k)
+      
+          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k) 
+        endif
+      enddo
+      enddo
+      enddo
+   else ! l_sb_classic
+     !*********************************************************************
+     ! determine accr. rate and adjust qrp and Nrp
+     ! accordingly. Break-up : Seifert (2007), a
+     !*********************************************************************
+     tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
+     phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
+
+     dq_hr_ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
+                      (1.225/rhof(k))**0.5
+     q_hrp  (i,j,k) = q_hrp (i,j,k) + dq_hr_ac(i,j,k)
+
+     ! no change n_hrp
+     q_clp  (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
+     qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
+     thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k) 
+     
+     ! and update on cloud water number
+     dn_cl_ac(i,j,k)= -dq_hr_ac(i,j,k)/x_cl(i,j,k)
+     n_clp (i,j,k)  = n_clp(i,j,k) + dn_cl_ac(i,j,k)
+   endif
+   
+   !
+   ! SB self-collection & Break-up
+   !
+   if (l_sb_classic) then
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
+       if (q_hr_mask(i,j,k)) then
+          dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
+            * (1.0 + kappa_r/lbdr(i,j,k))**(-9.)*(rho0s/rhof(k))**0.5  
+
+          ! and calculating size of droplets - adjusted
+          Dvrf(i,j,k)= Dvr(i,j,k) ! for now leaving the same
+          if (Dvrf(i,j,k) .gt. dvrlim) then
+            if (Dvrf(i,j,k) .gt. dvrbiglim) then
+              ! for big drops
+              phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvrf(i,j,k)-D_eq))-1.0
+            else
+              ! for smaller drops
+              phi_br(i,j,k) = k_br * (Dvrf(i,j,k)-D_eq)
+            endif
+            dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
+          else
+            dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
+          endif
+       endif ! q_hr_mask
+     enddo
+     enddo
+     enddo
+   else ! l_sb_classic
+     do k=1,k1
+     do j=2,j1
+     do i=2,i1
+       ! adjusting variable names in accretion 
+       if (q_hr_mask(i,j,k)) then
+          dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
+            * (1.0 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)*(rho0s/rhof(k))**0.5  
+       endif
+       if ((Dvr(i,j,k) .gt. dvrlim) .and. q_hr_mask(i,j,k)) then
+         if (Dvr(i,j,k) .gt. dvrbiglim) then
+           ! for big drops
+           phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvr(i,j,k)-D_eq))-1.0
+         else
+           ! for smaller drops
+           phi_br(i,j,k) = k_br* (Dvr(i,j,k)-D_eq)
+         endif
+         dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
+       else
+          dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
+       endif
+     enddo
+     enddo
+     enddo        
+   endif ! l_sb_classic
+  endif
+  
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hr_mask(i,j,k)) then
+     ! correcting for low values         
+     n_hrp(i,j,k) = n_hrp(i,j,k)                         & 
+        +max(min(0.0,-rem_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)),dn_hr_sc(i,j,k)+dn_hr_br(i,j,k))
+    endif
+  enddo
+  enddo
+  enddo       
+    
+  if (l_sb_dbg) then       
+    if( any((svm(2:i1,2:j1,1:k1,iq_cl)/delt-dq_hr_ac(2:i1,2:j1,1:k1)).lt. 0) ) then
       write(6,*) 'WARNING: accretion removing too much water'
       write(6,*) ' updated below 0 in gridpoints', count((svm(2:i1,2:j1,1:k1,iq_cl)/delt- dq_hr_ac(2:i1,2:j1,1:k1)).lt. 0.0)
-     endif
-     
-     if( any((svm(2:i1,2:j1,1:k1,in_hr)/delt+dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0) ) then
+    endif
+    
+    if( any((svm(2:i1,2:j1,1:k1,in_hr)/delt+dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0) ) then
       write(6,*) 'WARNING: self-collection of rain too high'
       write(6,*) ' removing more n_hr than available in gridpoints', count((svm(2:i1,2:j1,1:k1,in_hr)/delt-dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0.0 )
       write(6,*) ' n_hr updated below 0 in gridpoints', count((n_hr(2:i1,2:j1,1:k1)/delt-dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0.0 )
-     endif
-
-    ! old
-    ! else
-    ! !
-    ! ! KK00 accretion
-    ! !
-    ! do j=2,j1
-    ! do i=2,i1
-    ! do k=1,k1
-    !    if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-    !       ac     (i,j,k) = 67.0 * ( ql0(i,j,k) * qr(i,j,k) )**1.15
-    !       qrp    (i,j,k) = qrp     (i,j,k) + ac(i,j,k)
-    !       qtpmcr (i,j,k) = qtpmcr  (i,j,k) - ac(i,j,k)
-    !       thlpmcr(i,j,k) = thlpmcr (i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
-    !    endif
-    ! enddo
-    ! enddo
-    ! enddo
-    !
-    ! end if !l_sb
+    endif
 
     if (any((svm(2:i1,2:j1,1:kmax,in_cl)/delt - dq_hr_ac(2:i1,2:j1,1:kmax)/x_cl(i,j,k)).lt. 0.)) then
       write(6,*)'WARNING: ac too large, removing too many droplets'
       write(6,*)'   in', count((svm(2:i1,2:j1,1:kmax,in_cl)/delt    &
          - dq_hr_ac(2:i1,2:j1,1:kmax)/x_cl(i,j,k)).lt. 0.),myid
     endif
-   endif 
+  endif ! l_sb_dbg
 
-   deallocate (phi_br,Dvrf)
+  deallocate (phi_br,Dvrf)
 
-  end subroutine accretion3
+end subroutine accretion3
   
   
 !> Self-collection of cloud droplets
-!! #sb3 START
 !! written based on S&B to evaluate the self-collection of cloud droplets
-  subroutine cloud_self3
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
-    use modfields, only : exnf,rhof, svm
-    use modmpi,    only : myid
-    implicit none
-    real    ::  k_clsc, rem_cf
-    integer :: i,j,k
-    ! real, allocatable :: cl_sc(:,:,:)
-    
-    
-    ! allocate( cl_sc (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-    !        )
-            
-    ! initialize
-    dn_cl_sc = 0.0
-     
-    ! calculate constant
-    k_clsc = - k_cc*rho0s
-    rem_cf = (1.0-rem_n_cl_min)/delt
-    
-    ! loop sb
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-        if (q_cl_mask(i,j,k)) then
-           ! calculation of the 
-           dn_cl_sc(i,j,k) = k_clsc*(q_cl(i,j,k)**2)* &
-           (nu_cl_cst+2.0)/(nu_cl_cst+1.0)-dn_cl_au(i,j,k) !  + (2.0/x_s)*dq_hr_au(i,j,k)  !
-           ! since it is :
-           ! (d N_c/d t)|_sc = - k_c * (nu+2)/(nu+1) *rho0s/rho *L_c^2 - (d N_c/d t)|_au 
-           ! rho * (d n_c/d t)|_sc = - k_c * (nu+2)/(nu+1) *rho0s/rho *rho^2 *q_c^2 - rho * (d n_c/d t)|_au  
-           !  (d n_c/d t)|_sc = - k_c*rho0s * (nu+2)/(nu+1) *q_c^2 - ( - (2/x_s)*dq_hr_au )
-           ! 
-           ! o:k_clsc*rhof(k)*(q_cl(i,j,k)**2)*(nuc(i,j,k)+2)/(nuc(i,j,k)+1) - (2/x_s)*rhof(k)*dq_hr_au(i,j,k)
-           ! since 1/rho *rho^2=rho
-           ! later adjust value in the autoconversion
-           !
-           ! basic sc collection 
-           dn_cl_sc(i,j,k) = min(0.0,dn_cl_sc(i,j,k))
-           dn_cl_sc(i,j,k) = max(dn_cl_sc(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k))) ! max(dn_cl_sc(i,j,k),-rem_cf*svm(i,j,k,in_cl))
-           ! 
-           !update
-           n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_sc(i,j,k)
-           !
-           ! no change to q_cl
-           !
-        endif
-     enddo
-     enddo
-     enddo    
-    
-    ! testing for too high values   
+subroutine cloud_self3
+  use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
+  use modfields, only : exnf,rhof, svm
+  use modmpi,    only : myid
+  implicit none
 
-     if (l_sb_dbg) then 
-       if (any(q_cl_mask(2:i1,2:j1,1:k1).and.((svm(2:i1,2:j1,1:k1,in_cl)/delt - dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.))) then
-         write(6,*)'WARNING: cloud sc too high'
-         write(6,*) '  getting to negative n_cl  in gridpoints  ',count((svm(2:i1,2:j1,1:k1,in_cl)/delt -dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.)
-       endif
-     endif
-    
-    ! deallocate(dn_cl_sc)
-  end subroutine cloud_self3
+  real    ::  k_clsc, rem_cf
+  integer :: i,j,k
+  
+  ! initialize
+  dn_cl_sc = 0.0
+   
+  ! calculate constant
+  k_clsc = - k_cc*rho0s
+  rem_cf = (1.0-rem_n_cl_min)/delt
+  
+  ! loop sb
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_cl_mask(i,j,k)) then
+       dn_cl_sc(i,j,k) = k_clsc*(q_cl(i,j,k)**2)* &
+          (nu_cl_cst+2.0)/(nu_cl_cst+1.0)-dn_cl_au(i,j,k)
+
+       ! basic sc collection 
+       dn_cl_sc(i,j,k) = min(0.0,dn_cl_sc(i,j,k))
+       dn_cl_sc(i,j,k) = max(dn_cl_sc(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
+
+       ! update
+       n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_sc(i,j,k)
+
+       ! no change to q_cl
+    endif
+  enddo
+  enddo
+  enddo    
+  
+  if (l_sb_dbg) then 
+    ! testing for too high values   
+    if (any(q_cl_mask(2:i1,2:j1,1:k1).and.((svm(2:i1,2:j1,1:k1,in_cl)/delt - dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.))) then
+      write(6,*)'WARNING: cloud sc too high'
+      write(6,*) '  getting to negative n_cl  in gridpoints  ',count((svm(2:i1,2:j1,1:k1,in_cl)/delt -dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.)
+    endif
+  endif
+  
+end subroutine cloud_self3
   
 !> Cloud nucleation
-!! #sb3
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
-  subroutine nucleation3
-    use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp  ! dzf,pi
-    use modfields, only : w0, rhof,exnf, qvsl, qt0,ql0, svm   ! ,exnf,ql0
-    use modmpi,    only : myid
-    ! -> add other needed variables 
-    implicit none
-     integer :: i,j,k  
-     real  :: coef_ccn, n_act
-     ! allocatable varibles - supersaturation, derivation of supersaturation 
-     real, allocatable :: ssat(:,:,:), wdssatdz(:,:,:) !, dn_cl_nu(:,:,:)
-     ! logical :: l_sb_nuc_sat, l_sb_nuc_expl
-     
-     ! l_sb_nuc_sat = .false. ! whether include q_cl in super-saturation calculation
-     ! l_sb_nuc_expl = .true. !.true. ! whether explicit nucleation 
+subroutine nucleation3
+  use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv,cp
+  use modfields, only : w0, rhof,exnf, qvsl, qt0,ql0,svm
+  use modmpi,    only : myid
+
+  implicit none
+  integer :: i,j,k  
+  real  :: coef_ccn, n_act
+
+  ! allocatable variables - supersaturation, derivation of supersaturation 
+  real, allocatable :: ssat(:,:,:), wdssatdz(:,:,:) !, dn_cl_nu(:,:,:)
+  
+  ! allocate
+  allocate(  ssat (2-ih:i1+ih,2-jh:j1+jh,k1)      &
+            ,wdssatdz (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+           )
+
+  ssat = 0.0  ! note that supersaturation is
+              ! not always how supersaturated is water vapour,
+              ! depending on a flag, it can also include water already in droplets
+
+  wdssatdz = 0.0
+  dn_cl_nu = 0.0 
+  coef_ccn  = 1.0/sat_max**kappa_ccn ! 1.0
+  ! allows to keep both definitions consistent
     
-    ! ------    
-    ! allocate
-     allocate(  ssat (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-               ,wdssatdz (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             )
-     ! allocate( dn_cl_nu (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    ssat      = 0.0  ! note that supersaturation is
-            ! not always how supersaturated is water vapour,
-            ! depending on a flag,  it can also include water already in droplets
-    wdssatdz  = 0.0
-    
-    dn_cl_nu  = 0.0 
-    
-    coef_ccn  = 1.0/sat_max**kappa_ccn ! 1.0
-    ! allows to keep both definitions consistent
-    ! -----
-    
-    
-    
-    ! calculating supersaturation:
-    if (l_sb_nuc_sat) then  ! l_sb_nuc_sat
+  ! calculating supersaturation:
+  if (l_sb_nuc_sat) then
     ! loops to determine supersaturation
-      do k=1,k1
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      ! calculating supersaturation of water vapour only
+      ssat(i,j,k)=(100./qvsl(i,j,k))*(qt0(i,j,k)-q_cl(i,j,k)-qvsl(i,j,k))
+    enddo
+    enddo
+    enddo 
+  else ! l_sb_nuc_sat
+    ! ie. cloud liquid water is also included supersaturation
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      ssat(i,j,k) = (100./qvsl(i,j,k))*(qt0(i,j,k)-qvsl(i,j,k))
+    enddo
+    enddo
+    enddo   
+  endif ! l_sb_nuc_sat
+   
+  if (l_sb_nuc_expl.and.l_sb_nuc_diff) then
+    ! calculating the derivation - second order estimation?
+    ! ? add switches for different derivation calculation? - so first the firt order only  
+    ! option A: central differences lax
+    do k=2,k1-1
+    do j=2,j1
+    do i=2,i1     
+      ! if in cloud
+      if ( ssat(i,j,k).gt.0.0 ) then
+        ! calculating the derivation
+        wdssatdz(i,j,k) = 0.5*(w0(i,j,k+1)+ w0(i,j,k))*(ssat(i,j,k+1)-ssat(i,j,k-1))/(dzf(k)+dzf(k-1))
+      endif
+    enddo
+    enddo
+    enddo
+
+    ! now for separate cases k=1 and k = k1
+    k=1
+    do j=2,j1
+    do i=2,i1 
+      if (ssat(i,j,k).gt.0.0) then
+        ! just an approximation - same as for the second level
+        wdssatdz(i,j,k) = wdssatdz(i,j,k+1)  ! or 0 to prevent condensation there
+      endif
+    enddo
+    enddo 
+
+    k=k1
+    do j=2,j1
+    do i=2,i1 
+      if (ssat(i,j,k).gt.0.0) then
+        ! first order approximation of the difference       
+        wdssatdz(i,j,k) = w0(i,j,k)* (ssat(i,j,k)-ssat(i,j,k-1)) /dzf(k-1)
+      endif
+    enddo
+    enddo      
+  endif ! l_sb_nuc_expl.and.l_sb_nuc_diff
+   
+  ! calculation of explicit nucleation
+  if (l_sb_nuc_expl) then 
+    if (l_c_ccn) then ! c_ccn is constant 
+      if (l_sb_nuc_diff) then
+        if (l_sb_sat_max) then
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if(ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
+                dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+                ! note - written this way on purpose
+                ! in case of further adjustment of nucleation subroutin
+              endif
+              ! basic limiting 
+              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
+            endif
+          enddo
+          enddo
+          enddo
+        else ! NOT l_sb_sat_max  AND l_sb_nuc_diff
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if( ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if (wdssatdz(i,j,k).gt.0.0) then
+                dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+                ! note - written this way on purpose
+                ! in case of further adjustment of nucleation subroutin
+                ! basic limiting 
+                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
+              endif 
+            endif
+          enddo
+          enddo
+          enddo      
+        endif   ! l_sb_sat_max 
+      else ! NOT l_sb_nuc_diff
+        if (l_sb_sat_max)  then ! l_sb_sat_max AND NOT l_sb_nuc_diff
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if(ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
+                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
+                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
+               endif
+               ! basic limiting
+               dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
+            endif
+          enddo
+          enddo
+          enddo
+        else ! NOT l_sb_sat_max AND NOT l_sb_nuc_diff
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if( ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if (w0(i,j,k).gt.0.0) then
+                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if (w0(i,j,k+1).lt.0.0) then
+                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
+              endif
+              ! basic limiting
+              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
+            endif
+          enddo
+          enddo
+          enddo  
+        endif
+      endif  ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
+    else ! l_c_ccn, ie. c_ccn is not constant, bun dependent on n_cc 
+      if (l_sb_nuc_diff) then   ! l_sb_nuc_diff
+        if (l_sb_sat_max ) then ! l_sb_sat_max 
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if( ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
+                dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+                ! basic limiting 
+                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+              endif
+            endif
+          enddo
+          enddo
+          enddo
+        else  ! l_sb_sat_max 
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if( ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if (wdssatdz(i,j,k).gt.0.0) then
+                dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+                ! basic limiting 
+                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+              endif
+            endif
+          enddo
+          enddo
+          enddo    
+        endif  ! l_sb_sat_max 
+      else  ! l_sb_nuc_diff
+        if (l_sb_sat_max)  then ! l_sb_sat_max  AND NOT l_sb_nuc_diff
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            ! of course only in cloud
+            if(ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
+                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*        &
+                   max(0.0,w0(i,j,k)*                                   &
+                  (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
+                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
+                   max(0.0,w0(i,j,k+1)*                                  &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
+              endif
+              ! basic limiting
+              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+            endif
+          enddo
+          enddo
+          enddo
+        else ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            if(ssat(i,j,k).gt.sat_min) then
+              ! if conditions for nucleation, calculate it
+              if (w0(i,j,k).gt.0.0) then
+                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
+                    max(0.0,w0(i,j,k)*                                   &
+                    (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if (w0(i,j,k+1).lt.0.0) then
+                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
+                   max(0.0,w0(i,j,k+1)*                                  &
+                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))    ! (1/rhof) *rhof = 1          
+              endif
+              ! basic limiting
+              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
+            endif
+          enddo
+          enddo
+          enddo       
+        endif  ! l_sb_sat_max 
+      endif  ! l_sb_nuc_diff
+    endif ! l_c_ccn
+  else ! l_sb_nuc_expl
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      ! of course only in cloud
+      if( ssat(i,j,k).gt.0.0) then
+        ! calculate number of activated n_ccn
+        n_act = coef_ccn*n_cc(i,j,k)*min(sat_max,ssat(i,j,k))**kappa_ccn
+        n_act = max(n_cc(i,j,k),n_act)
+        !
+        if (n_act.gt.n_cl(i,j,k)) then
+          dn_cl_nu(i,j,k) = (n_act-n_cl(i,j,k))/delt
+        else
+          dn_cl_nu(i,j,k) = 0.0
+        endif
+        ! basic limiting - not needed in this case 
+        ! dn_cl_nu(i,j,k)=min(dn_cl_nu(i,j,k), (n_cc(i,j,k)-n_cl(i,j,k))/delt) 
+      endif
+    enddo
+    enddo
+    enddo     
+  endif ! l_sb_nuc_expl
+   
+  ! update itself
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+     ! basic limiting 
+     n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_nu(i,j,k)  ! increase in cloud water number
+
+     ! update water density [kg kg^{-1}]
+     q_clp (i,j,k) = q_clp (i,j,k) + x_cnuc*dn_cl_nu(i,j,k)
+  enddo
+  enddo
+  enddo       
+  
+  if (l_sb_dbg) then 
+    ! warning if too high liquid water 
+    if (any((ssat(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)) then
+      write(6,*) 'WARNING: cloud nucleation too high'  
+      write(6,*) ' removing too much water in gridpoints ',count((ssat(i,j,k).gt.0.0)  &
+             .and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)  
+    end if
+  endif !l_sb_dbg
+    
+  ! deallocate variables
+  deallocate(ssat,wdssatdz)
+
+end subroutine  nucleation3
+
+! ****************************************************************
+!  Limiting cloud dropler and cloud ice nucleation
+!  - to prevent too low ccp
+subroutine cor_nucl3
+  use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp
+  use modfields, only : rhof,exnf, qt0, svm
+  use modmpi,    only : myid
+  implicit none
+
+  integer :: i,j,k
+  real :: coef_mincc, cor_coef
+
+  ! allocatable varibles - supersaturation, derivation of supersaturation 
+  real, allocatable :: cor_dn_cl(:,:,:), cor_dn_ci(:,:,:), n_ccm(:,:,:)
+
+  ! ------    
+  ! allocate
+  allocate(  cor_dn_cl (2-ih:i1+ih,2-jh:j1+jh,k1)           &
+            ,cor_dn_ci (2-ih:i1+ih,2-jh:j1+jh,k1)           &
+            ,n_ccm     (2-ih:i1+ih,2-jh:j1+jh,k1)           &
+          )
+
+  ! multiplicative coefficient
+  coef_mincc = (1.0-cc_min_ratio)/delt
+
+  ! insert values
+  cor_dn_cl = 0.0
+  cor_dn_ci = 0.0
+  n_ccm(2-ih:i1+ih,2-jh:j1+jh,1:k1)=svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,in_cc)
+
+  ! test how many low values
+  if(.not.l_c_ccn) then
+    if ( any((coef_mincc *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1) ).lt. 0.)) then
+      if(l_sb_dbg) then 
+        write(6,*) 'correction for n_cc, n_clp and n_cip needed in gridpoints ', count((coef_mincc   &
+                  *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
+      endif
+
+      ! run only in case of low resulting n_cc
+      do k=1,k1 
       do j=2,j1
       do i=2,i1
-       ! calculating supersaturation of water vapour only
-       ssat(i,j,k)=(100./qvsl(i,j,k))*(qt0(i,j,k)-q_cl(i,j,k)-qvsl(i,j,k))
-       ! ssat(i,j,k)=(100./qvsl(i,j,k))*max((qt0(i,j,k)-q_cl(i,j,k))-qvsl(i,j,k),0.0)
-       ! ssat(i,j,k)=(100./qvsl(i,j,k))*max((qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))-qvsl(i,j,k),0.0)
-       ! ssat(i,j,k) = (100./qvsl(i,j,k))*max( qt0(i,j,k)-qvsl(i,j,k),0.0)
-       !ssat(i,j,k) = min(sat_max, ssat(i,j,k))   ! #sat_max
-      enddo
-      enddo
-      enddo 
-    else    ! l_sb_nuc_sat
-     ! ie. cloud liquid water is also included supersaturation
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-       ! calculate only in case there is excess moisture
-       ! if ( (qt0(i,j,k)-qvsl(i,j,k)).gt.0.0 ) then ! if ( (qt0(i,j,k)-q_cl(i,j,k)-qvsl(i,j,k)).gt.0.0 ) then
-       ! calculating supersaturation including clouds water vapour and cloud liquid water
-       ! ssat(i,j,k)=(100./qvsl(i,j,k))*max((qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))-qvsl(i,j,k),0.0)
-         ssat(i,j,k) = (100./qvsl(i,j,k))*( qt0(i,j,k)-qvsl(i,j,k))
-       ! ssat(i,j,k) = (100./qvsl(i,j,k))*max( qt0(i,j,k)-qvsl(i,j,k),0.0)
-       ! endif 
+        ! now correct those low n_ccp
+        if (( coef_mincc *n_ccm(i,j,k) -dn_cl_nu(i,j,k)).lt. 0.)  then  ! #inp
+          ! calculating adjustment 
+          cor_coef = coef_mincc*n_ccm(i,j,k)/(dn_cl_nu(i,j,k)+eps0)-1.0 ! #inp
+          cor_coef = min(0.0, cor_coef)   ! so the correction does not increase number of particles
+          cor_coef = max(-1.0, cor_coef)  ! so it does not send tendency to negative values
+
+          ! calculating correctors
+          cor_dn_cl(i,j,k) = cor_coef*dn_cl_nu(i,j,k)
+          cor_dn_ci(i,j,k) = 0.0 ! #inp
+
+          ! correcting
+          ! adjusted nucleation rates 
+          dn_cl_nu(i,j,k)  = dn_cl_nu(i,j,k) + cor_dn_cl(i,j,k) 
+          dn_ci_inu(i,j,k) = dn_ci_inu(i,j,k)+ cor_dn_ci(i,j,k)
+
+          ! update arrays for droplet number and ccn number
+          n_clp(i,j,k) = n_clp(i,j,k)+cor_dn_cl(i,j,k)  ! i.e. decreasing cloud water number
+          n_cip(i,j,k) = n_cip(i,j,k)+cor_dn_ci(i,j,k)
+
+          ! update water density [kg kg^{-1}]
+          q_clp (i,j,k) = q_clp (i,j,k) + x_cnuc*cor_dn_cl(i,j,k) 
+          q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*cor_dn_ci(i,j,k)
+          qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*cor_dn_ci(i,j,k) ! #iceout 
+
+          ! update potential temperature
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*cor_dn_ci(i,j,k)  
+        endif
       enddo
       enddo
       enddo   
-    endif ! l_sb_nuc_sat
-     
-    if (l_sb_nuc_expl.and.l_sb_nuc_diff) then ! l_sb_nuc_expl AND l_sb_nuc_diff 
-     
-     ! calculating the derivation - second order estimation?
-     ! ? add switches for different derivation calculation? - so first the firt order only  
-     ! option A: central differences lax
-      do k=2,k1-1
-      do j=2,j1
-      do i=2,i1     
-       ! if in cloud
-       if ( ssat(i,j,k).gt.0.0 ) then
-         ! calculating the derivation
-         wdssatdz(i,j,k) = 0.5*(w0(i,j,k+1)+ w0(i,j,k))*(ssat(i,j,k+1)-ssat(i,j,k-1))/(dzf(k)+dzf(k-1))
-         ! or: wdssatdz(i,j,k) = w0(i,j,k)* (ssat(i,j,k)-ssat(i,j,k-1)) /dzf(k-1)
-       endif
-      enddo
-      enddo
-      enddo
-     ! now for separate cases k=1 and k = k1
-      k=1
-      do j=2,j1
-      do i=2,i1 
-       if (ssat(i,j,k).gt.0.0) then
-         ! just an approximation - same as for the second level
-         wdssatdz(i,j,k) = wdssatdz(i,j,k+1)  ! or 0 to prevent condensation there
-       endif
-      enddo
-      enddo 
-      k=k1
-      do j=2,j1
-      do i=2,i1 
-       if (ssat(i,j,k).gt.0.0) then
-         ! first order approximation of the difference       
-         wdssatdz(i,j,k) = w0(i,j,k)* (ssat(i,j,k)-ssat(i,j,k-1)) /dzf(k-1)
-       endif
-      enddo
-      enddo      
-      ! option B: central differences lax
-      ! : wdssatdz(i,j,k) = 0.5*((ssat(i,j,k+1)-ssat(i,j,k))*w0(i,j,k+1)/dzf(k) &
-      ! :                  +(ssat(i,j,k)-ssat(i,j,k-1))*w0(i,j,k)/dzf(k-1))
     endif
-     
-     
-     ! calculation of explicit nucleation
-     if (l_sb_nuc_expl)    then 
-     if (l_c_ccn) then ! c_ccn is constant 
-      if (l_sb_nuc_diff)   then   ! l_sb_nuc_diff
-       if (l_sb_sat_max )   then   ! l_sb_sat_max 
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-        ! of course only in cloud
-         if(ssat(i,j,k).gt.sat_min) then
-         ! if conditions for nucleation, calculate it
-          if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
-           dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-          ! note - written this way on purpose
-          ! in case of further adjustment of nucleation subroutin
-          endif
-         ! basic limiting 
-         dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-         endif
-        enddo
-        enddo
-        enddo
-       else   ! NOT l_sb_sat_max  AND l_sb_nuc_diff
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         ! of course only in cloud
-         if( ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if (wdssatdz(i,j,k).gt.0.0) then
-           dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-           ! note - written this way on purpose
-           ! in case of further adjustment of nucleation subroutin
-           ! basic limiting 
-           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-          endif 
-         endif
-        enddo
-        enddo
-        enddo      
-       endif   ! l_sb_sat_max 
-      else ! NOT l_sb_nuc_diff
-       if (l_sb_sat_max )  then  ! l_sb_sat_max  AND NOT l_sb_nuc_diff
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         ! of course only in cloud
-         if(ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
-           dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
-              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-          endif
-          if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
-           dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
-             (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
-          endif
-          ! basic limiting
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-         endif
-        enddo
-        enddo
-        enddo
-       else   ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         ! of course only in cloud
-         if( ssat(i,j,k).gt.sat_min) then
-         ! if conditions for nucleation, calculate it
-          if (w0(i,j,k).gt.0.0) then
-           dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
-              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-          endif
-          if (w0(i,j,k+1).lt.0.0) then
-           dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
-             (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
-          endif
-          ! basic limiting
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-         endif
-        enddo
-        enddo
-        enddo  
-       endif  ! 
-      endif  ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
-     else ! l_c_ccn, ie. c_ccn is not constant, bun dependent on n_cc 
-      if (l_sb_nuc_diff) then   ! l_sb_nuc_diff
-       if (l_sb_sat_max ) then ! l_sb_sat_max 
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-        ! of course only in cloud
-         if( ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
-           dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-           ! basic limiting 
-           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-          endif
-         endif
-        enddo
-        enddo
-        enddo
-       else  ! l_sb_sat_max 
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         ! of course only in cloud
-         if( ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if (wdssatdz(i,j,k).gt.0.0) then
-           dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-           ! basic limiting 
-           dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-          endif
-         endif
-        enddo
-        enddo
-        enddo    
-       endif  ! l_sb_sat_max 
-      else  ! l_sb_nuc_diff
-       if (l_sb_sat_max )  then  ! l_sb_sat_max  AND NOT l_sb_nuc_diff
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-        ! of course only in cloud
-         if(ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
-           dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
-               max(0.0,w0(i,j,k)*                                   &
-              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-          endif
-          if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
-           dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
-              max(0.0,w0(i,j,k+1)*                                  &
-             (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
-          endif
-         ! basic limiting
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-         endif
-        enddo
-        enddo
-        enddo
-       else   ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         if(ssat(i,j,k).gt.sat_min) then
-          ! if conditions for nucleation, calculate it
-          if (w0(i,j,k).gt.0.0) then
-           dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
-               max(0.0,w0(i,j,k)*                                   &
-              (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-          endif
-          if (w0(i,j,k+1).lt.0.0) then
-           dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         & 
-              max(0.0,w0(i,j,k+1)*                                  &
-             (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1          
-          endif
-          ! basic limiting
-          dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-         endif
-        enddo
-        enddo
-        enddo       
-       endif  ! l_sb_sat_max 
-      endif  ! l_sb_nuc_diff
-     endif ! l_c_ccn
-     else ! l_sb_nuc_expl
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-         ! of course only in cloud
-         if( ssat(i,j,k).gt.0.0) then
-          ! calculate number of activated n_ccn
-          n_act = coef_ccn*n_cc(i,j,k)*min(sat_max,ssat(i,j,k))**kappa_ccn
-          n_act = max(n_cc(i,j,k),n_act)
-          !
-          if (n_act.gt.n_cl(i,j,k)) then
-            dn_cl_nu(i,j,k) = (n_act-n_cl(i,j,k))/delt
-          else
-            dn_cl_nu(i,j,k) = 0.0
-          endif
-          ! basic limiting - not needed in this case 
-          ! dn_cl_nu(i,j,k)=min(dn_cl_nu(i,j,k), (n_cc(i,j,k)-n_cl(i,j,k))/delt) 
-         endif
-        enddo
-        enddo
-        enddo     
-     endif ! l_sb_nuc_expl
-     
-     
-     ! update itself
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-         ! basic limiting 
-         ! dn_cl_nu(i,j,k)=min(dn_cl_nu(i,j,k), n_cc(i,j,k)/delt) ! min(dn_cl_nu(i,j,k), svm(i,j,k,in_cc)/delt) ! does not exceed ccn
-         !dn_cl_nu(i,j,k)=min(dn_cl_nu(i,j,k), max(0.0,(qt0(i,j,k)     &
-         !          -q_cl(i,j,k)-q_ci(i,j,k))-qvsl(i,j,k))/x_cnuc)
-         !
-         n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_nu(i,j,k)  ! increase in cloud water number
-         ! n_ccp(i,j,k) = n_ccp(i,j,k)-dn_cl_nu(i,j,k)  ! decrease in available ccn, but not total ccn
-         ! update water density [kg kg^{-1}]
-         q_clp (i,j,k) = q_clp (i,j,k) + x_cnuc*dn_cl_nu(i,j,k) ! o: q_clp (i,j,k) + (x_cnuc/rhof(k))*dn_cl_nu(i,j,k)    
-      enddo
-      enddo
-      enddo       
+  endif
 
-     
-     ! warning if too high liquid water 
-     ! run only if too m  
-     if (l_sb_dbg) then 
-       if (any((ssat(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)) then
-         write(6,*) 'WARNING: cloud nucleation too high'  
-         write(6,*) ' removing too much water in gridpoints ',count((ssat(i,j,k).gt.0.0)  &
-              .and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)  
-!         do j=2,j1
-!         do i=2,i1
-!         do k=1,k1
-!           if ( (ql0(i,j,k)/delt -   x_cnuc*dn_cl_nu(i,j,k)).lt. 0. ) then
-!             write(6,*)  "(i,j,k) = ", i,j,k, "  ql0 =  ", ql0(i,j,k)
-!             write(6,*)  "q_cl (i,j,k) = ", q_cl (i,j,k), "delta q_cl (i,j,k) = ", delt*q_clp (i,j,k) , "  ql0_1 =  ", (ql0(i,j,k) -  delt* x_cnuc*dn_cl_nu(i,j,k))
-!           endif
-!         enddo
-!         enddo
-!         enddo    
-        end if
-     
-     ! warning if too high cloud water number 
-!      if ( any((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax)).lt. 0.)) then
-!       write(6,*) 'WARNING: nucleation removing too many ccn'
-!       write(6,*) '  delta n_cl too big in ', count((svm(2:i1,2:j1,1:kmax,in_cc)/delt -   dn_cl_nu(2:i1,2:j1,1:kmax) ).lt. 0.),myid
-!          do j=2,j1
-!          do i=2,i1
-!          do k=1,k1
-!            if ( (n_cc(i,j,k)/delt -   dn_cl_nu(i,j,k)).lt. 0. ) then
-!              write(6,*)  "(i,j,k) = ", i,j,k, " n_cc_1 =", (n_cc(i,j,k) -  delt*dn_cl_nu(i,j,k))
-!            endif
-!          enddo
-!          enddo
-!          enddo        
-!      end if 
-     endif !l_sb_dbg
-     
-     ! deallocate variables
-     !d-> add deallocation
-     deallocate(ssat,wdssatdz)
-     ! deallocate( dn_cl_nu)    
-    
-  end subroutine  nucleation3
-! #sb3 END
+  ! cleaning up
+  deallocate(  cor_dn_cl, cor_dn_ci, n_ccm)
 
-  ! #sb3 START
-  ! ****************************************************************
-  !  Limiting cloud dropler and cloud ice nucleation
-  !  - to prevent too low ccp
-  ! 
-  ! 
-  ! 
-  !  ************************************************************
-    subroutine cor_nucl3
-    use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp  ! dzf,pi
-    use modfields, only : rhof,exnf, qt0, svm   ! ,exnf,ql0
-    use modmpi,    only : myid
-    ! -> add other needed variables 
-    implicit none
-     integer :: i,j,k
-     real :: coef_mincc, cor_coef
-     ! allocatable varibles - supersaturation, derivation of supersaturation 
-     real, allocatable :: cor_dn_cl(:,:,:), cor_dn_ci(:,:,:), n_ccm(:,:,:)
-    
-     ! ------    
-     ! allocate
-     allocate(  cor_dn_cl (2-ih:i1+ih,2-jh:j1+jh,k1)           &
-               ,cor_dn_ci (2-ih:i1+ih,2-jh:j1+jh,k1)           &
-               ,n_ccm     (2-ih:i1+ih,2-jh:j1+jh,k1)           &
-             )
-     
-     ! multiplicative coefficient
-     coef_mincc = (1.0-cc_min_ratio)/delt
-     
-     ! insert values
-     cor_dn_cl = 0.0
-     cor_dn_ci = 0.0
-     n_ccm(2-ih:i1+ih,2-jh:j1+jh,1:k1)=svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,in_cc)
-     ! #t 
-     ! test how many low values
-     if(.not.l_c_ccn) then
-      if ( any((coef_mincc *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1) ).lt. 0.)) then
-        if(l_sb_dbg) then 
-          write(6,*) 'correction for n_cc, n_clp and n_cip needed in gridpoints ', count((coef_mincc   &
-                   *n_ccm(2:i1,2:j1,1:k1)-dn_cl_nu(2:i1,2:j1,1:k1)-dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
-        endif
-        ! run only in case of low resulting n_cc
-        do k=1,k1 
-        do j=2,j1
-        do i=2,i1
-         ! now correct those low n_ccp
-         ! if (( coef_mincc *n_ccm(i,j,k) -dn_cl_nu(i,j,k)-dn_ci_inu(i,j,k)).lt. 0.)  then! #inp
-         if (( coef_mincc *n_ccm(i,j,k) -dn_cl_nu(i,j,k)).lt. 0.)  then  ! #inp
-              ! calculating adjustment 
-              ! cor_coef = coef_mincc*n_ccm(i,j,k)/(dn_cl_nu(i,j,k)+dn_ci_inu(i,j,k)+eps0)-1.0! #inp
-              cor_coef = coef_mincc*n_ccm(i,j,k)/(dn_cl_nu(i,j,k)+eps0)-1.0 ! #inp
-              cor_coef = min(0.0, cor_coef)   ! so the correction does not increase number of particles
-              cor_coef = max(-1.0, cor_coef)  ! so it does not send tendency to negative values
-              ! calculating correctors
-              cor_dn_cl(i,j,k) = cor_coef*dn_cl_nu(i,j,k)
-              ! cor_dn_ci(i,j,k) = cor_coef*dn_ci_inu(i,j,k)! #inp
-              cor_dn_ci(i,j,k) = 0.0 ! #inp
-              !
-              ! correcting
-              ! adjusted nucleation rates 
-              dn_cl_nu(i,j,k)  = dn_cl_nu(i,j,k) + cor_dn_cl(i,j,k) 
-              dn_ci_inu(i,j,k) = dn_ci_inu(i,j,k)+ cor_dn_ci(i,j,k)
-              ! update arrays for droplet number and ccn number
-              n_clp(i,j,k) = n_clp(i,j,k)+cor_dn_cl(i,j,k)  ! i.e. decreasing cloud water number
-              n_cip(i,j,k) = n_cip(i,j,k)+cor_dn_ci(i,j,k)
-              ! n_ccp(i,j,k) = n_ccp(i,j,k)-cor_dn_cl(i,j,k) -cor_dn_ci(i,j,k) ! i.e. increasing number of ccn 
-              !
-              ! update water density [kg kg^{-1}]
-              q_clp (i,j,k) = q_clp (i,j,k) + x_cnuc*cor_dn_cl(i,j,k) 
-              q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*cor_dn_ci(i,j,k)
-              qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*cor_dn_ci(i,j,k) ! #iceout 
-              !             
-              ! update potential temperature
-              thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*cor_dn_ci(i,j,k)  
-              ! #iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*x_inuc*cor_dn_ci(i,j,k)              
-          endif
-        enddo
-        enddo
-        enddo   
-      endif
-     endif
-     
-     ! cleaning up
-     deallocate(  cor_dn_cl, cor_dn_ci, n_ccm)
-     
-     end subroutine cor_nucl3
-     ! #sb3 END 
-     
- 
-  ! #sb3 START
-  ! ****************************************************************
-  !  Ice nucleation
-  ! - based on Seifert & Beheng (2003), p. 53
-  ! 
-  ! 
-  ! 
-  !  ************************************************************
-  subroutine icenucle3
-    use modglobal, only : dzf,i1,j1,k1,ih,jh,kmax,rlv, cp  ! dzf,pi
-    use modfields, only : w0, rhof,exnf, qvsi, qt0, ql0, svm, sv0,tmp0   ! <- later remove svm, sv0 - just for testing
-    ! -> add other needed variables 
-    implicit none
-     integer :: i,j,k  
-     ! allocatable varibles - supersaturation, derivation of supersaturation 
-     real, allocatable :: ssice(:,:,:) !,  dn_ci_inu(:,:,:)
-     real:: n_in,  n_tid, dq_inuc
-     ! logical :: l_sb_inuc_sat, l_sb_inuc_expl
-     
-     ! l_sb_inuc_sat = .false. ! whether include q_cl in super-saturation calculation
-     ! l_sb_inuc_expl = .false. !.true. ! whether explicit nucleation 
-    
-    ! ------  
-    ! preparing constant values
-    ! rlfcp = rlfr/cp
-    
-    ! allocate
-     allocate( ssice (2-ih:i1+ih,2-jh:j1+jh,k1) ) !
-    ! allocate(dn_ci_inu (2-ih:i1+ih,2-jh:j1+jh,k1) )
-     ssice = 0.0 ! not always how supersaturated is water vapour,
-            ! depending on a flag,  it can also include water already in ice particles
-    ! clear dn_ci_inu
-    dn_ci_inu = 0.0
-    ! dq_inuc = 0.0
-    
-    
-    ! calculate supersaturation with respect to ice
-    if (l_sb_inuc_sat) then  ! l_sb_inuc_sat
-     ! calculating supersaturation of water vapour only
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1 
-        ! calculating supersaturation 
-        ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0
-        ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0)
-     enddo
-     enddo
-     enddo  
-    else  ! l_sb_inuc_sat
-     ! ie. cloud ice water is also included supersaturation
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1 
-        ! only if there is excess moisture
-        ! if ( (qt0(i,j,k)-q_cl(i,j,k)-qvsi(i,j,k)).gt.0.0 ) then
-         ! calculating supersaturation 
-         ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0
-         ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0)
-        ! endif 
-     enddo
-     enddo
-     enddo     
-    endif   ! l_sb_inuc_sat
-    
-     
-    ! loops to calculate ice nucleation
-    if (l_sb_inuc_expl) then ! l_sb_inuc_expl
-     ! explicit ice nucleation - not yet included
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1  
+end subroutine cor_nucl3
+
+
+! ****************************************************************
+!  Ice nucleation
+! - based on Seifert & Beheng (2003), p. 53
+!  ************************************************************
+subroutine icenucle3
+  use modglobal, only : dzf,i1,j1,k1,ih,jh,kmax,rlv,cp
+  use modfields, only : w0, rhof,exnf, qvsi, qt0, ql0, svm, sv0,tmp0   ! <- later remove svm, sv0 - just for testing
+  implicit none
+
+  integer :: i,j,k  
+
+  ! allocatable varibles - supersaturation, derivation of supersaturation 
+  real, allocatable :: ssice(:,:,:) !,  dn_ci_inu(:,:,:)
+  real:: n_in,  n_tid, dq_inuc
+   
+  ! preparing constant values
+  ! rlfcp = rlfr/cp
+  
+   allocate( ssice (2-ih:i1+ih,2-jh:j1+jh,k1) ) !
+
+   ssice = 0.0 ! not always how supersaturated is water vapour,
+               ! depending on a flag,  it can also include water already in ice particles
+
+  dn_ci_inu = 0.0
+  
+  ! calculate supersaturation with respect to ice
+  if (l_sb_inuc_sat) then  ! l_sb_inuc_sat
+    ! calculating supersaturation of water vapour only
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1 
+       ! calculating supersaturation 
+       ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0
+       ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0)
+    enddo
+    enddo
+    enddo  
+  else  ! l_sb_inuc_sat
+    ! ie. cloud ice water is also included supersaturation
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1 
+      ! calculating supersaturation 
+      ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0
+      ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0)
+    enddo
+    enddo
+    enddo     
+  endif   ! l_sb_inuc_sat
+   
+  ! loops to calculate ice nucleation
+  if (l_sb_inuc_expl) then ! l_sb_inuc_expl
+    ! explicit ice nucleation - not yet included
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1  
       ! -> add later
       !dn_ci_inu(i,j,k) = 
-     enddo
-     enddo
-     enddo      
-    else  ! l_sb_inuc_expl
-     if (l_sb_reisner) then ! whther to apply reisnerr correction 
+    enddo
+    enddo
+    enddo      
+  else  ! l_sb_inuc_expl
+    if (l_sb_reisner) then ! whether to apply reisnerr correction 
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        ! not using qcmask condition,
-        ! since air can be saturated with respect to ice
+        ! not using qcmask condition, since air can be saturated with respect to ice
         if((tmp0(i,j,k).lt.tmp_inuc).and.(ssice(i,j,k).gt.ssice_min)) then
-         ! if conditions for nucleation, calculate it
-         ! Meyers et al. (1992)
-         n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
-               +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
-         ! prepare Reisnerr (1998) correction 
-         ! w: n_tid = (1.0/rhof(k))*N_inuc_R*exp( - min(tmp0(i,j,k),c_inuc_R)-T_3)
-         n_tid = (1.0/rhof(k))*N_inuc_R*exp(b_inuc_R*(T_3- max(tmp0(i,j,k),c_inuc_R)))
-         ! performing reisner correction
-         n_in = max(a1_inuc_R*n_tid,min(a2_inuc_R*n_tid,n_in))
-         ! limiting n_in
-         n_in = min(n_i_max, n_in)
-         ! checking conditions if suitable for nucleation
-         if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
-           dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k))/delt
-         else 
-           dn_ci_inu(i,j,k) = 0.0
-           ! note - written this way on purpose
-           ! in case of further adjustment of nucleation subroutine
-         endif
+          ! if conditions for nucleation, calculate it
+          ! Meyers et al. (1992)
+          n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
+                +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
+
+          ! prepare Reisnerr (1998) correction 
+          ! w: n_tid = (1.0/rhof(k))*N_inuc_R*exp( - min(tmp0(i,j,k),c_inuc_R)-T_3)
+          n_tid = (1.0/rhof(k))*N_inuc_R*exp(b_inuc_R*(T_3- max(tmp0(i,j,k),c_inuc_R)))
+
+          ! performing reisner correction
+          n_in = max(a1_inuc_R*n_tid,min(a2_inuc_R*n_tid,n_in))
+
+          ! limiting n_in
+          n_in = min(n_i_max, n_in)
+
+          ! checking conditions if suitable for nucleation
+          if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
+            dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k))/delt
+          else 
+            dn_ci_inu(i,j,k) = 0.0
+            ! note - written this way on purpose
+            ! in case of further adjustment of nucleation subroutine
+          endif
         endif 
-         ! basic correction 
-         ! dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), n_cc(i,j,k)/delt) ! does not exceed ccn
-         ! update water numbers and 
-         n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
-         ! update water density [kg kg^{-1}] 
-         q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
-         ! update liquid water potential temperature
-         !  - due to latent heat of melting (freezing in this case)
-         qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
-         ! #iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
+
+        ! basic correction 
+        n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
+
+        ! update water density [kg kg^{-1}] 
+        q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
+
+        ! update liquid water potential temperature
+        !  - due to latent heat of melting (freezing in this case)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
       enddo
       enddo
       enddo     
-     else !l_sb_reisner :
-     ! i.e. when not applying reisnerr correction 
+    else !l_sb_reisner
+      ! i.e. when not applying reisnerr correction 
       do k=1,k1
       do j=2,j1
       do i=2,i1
         ! not using qcmask condition,
         ! since air can be saturated with respect to ice
         if((tmp0(i,j,k).lt.tmp_inuc).and.(ssice(i,j,k).gt.ssice_min)) then
-         ! if conditions for nucleation, calculate it
-         ! Meyers et al. (1992)
-         n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
-               +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
-         ! limiting n_in
-         n_in = min(n_i_max, n_in)
-         ! checking conditions if suitable for nucleation
-         if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
-           dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k) )/delt
-         else 
-           dn_ci_inu(i,j,k) = 0.0
-           ! note - written this way on purpose
-           ! in case of further adjustment of nucleation subroutine
-         endif
-        endif 
-         ! basic correction  - not suitable
-         ! dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), n_cc(i,j,k)/delt) ! does not exceed ccn
-         ! dn_ci_inu(i,j,k)=min(dn_ci_inu(i,j,k), max( (qt0(i,j,k)     &
-         !          -q_cl(i,j,k)-q_ci(i,j,k))-qvsi(i,j,k),0.0)/x_inuc)
-         ! update water numbers and 
-         n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
-         ! no change n_ccp #inp
-         ! n_ccp(i,j,k) = n_ccp(i,j,k)-dn_ci_inu(i,j,k)  ! decrease in ccn 
-         ! update water density [kg kg^{-1}] 
-         q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
-         ! update liquid water potential temperature
-         !  - due to latent heat of melting (freezing in this case)
-         qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
-         ! #iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
-         !
-         ! #t 
-          ! writing outputs
-          !   write(6,*) '----icenucle --------'
-          !   write(6,*) '(i,j,k)= ', i,j,k, '  q_ci= ', q_ci(i,j,k), ' n_ci= ', n_ci(i,j,k)
-          !   write(6,*) '  ssice= ', ssice(i,j,k), ' N_in= ', N_in, ' dn_ci_inu= ',dn_ci_inu(i,j,k) 
-          !   write(6,*) '  n_ci-1 = ', svm(i,j,k,in_ci), ' n_ci0  = ', sv0(i,j,k,in_ci), ' n_ci1  = ', svm(i,j,k,in_ci)+delt*n_cip(i,j,k) ! svp(i,j,k,insv) 
-          !   write(6,*) '  q_ci-1 = ', svm(i,j,k,iq_ci), ' q_ci0  = ', sv0(i,j,k,iq_ci), ' q_ci1  = ', svm(i,j,k,iq_ci)+delt*q_cip(i,j,k) ! svp(i,j,k,iqsv)
-         ! #t END
-      enddo
-      enddo
-      enddo
-     endif !l_sb_reisner
-    endif  ! l_sb_inuc_expl
-     
-     ! warning 
-     if (l_sb_dbg) then 
-      if (any((ssice(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)) then
-         write(6,*) 'WARNING: high ice nucleation'  
-         write(6,*) ' removing too much water in gridpoints ',count((ssice(i,j,k).gt.0.0).and.   & 
-          ((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
-      endif
-     endif
-     
-    ! deallocation
-    deallocate ( ssice )
-  
-  end subroutine icenucle3
-  ! #sb3 END  
-  
-  !! #sb3 START
-  !! ****************************************************************
-  !!  Limiting condensation   and deposition
-  !!  - to prevent negative values
-  !! 
-  !!  - call should be located:
-  !!      - after depositions
-  !!      - after nucleation correction
-  !!      - before heterogeneous freezing 
-  !! 
-  !!  ************************************************************
-  subroutine cor_deposit3
-    use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp  ! dzf,pi
-    use modfields, only : rhof,exnf, qvsl,qvsi, qt0, svm   ! ,exnf,ql0
-    use modmpi,    only : myid
-    ! -> add other needed variables 
-    implicit none
-     integer :: i,j,k
-     real    :: tocon, precon, cond_cf, cond_lcf
-     ! allocatable varibles -
-     real, allocatable, dimension(:,:,:) ::cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep  !  cor_dncl,cor_dnci       &
-    
-     ! ------    
-     ! allocate
-     allocate( cor_dqci_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-              ,cor_dqhs_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &  
-              ,cor_dqhg_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &             
-              )
-              ! cor_dncl     (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-              ! ,cor_dnci     (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-              
-  
-    ! start values
-          ! cor_dncl     = 0.0
-          ! cor_dnci     = 0.0
-          cor_dqci_dep = 0.0
-          cor_dqhs_dep = 0.0
-          cor_dqhg_dep = 0.0
-    
-     ! then correction for ice processes
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-        ! available water vapour for deposition
-        tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt
-        ! tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt                   &
-        !       - q_clp(i,j,k)        & 
-        !       -(q_cip(i,j,k)-dq_ci_dep(i,j,k)) ! basic ice formation but not ice deposition 
-        !#iceout tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-qvsi(i,j,k))/delt  &
-        !#iceout         - q_clp(i,j,k)                                                  &
-        !#iceout         -(q_cip(i,j,k)-dq_ci_dep(i,j,k)) ! basic ice formation but not ice deposition                  
-        ! tocon = max(0.0,tocon)
-        ! 0.0 to prevent happening in undersaturated areas with transported droplets
-        !
-        ! consumption of water vapour calculated by nucleation and deposition processes
-        precon = dq_ci_dep(i,j,k)+dq_hs_dep(i,j,k)+dq_hg_dep(i,j,k)
-        ! precon = max(0.0, precon)
-        !
-       if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then !  if ( (tocon-precon).lt.0.0  ) then ! run only in oversaturted conditions
-          ! preparing additive correctors: 
-          cond_cf = (tocon/(precon+eps0) - 1.0)  ! later added eps0 to prevent 0 values
-          cond_cf = max(min(0.0, cond_cf),-1.0) 
-          ! debugging 
-          if(cond_cf.lt.-1.0) then
-            write(6,*) ' WARNING: deposition '
-            write(6,*) '  cond_cf = ',cond_cf
-            write(6,*) '  precon = ',precon
-            write(6,*) '  tocon = ',tocon
-            write(6,*) '  dq_ci_dep = ', dq_ci_dep(i,j,k)
+          ! if conditions for nucleation, calculate it
+          ! Meyers et al. (1992)
+          n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
+                +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
+          ! limiting n_in
+          n_in = min(n_i_max, n_in)
+          ! checking conditions if suitable for nucleation
+          if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
+            dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k) )/delt
+          else 
+            dn_ci_inu(i,j,k) = 0.0
+            ! note - written this way on purpose
+            ! in case of further adjustment of nucleation subroutine
           endif
-          if((cond_cf.lt.0.0).and.( dq_ci_dep(i,j,k).lt.0.0)) then
-            write(6,*) ' WARNING: deposition '
-            write(6,*) '  cond_cf = ',cond_cf
-            write(6,*) '  precon = ',precon
-            write(6,*) '  tocon = ',tocon
-            write(6,*) '  dq_ci_dep = ', dq_ci_dep(i,j,k)
-          endif          
-          
-          
-          ! 
-          ! - corrector for deposition - only if positive deposition 
-          cor_dqci_dep(i,j,k) = cond_cf*max(0.0, dq_ci_dep(i,j,k))
-          cor_dqhs_dep(i,j,k) = cond_cf*max(0.0, dq_hs_dep(i,j,k))
-          cor_dqhg_dep(i,j,k) = cond_cf*max(0.0, dq_hg_dep(i,j,k))
-          ! 
-          ! and updating values:
-          ! 
-          !
-          ! - cloud water content
-          ! q_clp(i,j,k) = q_clp(i,j,k)+x_cnuc*cor_dncl(i,j,k)
-          q_cip(i,j,k) =q_cip(i,j,k)+cor_dqci_dep(i,j,k) !  q_cip(i,j,k)+x_inuc*cor_dncl(i,j,k)+cor_dqci_dep(i,j,k)
-          ! 
-          ! - correction for hydrometeors
-          q_hsp(i,j,k) = q_hsp(i,j,k)+cor_dqhs_dep(i,j,k)
-          q_hgp(i,j,k) = q_hgp(i,j,k)+cor_dqhg_dep(i,j,k)
-          !
-          ! - correction for total water
-          qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep(i,j,k)          &
-                -cor_dqhg_dep(i,j,k)-cor_dqci_dep(i,j,k) 
-          !#iceout qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep(i,j,k)-cor_dqhg_dep(i,j,k)
-          !         
-          ! - and correcting for heat
-          thlpmcr(i,j,k) = thlpmcr(i,j,k)                            &
-                +(rlvi/(cp*exnf(k)))*cor_dqci_dep(i,j,k)             & !l: +cor_dqdep(i,j,k))
-                +(rlvi/(cp*exnf(k)))*cor_dqhs_dep(i,j,k)             &
-                +(rlvi/(cp*exnf(k)))*cor_dqhg_dep(i,j,k)
-          !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)                            &
-          !#iceout      +(rlme/(cp*exnf(k)))*cor_dqci_dep(i,j,k)             & !l: +cor_dqdep(i,j,k))
-          !#iceout      +(rlvi/(cp*exnf(k)))*cor_dqhs_dep(i,j,k)             &
-          !#iceout      +(rlvi/(cp*exnf(k)))*cor_dqhg_dep(i,j,k)                
-          !         
-          ! corrector for process values
-          dq_ci_dep(i,j,k) =dq_ci_dep(i,j,k)+cor_dqci_dep(i,j,k)
-          dq_hs_dep(i,j,k) =dq_hs_dep(i,j,k)+cor_dqhs_dep(i,j,k)
-          dq_hg_dep(i,j,k) =dq_hg_dep(i,j,k)+cor_dqhg_dep(i,j,k)
         endif 
-     enddo
-     enddo
-     enddo      
-     
-    ! clean up
-    deallocate( cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep)
+        ! basic correction  - not suitable
+
+        ! update water numbers and 
+        n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
+
+        ! no change n_ccp #inp
+
+        ! update water density [kg kg^{-1}] 
+        q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
+
+        ! update liquid water potential temperature
+        !  - due to latent heat of melting (freezing in this case)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
+      enddo
+      enddo
+      enddo
+    endif !l_sb_reisner
+  endif  ! l_sb_inuc_expl
+   
+  if (l_sb_dbg) then 
+    if (any((ssice(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)) then
+      write(6,*) 'WARNING: high ice nucleation'  
+      write(6,*) ' removing too much water in gridpoints ',count((ssice(i,j,k).gt.0.0).and.   & 
+        ((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
+    endif
+  endif
+   
+  ! deallocation
+  deallocate ( ssice )
+
+end subroutine icenucle3
+ 
+
+!! ****************************************************************
+!!  Limiting condensation   and deposition
+!!  - to prevent negative values
+!! 
+!!  - call should be located:
+!!      - after depositions
+!!      - after nucleation correction
+!!      - before heterogeneous freezing 
+!! 
+!!  ************************************************************
+subroutine cor_deposit3
+  use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp
+  use modfields, only : rhof,exnf, qvsl,qvsi, qt0, svm
+  use modmpi,    only : myid
+  implicit none
+
+  integer :: i,j,k
+  real    :: tocon, precon, cond_cf, cond_lcf
+
+  real, allocatable, dimension(:,:,:) ::cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep
   
-  end subroutine cor_deposit3
+  allocate( cor_dqci_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &
+           ,cor_dqhs_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &  
+           ,cor_dqhg_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &             
+           )
+           
+
+  ! start values
+  cor_dqci_dep = 0.0
+  cor_dqhs_dep = 0.0
+  cor_dqhg_dep = 0.0
   
+  ! then correction for ice processes
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+     ! available water vapour for deposition
+     tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt
 
+     ! consumption of water vapour calculated by nucleation and deposition processes
+     precon = dq_ci_dep(i,j,k)+dq_hs_dep(i,j,k)+dq_hg_dep(i,j,k)
 
-!> Sedimentation of cloud water
-!!
-!!   The sedimentation of cloud droplets assumes a lognormal DSD in which the
-!!   geometric std dev. is assumed to be fixed at 1.3.
-!! sedimentation of cloud droplets
-!! lognormal CDSD is assumed (1 free parameter : sig_g)
-!! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
-!! flux is calc. anal.
-!   subroutine sedimentation_cloud3
-!     use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
-!     use modfields, only : rhof,exnf,ql0
-!     implicit none
-!     integer :: i,j,k
-! 
-! !    real    :: ql0_spl(2-ih:i1+ih,2-jh:j1+jh,k1)       &! work variable
-! !              ,Nc_spl(2-ih:i1+ih,2-jh:j1+jh,k1)
-! !    real,save :: dt_spl,wfallmax
-! !
-! !    ql0_spl(2:i1,2:j1,1:k1) = ql0(2:i1,2:j1,1:k1)
-! !    Nc_spl(2:i1,2:j1,1:k1)  = Nc(2:i1,2:j1,1:k1)
-! !
-! !    wfallmax = 9.9
-! !    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
-! !    dt_spl = delt/real(n_spl)
-! !
-! !    do jn = 1 , n_spl  ! time splitting loop
-! ! 
-! !     sedc(2:i1,2:j1,1:k1) = 0.
-! !     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
-! ! 
-! !     do j=2,j1
-! !     do i=2,i1
-! !     do k=1,k1
-! !        !  #sb3 changing variable
-! !        if (q_cl_mask(i,j,k)) then
-! !        ! old: if (qcmask(i,j,k)) then
-! !           !  #sb3 changing variable
-! !           sedc(i,j,k) = csed*(n_cl(i,j,k))**(-2./3.)*(q_cl(i,j,k)*rhof(k))**(5./3.)
-! !           ! old: sedc(i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
-! !        endif
-! !     enddo
-! !     enddo
-! !     enddo
-! ! 
-! !     do k=1,kmax
-! !     do j=2,j1
-! !     do i=2,i1
-! !       ! #sb3 START
-! !       ! adding changes in water number and water density 
-! !       n_clp(i,j,k) = n_clp(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
-! !       ! 
-! !       q_clp(i,j,k) = q_clp(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
-! !       !
-! !       ! #sb3 END
-! !       qtpmcr(i,j,k) = qtpmcr(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
-! !       thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlv/(cp*exnf(k))) &
-! !                        *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
-! !     enddo
-! !     enddo
-! !     enddo
-! !   end subroutine sedim_cloud3
-! !   ! -> possibly adjust later
+     if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then ! run only in oversaturted conditions
+       ! preparing additive correctors: 
+       cond_cf = (tocon/(precon+eps0) - 1.0)  ! later added eps0 to prevent 0 values
+       cond_cf = max(min(0.0, cond_cf),-1.0) 
 
+       ! - corrector for deposition - only if positive deposition 
+       cor_dqci_dep(i,j,k) = cond_cf*max(0.0, dq_ci_dep(i,j,k))
+       cor_dqhs_dep(i,j,k) = cond_cf*max(0.0, dq_hs_dep(i,j,k))
+       cor_dqhg_dep(i,j,k) = cond_cf*max(0.0, dq_hg_dep(i,j,k))
+
+       ! and updating values:
+       ! - cloud water content
+       q_cip(i,j,k) =q_cip(i,j,k)+cor_dqci_dep(i,j,k)
+
+       ! - correction for hydrometeors
+       q_hsp(i,j,k) = q_hsp(i,j,k)+cor_dqhs_dep(i,j,k)
+       q_hgp(i,j,k) = q_hgp(i,j,k)+cor_dqhg_dep(i,j,k)
+
+       ! - correction for total water
+       qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep(i,j,k)-cor_dqhg_dep(i,j,k)-cor_dqci_dep(i,j,k) 
+
+       ! - and correcting for heat
+       thlpmcr(i,j,k) = thlpmcr(i,j,k)                            &
+             +(rlvi/(cp*exnf(k)))*cor_dqci_dep(i,j,k)             & !l: +cor_dqdep(i,j,k))
+             +(rlvi/(cp*exnf(k)))*cor_dqhs_dep(i,j,k)             &
+             +(rlvi/(cp*exnf(k)))*cor_dqhg_dep(i,j,k)
+
+       ! corrector for process values
+       dq_ci_dep(i,j,k) =dq_ci_dep(i,j,k)+cor_dqci_dep(i,j,k)
+       dq_hs_dep(i,j,k) =dq_hs_dep(i,j,k)+cor_dqhs_dep(i,j,k)
+       dq_hg_dep(i,j,k) =dq_hg_dep(i,j,k)+cor_dqhg_dep(i,j,k)
+     endif 
+  enddo
+  enddo
+  enddo      
+   
+  ! clean up
+  deallocate( cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep)
+
+end subroutine cor_deposit3
+  
 
 !> Sedimentaion of rain
 !! sedimentation of drizzle water
@@ -4667,131 +3824,6 @@ end subroutine initclouds3
     deallocate (wvar, xip_spl,Dvp_spl) ! mur_spl,lbdr_spl,Dgr)
   end subroutine sedim_cl3
  
-! #sb3 END  
-! removed, replaced by evap_rain3
-!   subroutine evaporation3
-!   !*********************************************************************
-!   ! Evaporation of prec. : Seifert (2008)
-!   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
-!   !*********************************************************************
-! 
-!     use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-!     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
-!     implicit none
-!     integer :: i,j,k
-!     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
-!     integer :: numel
-! 
-!     allocate(  F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
-!               ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
-!               ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-!              )
-!              
-!     S = 0.0
-!     F = 0.0
-!     G = 0.0
-! 
-!     evap(2:i1,2:j1,1:k1) = 0.
-!     Nevap(2:i1,2:j1,1:k1) = 0.
-! 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       ! #sb3 adjusting variable name
-!       if (q_hr_mask(i,j,k)) then
-!       ! old: if (qrmask(i,j,k)) then
-!         ! adjusting the calculation for saturation
-!         S (i,j,k) = min(0.,(qt0(i,j,k)-q_cl(i,j,k)-q_ci(i,j,k))/qvsl(i,j,k)- 1.)
-!         ! old: S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-!         G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-!         G   (i,j,k) = 1./G(i,j,k)
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-! 
-! 
-!     if (l_sb ) then
-!        do j=2,j1
-!        do i=2,i1
-!        do k=1,k1
-!          ! #sb3 adjusting variable name
-!          if (q_hr_mask(i,j,k)) then
-!          ! if (qrmask(i,j,k)) then
-!            numel=nint(mur(i,j,k)*100.)
-!            F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k) +  &
-!               bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
-!               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-!                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-!                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-!                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) )
-! ! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
-!             ! #sb3 adjusting variable name
-!             evap(i,j,k) = 2*pi*n_hr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
-!             ! evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
-!             Nevap(i,j,k) = c_Nevap*evap(i,j,k)/x_hr(i,j,k)
-!             ! o: c_Nevap*evap(i,j,k)*rhof(k)/xr(i,j,k)
-!          endif
-!        enddo
-!        enddo
-!        enddo
-! 
-!     else
-!        do j=2,j1
-!        do i=2,i1
-!        do k=1,k1
-!         ! #sb3 adjusting variable name
-!         if (q_hr_mask(i,j,k)) then
-!         ! old: if (qrmask(i,j,k)) then
-!            ! #sb3 adjusting variable name
-!            evap(i,j,k) = c_evapkk*2*pi*Dvr(i,j,k)*G(i,j,k)*S(i,j,k)*n_hr(i,j,k)/rhof(k)
-!            ! old: evap(i,j,k) = c_evapkk*2*pi*Dvr(i,j,k)*G(i,j,k)*S(i,j,k)*Nr(i,j,k)/rhof(k)
-!            Nevap(i,j,k) = evap(i,j,k)/x_hr(i,j,k) ! o: evap(i,j,k)*rhof(k)/xr(i,j,k)
-!         endif
-!        enddo
-!        enddo
-!        enddo
-! 
-!     endif
-! 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!        ! #sb3 adjusting variable name
-!        if ((evap(i,j,k) < -svm(i,j,k,iq_hr)/delt) .and. q_hr_mask(i,j,k)) then
-!        ! old: if (evap(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
-!           ! #sb3 adjusting variable name
-!           Nevap(i,j,k) = - svm(i,j,k,in_hr)/delt
-!           ! old: Nevap(i,j,k) = - svm(i,j,k,in_hr)/delt
-!           ! #sb3 adjusting variable name
-!           evap (i,j,k) = - svm(i,j,k,iq_hr)/delt
-!           ! old: evap (i,j,k) = - svm(i,j,k,iqr)/delt
-!        endif
-!     enddo
-!     enddo
-!     enddo
-! 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!     ! #sb3 adjusting variable name
-!     q_hrp(i,j,k) = q_hrp(i,j,k) + evap(i,j,k)
-!     ! old: qrp(i,j,k) = qrp(i,j,k) + evap(i,j,k)
-!     ! #sb3 adjusting variable name
-!     n_hrp(i,j,k) = n_hrp(i,j,k) + Nevap(i,j,k)
-!     ! old: Nrp(i,j,k) = Nrp(i,j,k) + Nevap(i,j,k)
-!     qtpmcr(i,j,k) = qtpmcr(i,j,k) -evap(i,j,k)
-!     thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap(i,j,k)
-!     !
-!     ret_cc(i,j,k) = ret_cc(i,j,k) - min(0.0,Nevap(i,j,k))
-!     enddo
-!     enddo
-!     enddo
-! 
-!     deallocate (F,S,G)
-! 
-!   end subroutine evaporation3
- 
  
   subroutine evap_rain3
   !*********************************************************************
@@ -5055,23 +4087,6 @@ end subroutine initclouds3
     enddo
     enddo    
   
-!     ! limiting
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1
-!        if(qip_mask(i,j,k)) then
-!         ! correction for large sizes
-!         ! - calculating for low n values 
-!         relax_x(i,j,k)=x_ci_bmax*(svm(i,j,k,in_ci)+delt*n_cip(i,j,k))/(min(0.0,svm(i,j,k,iq_ci)+delt*dq_ci_dep(i,j,k))+eps0) ! to avoid division by 0.0
-!         cor_dq_dep  = max(0.0,dq_ci_dep(i,j,k))*min(0.0,relax_x(i,j,k)-1.0) 
-!         q_cip(i,j,k)=q_cip(i,j,k) + cor_dq_dep ! only for positive deposition
-!         ! and correct the th_l 
-!         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rl_dif/(cp*exnf(k)))*cor_dq_dep
-!         ! correction for very high self-collection
-!        endif
-!      enddo
-!      enddo
-!      enddo   
     
     deallocate (F,q_avail,Si,G, Dvic, viic, nrex, xip,nip, relax_x)
     deallocate(qip_mask)
@@ -5233,23 +4248,6 @@ end subroutine initclouds3
     enddo
     enddo
     
-!     ! limiting
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1
-!        if(qip_mask(i,j,k)) then
-!         ! correction for large sizes
-!         ! - calculating for low n values 
-!         relax_x(i,j,k)=x_hs_bmax*(svm(i,j,k,in_hs)+delt*n_hsp(i,j,k))/(min(0.0,svm(i,j,k,iq_hs)+delt*dq_hs_dep(i,j,k))+eps0) ! to avoid division by 0.0
-!         cor_dq_dep  = max(0.0,dq_hs_dep(i,j,k))*min(0.0,relax_x(i,j,k)-1.0) 
-!         q_hsp(i,j,k)=q_hsp(i,j,k) + cor_dq_dep ! i.e. only for positive deposition
-!         ! and correct the th_l 
-!         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*cor_dq_dep
-!         ! correction for very high self-collection
-!        endif
-!      enddo
-!      enddo
-!      enddo 
 
     deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip,nip, relax_x)
     deallocate(qip_mask)
@@ -5409,23 +4407,6 @@ end subroutine initclouds3
     enddo
     enddo
 
-!     ! limiting
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1
-!        if(qip_mask(i,j,k)) then
-!         ! correction for large sizes
-!         ! - calculating for low n values 
-!         relax_x(i,j,k)=x_hg_bmax*(svm(i,j,k,in_hg)+delt*n_hgp(i,j,k))/(min(0.0,svm(i,j,k,iq_hg)+delt*dq_hg_dep(i,j,k))+eps0) ! to avoid division by 0.0
-!         cor_dq_dep  = max(0.0,dq_hg_dep(i,j,k))*min(0.0,relax_x(i,j,k)-1.0) 
-!         q_hgp(i,j,k)=q_hgp(i,j,k) + cor_dq_dep ! i.e. only for positive deposition
-!         ! and correct the th_l 
-!         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*cor_dq_dep
-!         ! correction for very high self-collection
-!        endif
-!      enddo
-!      enddo
-!      enddo 
 
     deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip, nip, relax_x)    
     deallocate(qip_mask)
@@ -5805,19 +4786,6 @@ end subroutine initclouds3
      enddo  
     endif ! l_sb_stickyice
     
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_b(i,j,k) = a_b  * x_ci(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_ci(i,j,k)**be_b *(rho0s/rhof(k))**ga_b
-!       endif
-!     enddo
-!     enddo
-!     enddo  
-    
     
     ! collision efficiency   
     if (l_sb_lim_aggr) then
@@ -5919,38 +4887,12 @@ end subroutine initclouds3
       write(6,*) ' removing more ice than available in ', count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_ci)+delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  aggregation rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_ice = ',dn_col_a(i,j,k), ' dq/dt_ice = ',dq_col_a(i,j,k)
-!         write(6,*) '  q_ice,0 ',    q_ci(i,j,k),     ' q_ice,1 ',    svm(i,j,k,iq_ci)+delt* q_cip(i,j,k) 
-!         write(6,*) '  n_ice,0 ',    n_ci(i,j,k),     ' n_ice,1 ',    svm(i,j,k,in_ci)+delt* n_cip(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
     
      if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
       write(6,*) 'WARNING: ice_aggr3 too high'
       write(6,*) ' removing more ice particles then available in  ',count((svm(2:i1,2:j1,1:k1,in_ci) +delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' removing too much ice particles in ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_ci)+delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  aggregation rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_ice = ',dn_col_a(i,j,k), ' dq/dt_ice = ',dq_col_a(i,j,k)
-!         write(6,*) '  q_ice,0 ',    q_ci(i,j,k),     ' q_ice,1 ',    svm(i,j,k,iq_ci)+delt* q_cip(i,j,k) 
-!         write(6,*) '  n_ice,0 ',    n_ci(i,j,k),     ' n_ice,1 ',    svm(i,j,k,in_ci)+delt* n_cip(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif    
     endif 
 
@@ -6049,19 +4991,6 @@ end subroutine initclouds3
      v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
     
     
-      
-    
-!     ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-!         E_ab(i,j,k) = E_coli*E_stick(i,j,k) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
     
         ! calculating sticking efficiency 
     if (l_sb_stickyice) then
@@ -6133,10 +5062,6 @@ end subroutine initclouds3
        write(6,*) ' decreasing number of snowflakes too much in ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
       endif 
      endif
-!     if(any(relax_x_hs(2:i1,2:j1,1:k1).lt.1.0)) then
-!       write(6,*) 'WARNING: very high snow self-collection'
-!       write(6,*) ' resulting in large snow sizes in', count(relax_x_hs(2:i1,2:j1,1:k1).lt.1.0)
-!     endif     
     
      ! cleanup
      deallocate (D_a, v_a, E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs)
@@ -6242,20 +5167,6 @@ end subroutine initclouds3
     enddo
     enddo   
     
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_a(i,j,k) = a_a  * x_hs(i,j,k)**b_a
-!         v_a(i,j,k) = al_a * x_hs(i,j,k)**be_a *(rho0s/rhof(k))**ga_a
-!         D_b(i,j,k) = a_b  * x_ci(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_ci(i,j,k)**be_b *(rho0s/rhof(k))**ga_b
-!       endif
-!     enddo
-!     enddo
-!     enddo    
     
     
     ! -- inner part ------------------- 
@@ -6316,20 +5227,6 @@ end subroutine initclouds3
         write(6,*) ' removing more ice than available ', count(( svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)-delt*dq_hsci_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!         do j=2,j1
-!         do i=2,i1
-!         do k=1,k1       
-!         if( svm(i,j,k,iq_ci) - delt*dq_col_a(i,j,k) .lt. 0 ) then
-!             write(6,*) '  snow-ice collection rate at (i,j,k)',i,j,k
-!             write(6,*) '  dn/dt_ice = ',dn_col_b(i,j,k), ' dq/dt_ice = ', - dq_col_a(i,j,k)
-!             write(6,*) '  q_ice,0 ',    q_ci(i,j,k),     ' q_ice,1 ',     svm(i,j,k,iq_ci)+ delt* q_cip(i,j,k) 
-!             write(6,*) '  n_ice,0 ',    n_ci(i,j,k),     ' n_ice,1 ',     svm(i,j,k,in_ci)+ delt* n_cip(i,j,k)
-!             write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',        qt0(i,j,k) + delt*qtpmcr(i,j,k)
-!         endif
-!         enddo
-!         enddo
-!         enddo
-        !
       endif 
     
      if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
@@ -6443,21 +5340,6 @@ end subroutine initclouds3
     enddo
     enddo   
     
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_a(i,j,k) = a_a  * x_hg(i,j,k)**b_a
-!         v_a(i,j,k) = al_a * x_hg(i,j,k)**be_a *(rho0s/rhof(k))**ga_a
-!         D_b(i,j,k) = a_b  * x_hs(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_hs(i,j,k)**be_b *(rho0s/rhof(k))**ga_b
-!       endif
-!     enddo
-!     enddo
-!     enddo    
-    
     
     ! -- inner part ------------------- 
     
@@ -6517,19 +5399,6 @@ end subroutine initclouds3
         write(6,*) ' removing more ice than available ', count(( svm(2:i1,2:j1,1:k1,iq_hs)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' removing too much ice in ', count(( q_hs(2:i1,2:j1,1:k1)-delt*dq_hghs_col(2:i1,2:j1,1:k1) ).lt. 0.0 )
         write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*q_hsp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!         do j=2,j1
-!         do i=2,i1
-!         do k=1,k1       
-!         if( svm(i,j,k,iq_hs) - delt*dq_col_a(i,j,k) .lt. 0 ) then
-!             write(6,*) '  snow-ice collection rate at (i,j,k)',i,j,k
-!             write(6,*) '  dn/dt_ice = ',dn_col_b(i,j,k), ' dq/dt_ice = ', - dq_col_a(i,j,k)
-!             write(6,*) '  q_ice,0 ',    q_hs(i,j,k),     ' q_ice,1 ',     svm(i,j,k,iq_hs)+ delt* q_hsp(i,j,k) 
-!             write(6,*) '  n_ice,0 ',    n_hs(i,j,k),     ' n_ice,1 ',     svm(i,j,k,in_hs)+ delt* n_hsp(i,j,k)
-!             write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',        qt0(i,j,k) + delt*qtpmcr(i,j,k)
-!         endif
-!         enddo
-!         enddo
-!         enddo
         !
       endif 
     
@@ -6753,19 +5622,6 @@ end subroutine initclouds3
       write(6,*) ' removing more cloud water then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' removing too much water in gridpoints ', count(( q_cl(2:i1,2:j1,1:k1)-delt*dq_ci_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )      
       write(6,*) ' getting negative q_t in gridpoints ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_cl)-delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  ice multiplic rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_cl = ',dn_col_b(i,j,k), ' dq/dt_cl = ',-dq_col_a(i,j,k)
-!         write(6,*) '  q_cl,0 ',    q_cl(i,j,k),     ' q_cl,1 ',    svm(i,j,k,iq_cl)+delt* q_clp(i,j,k) 
-!         write(6,*) '  n_cl,0 ',    n_cl(i,j,k),     ' n_cl,1 ',    svm(i,j,k,in_cl)+delt* n_clp(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
 
      if(any(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
@@ -6878,18 +5734,6 @@ end subroutine initclouds3
      v_a (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
      D_b (2:i1,2:j1,1:k1) = D_hr (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)    
-    
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
     
     
     ! -- inner part ------------------- 
@@ -7136,33 +5980,6 @@ end subroutine initclouds3
      D_b (2:i1,2:j1,1:k1) = D_hr (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)    
     
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
-!     ! calculating diameters - but only in collection area
-!     !d <- later move out to main routine
-!     do k=1,k1
-!     do j=2,j1
-!     do i=2,i1
-!       if ( qcol_mask(i,j,k)) then !2
-!         ! D_a(i,j,k) = a_a  * x_hs(i,j,k)**b_a
-!         ! v_a(i,j,k) = al_a * x_hs(i,j,k)**be_a *(rho0s/rhof(k))**ga_a
-!         ! D_b(i,j,k) = a_b  * x_hr(i,j,k)**b_b
-!         ! v_b(i,j,k) = al_b * x_hr(i,j,k)**be_b *(rho0s/rhof(k))**ga_b   
-!         E_ab(i,j,k) =  E_coli
-!       endif
-!     enddo
-!     enddo
-!     enddo    
-    
     
     ! -- inner part ------------------- 
            
@@ -7225,12 +6042,6 @@ end subroutine initclouds3
     
     !---------------------
     
-    ! -- outputs -----------------------
-    ! dq_hr_col_rs (2:i1,2:j1,1:k1) = -dq_col_b(2:i1,2:j1,1:k1)
-    !dn_hs_col_rs (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
-    ! dn_hr_col_rs (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)    
-    !dq_hs_col_rs (2:i1,2:j1,1:k1) = -dq_col_a(2:i1,2:j1,1:k1)
-    ! dn_hs_col_rs (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
     
     do k=1,k1
     do j=2,j1
@@ -7397,32 +6208,6 @@ end subroutine initclouds3
      D_b (2:i1,2:j1,1:k1) = D_cl (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_cl (2:i1,2:j1,1:k1)
  
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_a(i,j,k) = a_a  * x_hs(i,j,k)**b_a
-!         v_a(i,j,k) = al_a * x_hs(i,j,k)**be_a*(rho0s/rhof(k))**ga_a
-!         D_b(i,j,k) = a_b  * x_cl(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_cl(i,j,k)**be_b *(rho0s/rhof(k))**ga_b       
-!       endif
-!     enddo
-!     enddo
-!     enddo    
-    
     
     ! -- inner part ------------------- 
        
@@ -7540,19 +6325,6 @@ end subroutine initclouds3
       write(6,*) ' removing more cloud water than available in gridpoints ', count((svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_hs_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' removing too much cloud water in gridpoints ', count(( q_cl(2:i1,2:j1,1:k1)-delt*dq_hs_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' getting negative q_t in gridpoints  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_clp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_cl)-delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  snow rime rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_cl = ',dn_col_b(i,j,k), ' dq/dt_cl = ',-dq_col_a(i,j,k)
-!         write(6,*) '  q_cl,0 ',    q_cl(i,j,k),     ' q_cl,1 ',    svm(i,j,k,iq_cl)+delt* q_clp(i,j,k) 
-!         write(6,*) '  n_cl,0 ',    n_cl(i,j,k),     ' n_cl,1 ',    svm(i,j,k,in_cl)+delt* n_clp(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
     
      if(any(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
@@ -7651,32 +6423,6 @@ end subroutine initclouds3
     qcol_mask(2:i1,2:j1,1:k1) =   &
         q_hs_mask(2:i1,2:j1,1:k1).and.q_hr_mask(2:i1,2:j1,1:k1)
     
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do k=1,k1
-!     do j=2,j1
-!     do i=2,i1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_a(i,j,k) = a_a  * x_hs(i,j,k)**b_a
-!         v_a(i,j,k) = al_a * x_hs(i,j,k)**be_a*(rho0s/rhof(k))**ga_a
-!         D_b(i,j,k) = a_b  * x_hr(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_hr(i,j,k)**be_b*(rho0s/rhof(k))**ga_b  
-!         E_ab(i,j,k) =  E_coli
-!       endif
-!     enddo
-!     enddo
-!     enddo    
     
         ! setting up diameters and velocities
      D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
@@ -7748,19 +6494,6 @@ end subroutine initclouds3
       write(6,*) ' removing more rain water then there in ', count(( svm(2:i1,2:j1,1:k1,iq_hr)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )     
       write(6,*) ' removing too much rain water in ', count(( q_hr(2:i1,2:j1,1:k1)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_hrp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_cl)-delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  graupel rime rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_cl = ',dn_col_b(i,j,k), ' dq/dt_cl = ',-dq_col_a(i,j,k)
-!         write(6,*) '  q_cl,0 ',    q_cl(i,j,k),     ' q_cl,1 ',    svm(i,j,k,iq_cl)+delt* q_clp(i,j,k) 
-!         write(6,*) '  n_cl,0 ',    n_cl(i,j,k),     ' n_cl,1 ',    svm(i,j,k,in_cl)+delt* n_clp(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
      if(any(( svm(2:i1,2:j1,1:k1,in_hr)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
       write(6,*) 'WARNING: coll_grg too high'
@@ -7769,33 +6502,6 @@ end subroutine initclouds3
      endif      
     endif
 
-!      ! collection correction
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1   
-!       if(qcol_mask(i,j,k)) then
-!        ntest = (svm(i,j,k,in_hr)+delt*dn_hr_rime_hg(i,j,k))
-!        qtest = (svm(i,j,k,iq_hr)-delt*dq_hghr_rime(i,j,k))
-!        if( (ntest.lt. 0.0).or.(qtest.lt. qicemin) ) then
-!        !  correction
-!           n_hrp(i,j,k)=n_hrp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,in_hr)+dn_hr_rime_hg(i,j,k)))
-!           q_hrp(i,j,k)=q_hrp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k))) 
-!           !qtpmcr(i,j,k)=qtpmcr(i,j,k)- &
-!           !  min(0.0,((1.0/delt)*(svm(i,j,k,iq_cl)-qicemin)-dq_col_a(i,j,k)))             
-!           ! thl correction 
-!           thlpmcr(i,j,k) = thlpmcr(i,j,k)-(rlme/(cp*exnf(k)))*  &
-!              min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k)))
-!           !  and correction for snow   
-!           q_hgp(i,j,k)=q_hgp(i,j,k)+ &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k))) 
-!        !
-!        endif
-!       endif
-!      enddo
-!      enddo
-!      enddo    
     
      ! deallocating 
      deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
@@ -7897,33 +6603,6 @@ end subroutine initclouds3
      v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)   
    
    
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do k=1,k1
-!     do j=2,j1
-!     do i=2,i1
-!       if ( qcol_mask(i,j,k)) then !2
-! !         D_a(i,j,k) = a_a  * x_hg(i,j,k)**b_a
-! !         v_a(i,j,k) = al_a * x_hg(i,j,k)**be_a*(rho0s/rhof(k))**ga_a
-! !         D_b(i,j,k) = a_b  * x_hr(i,j,k)**b_b
-! !         v_b(i,j,k) = al_b * x_hr(i,j,k)**be_b*(rho0s/rhof(k))**ga_b  
-!         E_ab(i,j,k) =  E_coli
-!       endif
-!     enddo
-!     enddo
-!     enddo    
-    
     
     ! -- inner part ------------------- 
        
@@ -8014,19 +6693,6 @@ end subroutine initclouds3
       write(6,*) ' removing more rain water then there in ', count(( svm(2:i1,2:j1,1:k1,iq_hr)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )     
       write(6,*) ' removing too much rain water in ', count(( q_hr(2:i1,2:j1,1:k1)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_hrp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_cl)-delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  graupel rime rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_cl = ',dn_col_b(i,j,k), ' dq/dt_cl = ',-dq_col_a(i,j,k)
-!         write(6,*) '  q_cl,0 ',    q_cl(i,j,k),     ' q_cl,1 ',    svm(i,j,k,iq_cl)+delt* q_clp(i,j,k) 
-!         write(6,*) '  n_cl,0 ',    n_cl(i,j,k),     ' n_cl,1 ',    svm(i,j,k,in_cl)+delt* n_clp(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
      if(any(( svm(2:i1,2:j1,1:k1,in_hr)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
       write(6,*) 'WARNING: coll_grg too high'
@@ -8035,33 +6701,6 @@ end subroutine initclouds3
      endif      
     endif
 
-!      ! collection correction
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1   
-!       if(qcol_mask(i,j,k)) then
-!        ntest = (svm(i,j,k,in_hr)+delt*dn_hr_rime_hg(i,j,k))
-!        qtest = (svm(i,j,k,iq_hr)-delt*dq_hghr_rime(i,j,k))
-!        if( (ntest.lt. 0.0).or.(qtest.lt. qicemin) ) then
-!        !  correction
-!           n_hrp(i,j,k)=n_hrp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,in_hr)+dn_hr_rime_hg(i,j,k)))
-!           q_hrp(i,j,k)=q_hrp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k))) 
-!           !qtpmcr(i,j,k)=qtpmcr(i,j,k)- &
-!           !  min(0.0,((1.0/delt)*(svm(i,j,k,iq_cl)-qicemin)-dq_col_a(i,j,k)))             
-!           ! thl correction 
-!           thlpmcr(i,j,k) = thlpmcr(i,j,k)-(rlme/(cp*exnf(k)))*  &
-!              min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k)))
-!           !  and correction for snow   
-!           q_hgp(i,j,k)=q_hgp(i,j,k)+ &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_hr)-dq_hghr_rime(i,j,k))) 
-!        !
-!        endif
-!       endif
-!      enddo
-!      enddo
-!      enddo    
     
      ! deallocating 
      deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
@@ -8160,32 +6799,6 @@ end subroutine initclouds3
      D_b (2:i1,2:j1,1:k1) = D_cl (2:i1,2:j1,1:k1)
      v_b (2:i1,2:j1,1:k1) = v_cl (2:i1,2:j1,1:k1)   
     
-!  not used here :   ! calculating sticking efficiency 
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then ! 1
-!         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off)) 
-!       endif
-!     enddo
-!     enddo
-!     enddo   
-    
-!     ! calculating diameters - but only in collection area
-!     ! <- later move out to main routine
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!       if ( qcol_mask(i,j,k)) then !2
-!         D_a(i,j,k) = a_a  * x_hg(i,j,k)**b_a
-!         v_a(i,j,k) = al_a * x_hg(i,j,k)**be_a*(rho0s/rhof(k))**ga_a
-!         D_b(i,j,k) = a_b  * x_cl(i,j,k)**b_b
-!         v_b(i,j,k) = al_b * x_cl(i,j,k)**be_b *(rho0s/rhof(k))**ga_b       
-!       endif
-!     enddo
-!     enddo
-!     enddo    
-!     
     
     ! -- inner part ------------------- 
        
@@ -8299,19 +6912,6 @@ end subroutine initclouds3
       write(6,*) ' removing more cloud water then available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,iq_cl)-delt*dq_hg_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
       write(6,*) ' removing too much water in gridpoints ', count(( q_cl(2:i1,2:j1,1:k1)-delt*dq_hg_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )      
       write(6,*) ' getting negative q_t in gridpoints ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_clp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1       
-!        if(svm(i,j,k,iq_cl)-delt*dq_col_a(i,j,k) .lt. 0) then
-!         write(6,*) '  ice multiplic rate at (i,j,k)',i,j,k
-!         write(6,*) '  dn/dt_cl = ',dn_col_b(i,j,k), ' dq/dt_cl = ',-dq_col_a(i,j,k)
-!         write(6,*) '  q_cl,0 ',    q_cl(i,j,k),     ' q_cl,1 ',    svm(i,j,k,iq_cl)+delt* q_clp(i,j,k) 
-!         write(6,*) '  n_cl,0 ',    n_cl(i,j,k),     ' n_cl,1 ',    svm(i,j,k,in_cl)+delt* n_clp(i,j,k)
-!         write(6,*) '  q_t,0 ',      qt0(i,j,k),      ' q_t,1',       qt0(i,j,k)+delt*qtpmcr(i,j,k)
-!        endif
-!      enddo
-!      enddo
-!      enddo 
      endif
 
      if(any(( svm(2:i1,2:j1,1:k1,in_cl)+delt*dn_cl_rime_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
@@ -8320,33 +6920,6 @@ end subroutine initclouds3
       write(6,*) ' removing too many droplets in gridpoints ', count(( n_cl(2:i1,2:j1,1:k1)+delt*dn_cl_rime_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )      
      endif   
     endif 
-!      ! collection correction
-!      do j=2,j1
-!      do i=2,i1
-!      do k=1,k1   
-!       if(qcol_mask(i,j,k)) then
-!        ntest = (svm(i,j,k,in_cl)+delt*dn_cl_rime_hg(i,j,k))
-!        qtest = (svm(i,j,k,iq_cl)-delt*dq_hg_rime(i,j,k))
-!        if( (ntest.lt. 0.0).or.(qtest.lt. qicemin) ) then
-!        !  correction
-!           n_clp(i,j,k)=n_clp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,in_cl)+dn_cl_rime_hg(i,j,k)))
-!           q_clp(i,j,k)=q_clp(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_cl)-dq_hg_rime(i,j,k))) 
-!           qtpmcr(i,j,k)=qtpmcr(i,j,k)- &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_cl)-dq_hg_rime(i,j,k)))             
-!           ! thl correction 
-!           thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*  &
-!              min(0.0,((1.0/delt)*svm(i,j,k,iq_cl)-dq_hg_rime(i,j,k)))
-!           !  and correction for snow   
-!           q_hgp(i,j,k)=q_hgp(i,j,k)+ &
-!             min(0.0,((1.0/delt)*svm(i,j,k,iq_cl)-dq_hg_rime(i,j,k))) 
-!        !
-!        endif
-!       endif
-!      enddo
-!      enddo
-!      enddo     
   
      ! deallocating 
      deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
@@ -8376,16 +6949,6 @@ end subroutine initclouds3
     logical ,allocatable, dimension(:,:,:) :: qcol_mask_i      &
          ,qcol_mask_s ! , qcv_mask_i, qcv_mask_s
         
-    ! start of the code
-    !-> add extra initialisations
-        
-    ! allocate fields and fill 
-     ! allocate(  D_ci   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-     !          ,D_hs   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-     !        )
-             !  ,dq_ci_cv (2-ih:i1+ih,2-jh:j1+jh,k1)   &
-             !  ,dq_hs_cv (2-ih:i1+ih,2-jh:j1+jh,k1)   &               
-             !)
 
       allocate(  qcol_mask_i(2-ih:i1+ih,2-jh:j1+jh,k1) &
                 ,qcol_mask_s(2-ih:i1+ih,2-jh:j1+jh,k1) &
@@ -8417,37 +6980,6 @@ end subroutine initclouds3
     qcol_mask_s(2:i1,2:j1,1:k1) =  &
         q_hs_mask(2:i1,2:j1,1:k1).and.q_cl_mask(2:i1,2:j1,1:k1)
         
-    ! qcv_mask_i = .false.
-    ! qcv_mask_s = .false.
-    
-!     ! calculating diameters
-!     do k=1,k1
-!     do j=2,j1
-!     do i=2,i1
-!         if ( qcol_mask_s(i,j,k)) then 
-!           ! calculate diameter
-!           ! D_hs(i,j,k) = a_hs  * x_hs(i,j,k)**b_hs
-!           if (D_hs(i,j,k).gt.D_mincv_hs) then
-!             qcv_mask_s(i,j,k) = .true.
-!           endif
-!         endif 
-!     enddo
-!     enddo
-!     enddo  
-!     
-!     do k=1,k1
-!     do j=2,j1
-!     do i=2,i1
-!       if ( qcol_mask_i(i,j,k)) then !2
-!         ! calculate diameter
-!         ! D_ci(i,j,k) = a_ci  * x_ci(i,j,k)**b_ci
-!         if (D_ci(i,j,k).gt.D_mincv_ci) then
-!             qcv_mask_i(i,j,k) = .true.
-!         endif       
-!       endif
-!     enddo
-!     enddo
-!     enddo       
     
     ! inner term for ice conversion
     do k=1,k1
@@ -8532,26 +7064,6 @@ end subroutine initclouds3
       ! write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )
      endif    
     endif
-!     ! correction for snow
-!     do j=2,j1
-!     do i=2,i1
-!     do k=1,k1
-!      if(qcv_mask_s (i,j,k).and.((svm(i,j,k,iq_hs)+delt*dq_hs_cv(i,j,k)).lt.0)) then
-!       !  correction
-!       q_hsp(i,j,k)=q_hsp(i,j,k)-                                &
-!                ((1.0/delt)*svm(i,j,k,iq_hs)+dq_hs_cv(i,j,k))
-!       n_hsp (i,j,k) = n_hsp(i,j,k)-                             &
-!                ((1.0/delt)*svm(i,j,k,iq_hs)+dq_hs_cv(i,j,k))/x_hs(i,j,k) 
-!       !
-!       ! change in the amount of graupel
-!       q_hgp (i,j,k) = q_hgp(i,j,k)+                             & 
-!                 ((1.0/delt)*svm(i,j,k,iq_hs)+dq_hs_cv(i,j,k))
-!       n_hgp (i,j,k) = n_hgp(i,j,k)+                             &
-!                 ((1.0/delt)*svm(i,j,k,iq_hs)+dq_hs_cv(i,j,k))/x_hs(i,j,k)                 
-!      endif
-!     enddo
-!     enddo
-!     enddo     
         
      ! deallocating 
      deallocate (qcol_mask_i, qcol_mask_s) ! deallocate (qcol_mask_i, qcol_mask_s, qcv_mask_i, qcv_mask_s)
