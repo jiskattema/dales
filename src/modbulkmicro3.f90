@@ -1018,10 +1018,7 @@ module modbulkmicro3
     ! --------------------------------------------------------------
     ! snow aggregation and self-collection
     ! --------------------------------------------------------------
-    call ice_aggr3   ! ice selfcollection !#b5 ! #a4d1 ! #Ba !#b2t2 !#b2t1
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice agg')! ice aggregation - tendencies only
-    call snow_self3  ! snow selfcollection - tendency only
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'snow sc')! #d
+    call ice_aggr_snow_self
 
     ! --------------------------------------------------------------
     ! collision processes for snow
@@ -3728,7 +3725,7 @@ subroutine deposit3
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    ! only where saturated
+    ! TODO: any of the masks q_ci_mask, q_hg_mask, q_hs_mask
     if (q_ci_mask(i,j,k).and.(tmp0(i,j,k).le.T_3)) then
       xip = x_ci(2:i1,2:j1,1:k1)
       nip = n_ci(2:i1,2:j1,1:k1)
@@ -4034,384 +4031,165 @@ end subroutine hethomfreez3
 ! ice selfcollection and aggregation to snow
 !  - all collection of ice by ice treated as snow
 !
-! follows Seifert, 2002
-! ****************************************
-    subroutine ice_aggr3
-
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: sigma_b, E_coli              &
-               ,a_b, b_b, al_b, be_b, ga_b           & ! ,a_b, b_b, al_b, be_b                 &
-               ,dlt_0a, dlt_0aa                      & ! dlt_0ab, dlt_0b
-               ,dlt_1a, dlt_1aa                      & ! dlt_1ab, dlt_1b
-               ,th_0a, th_0aa                        & ! th_0ab, th_0b
-               ,th_1a, th_1aa ! th_1ab, th_1b
-    real    :: dif_D_10, ntest, qtest,rem_cf,x_crit_ii, x_minagg_ii
-    real, allocatable, dimension(:,:,:) :: D_b, v_b
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_a, dq_col_a
-    logical ,allocatable :: qcol_mask(:,:,:)
-
-    ! start of the code
-
-    ! allocate fields and fill
-     allocate( D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
-
-      allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,E_stick (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dn_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-             )
-      allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
-
-      qcol_mask = .false.
-
-      D_b      = 0.0
-      v_b      = 0.0
-      E_ab     = 0.0
-      E_stick  = 0.0
-      dn_col_a = 0.0
-      dq_col_a = 0.0
-
-    ! set constants
-      sigma_b   = sigma_ci
-      ! sigma_b   = sigma_ci
-      a_b       = a_ci
-      b_b       = b_ci
-      al_b      = al_ci
-      be_b      = be_ci
-      ga_b      = ga_ci
-      E_coli    = E_ee_m   !  E_coli    = E_ii_m ! collision efficienty
-      dlt_0a    = dlt_i0
-      dlt_0aa   = 2*dlt_i0 + dlt_i0i
-      ! dlt_0b    = dlt_0a
-      dlt_1a    = dlt_i1
-      dlt_1aa   = dlt_i0 + dlt_i1i + dlt_i1
-      ! dlt_1b    = dlt_1a
-      th_0a     = th_i0
-      th_0aa    = 2*th_i0 - th_i0i   ! from Seifert, 2002
-      ! th_0b     = th_0a
-      th_1a     = th_i1
-      th_1aa    = th_i0 - th_i1i + th_i1
-      ! th_1b     = th_1a
-
-      ! calculate constants
-      dif_D_10  = D_i_b-D_i_a  ! difference in ice cloud droplet intervals
-
-      ! adjusting coefficient
-      ! prepare coefficient for remaining water number
-      rem_cf      =  (1.0-rem_n_ci_min)/delt
-
-      ! and the minimal conversion size
-      x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
-
-      ! and the critical size for the start of conversion
-      x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
-
-     ! setting up mask
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       if(q_ci_mask(i,j,k).and.(x_ci(i,j,k).gt.x_crit_ii).and.(q_ci(i,j,k).gt.q_crit_ii)) then
-         qcol_mask(i,j,k) = .true.
-       endif
-     enddo
-     enddo
-     enddo
-     ! initial values
-
-     ! setting up diameters and velocities
-     D_b (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
-     v_b (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
-
-
-    ! calculating sticking efficiency
-    if (l_sb_stickyice) then
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       if ( qcol_mask(i,j,k)) then ! 1
-         E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-         E_stick(i,j,k) = min(c_E_o_s,E_stick(i,j,k))
-       endif
-     enddo
-     enddo
-     enddo
-    else ! l_sb_stickyice
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       if ( qcol_mask(i,j,k)) then ! 1
-         E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
-         E_stick(i,j,k) = min(E_ii_maxst,E_stick(i,j,k))
-       endif
-     enddo
-     enddo
-     enddo
-    endif ! l_sb_stickyice
-
-    ! collision efficiency
-    if (l_sb_lim_aggr) then
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        if ( qcol_mask(i,j,k)) then
-          ! checking whether sufficient size
-          if( D_b(i,j,k).gt.D_i_a ) then
-            if( D_b(i,j,k).gt.D_i_b ) then
-              E_ab(i,j,k) = E_coli*E_stick(i,j,k)
-            else
-              E_ab(i,j,k) = (E_coli*E_stick(i,j,k) /dif_D_10)* (D_b(i,j,k)- D_i_a)
-            endif
-          endif
-        endif
-      enddo
-      enddo
-      enddo
-    else ! l_sb_lim_aggr
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        if ( qcol_mask(i,j,k)) then
-          E_ab(i,j,k) = E_coli*E_stick(i,j,k)
-        endif
-      enddo
-      enddo
-      enddo
-    endif ! l_sb_lim_aggr
-
-
-    ! -- inner part -------------------
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if(qcol_mask(i,j,k)) then
-        dn_col_a(i,j,k) = -rhof(k)*(pi/4)*E_ab(i,j,k)            &
-                   *n_ci(i,j,k)**2 *dlt_0aa*D_b(i,j,k)**2        &
-                   *(th_0aa *v_b(i,j,k)**2+2*sigma_b**2)**0.5
-
-        dq_col_a(i,j,k) = - rhof(k)*(pi/4)*E_ab(i,j,k)           &
-             * dlt_1aa*n_ci(i,j,k)*q_ci(i,j,k)*D_b(i,j,k)**2     &
-             * ( th_1aa*v_b(i,j,k)**2+2*sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
-
-
-    ! -- outputs
-    dq_ci_col_iis(2:i1,2:j1,1:k1) = dq_col_a(2:i1,2:j1,1:k1)
-    dn_ci_col_iis(2:i1,2:j1,1:k1) = dn_col_a(2:i1,2:j1,1:k1)
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (qcol_mask(i,j,k)) then
-        ! limiting dq_ci  --   limit x_cv_ii as per ICON 2017
-        dq_ci_col_iis(i,j,k) = max(dq_ci_col_iis(i,j,k), (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
-        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), (-rem_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
-        dn_ci_col_iis(i,j,k) = max(dn_ci_col_iis(i,j,k), dq_ci_col_iis(i,j,k)/x_minagg_ii )
-
-        ! changes in cloud water
-        n_cip(i,j,k)    = n_cip(i,j,k) + dn_ci_col_iis(i,j,k)
-
-        ! change in q_ci
-        q_cip(i,j,k)    = q_cip(i,j,k) + dq_ci_col_iis(i,j,k)
-
-        ! aggregation to snow
-        n_hsp (i,j,k)   = n_hsp(i,j,k) - 0.5 * dn_ci_col_iis (i,j,k)   ! as prescibed
-        q_hsp (i,j,k)   = q_hsp(i,j,k) - dq_ci_col_iis (i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-!
-
-    ! #hh checking the sizes
-    if (l_sb_dbg) then
-      if(any(( svm(2:i1,2:j1,1:k1,iq_ci)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-        write(6,*) 'WARNING: ice_aggr3 too high'
-        write(6,*) ' removing more ice than available in ', count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-        write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)+delt*dq_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-        write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_cip(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      endif
-
-      if(any(( svm(2:i1,2:j1,1:k1,in_ci)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-        write(6,*) 'WARNING: ice_aggr3 too high'
-        write(6,*) ' removing more ice particles then available in  ',count((svm(2:i1,2:j1,1:k1,in_ci) +delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-        write(6,*) ' removing too much ice particles in ', count(( n_ci(2:i1,2:j1,1:k1)+delt*dn_ci_col_iis(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      endif
-    endif
-
-    ! cleanup
-    deallocate (D_b, v_b, E_ab, E_stick, dn_col_a, dq_col_a)
-    deallocate (qcol_mask)
-
-    end subroutine ice_aggr3
-
-
-! *************************************************
 ! snow selfcollection
 !
-! *************************************************
-    subroutine snow_self3
+! follows Seifert, 2002
+! ****************************************
+subroutine ice_aggr_snow_self
+  use modglobal, only : i1,j1,k1,rv,pi
+  use modfields, only : qt0,svm,tmp0,rhof
+  implicit none
+  integer :: i,j,k
+  real    :: dlt_0aa_i ,dlt_0aa_s          & 
+            ,dlt_1aa_i ,dlt_1aa_s          & 
+            ,th_0aa_i  ,th_0aa_s           & 
+            ,th_1aa_i  ,th_1aa_s           &
+            ,rem_cf_i  ,rem_cf_s
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: sigma_a, sigma_b ,E_coli              &
-               ,a_a, b_a, al_a, be_a, ga_a           &
-               ,dlt_0a, dlt_0aa                      &
-               ,dlt_1a, dlt_1aa                      &
-               ,th_0a, th_0aa                        &
-               ,th_1a, th_1aa  ! th_1ab, th_1b
-    real    :: rem_cf ! c_s_rem
-    real, allocatable, dimension(:,:,:) :: D_a, v_a
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs
-    logical ,allocatable :: qcol_mask(:,:,:)
+  real    :: dif_D_10, x_crit_ii, x_minagg_ii
 
-    ! start of the code
+  real :: E_ab_i      ,E_ab_s     &
+         ,E_stick_i   ,E_stick_s  &
+         ,dn_col_a_i  ,dn_col_a_s &
+         ,dq_col_a_i  ,dq_col_a_s
 
-    ! allocate fields and fill
-     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
+  ! calculate constants
+  dlt_0aa_i   = 2*dlt_i0 + dlt_i0i
+  dlt_1aa_i   = dlt_i0 + dlt_i1i + dlt_i1
+  th_0aa_i    = 2*th_i0 - th_i0i   ! from Seifert, 2002
+  th_1aa_i    = th_i0 - th_i1i + th_i1
 
-      allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,E_stick (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dn_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,relax_x_hs(2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             )
-      allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
+  dlt_0aa_s   = 2*dlt_s0 + dlt_s0s
+  dlt_1aa_s   = dlt_s0 + dlt_s1s + dlt_s1
+  th_0aa_s    = 2*th_s0 - th_s0s   ! from Seifert, 2002
+  th_1aa_s    = th_s0 - th_s1s + th_s1 ! th_1ab    = th_i1i
 
-      D_a      = 0.0
-      v_a      = 0.0
-      E_ab     = 0.0
-      E_stick  = 0.0
-      dn_col_a = 0.0
-      dq_col_a = 0.0
-      relax_x_hs = 1.0
+  dif_D_10  = D_i_b-D_i_a  ! difference in ice cloud droplet intervals
 
-      ! set constants
-      sigma_a   = sigma_hs
-      ! sigma_b   = sigma_ci
-      a_a       = a_hs
-      b_a       = b_hs
-      al_a      = al_hs
-      be_a      = be_hs
-      ga_a      = ga_hs
-      ! a_b       = a_ci
-      ! b_b       = b_ci
-      ! al_b      = al_ci
-      ! be_b      = be_ci
-      E_coli    = E_ee_m ! collision efficienty
-      dlt_0a    = dlt_s0
-      dlt_0aa   = 2*dlt_s0 + dlt_s0s
-      ! dlt_0b    = dlt_0a
-      dlt_1a    = dlt_s1
-      dlt_1aa   = dlt_s0 + dlt_s1s + dlt_s1
-      ! dlt_1b    = dlt_1a
-      th_0a     = th_s0
-      th_0aa    = 2*th_s0 - th_s0s   ! from Seifert, 2002
-      ! th_0b     = th_0a
-      th_1a     = th_s1
-      th_1aa    = th_s0 - th_s1s + th_s1 ! th_1ab    = th_i1i
-      ! th_1b     = th_1a
+  ! adjusting coefficient
+  ! prepare coefficient for remaining water number
+  rem_cf_i = (1.0-rem_n_ci_min)/delt
+  rem_cf_s = (1.0-rem_n_hs_min)/delt
 
-      ! setting constant for the test of the ratio of
-      ! prepare coefficient for remaining water number
-      rem_cf = (1.0-rem_n_hs_min)/delt
+  ! and the minimal conversion size
+  x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
 
-      ! remaining snow number after the self-collection
-      ! c_s_rem = 1.0-rem_n_hs_min
+  ! and the critical size for the start of conversion
+  x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
 
-      ! setting up mask
-      qcol_mask(2:i1,2:j1,1:k1) = q_hs_mask(2:i1,2:j1,1:k1)
 
-      ! setting up diameters and velocities
-      D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
-      v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
 
+    ! Process ice 
+    ! -----------
+    if(q_ci_mask.and.(x_ci.gt.x_crit_ii).and.(q_ci.gt.q_crit_ii)) then
       ! calculating sticking efficiency
       if (l_sb_stickyice) then
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if ( qcol_mask(i,j,k)) then ! 1
-            E_stick(i,j,k) = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
-            E_stick(i,j,k) = min(c_E_o_s,E_stick(i,j,k))
-            E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
-          endif
-        enddo
-        enddo
-        enddo
+        E_stick_i = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+        E_stick_i = min(c_E_o_s,E_stick_i)
       else ! l_sb_stickyice
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if ( qcol_mask(i,j,k)) then ! 1
-            E_stick(i,j,k) = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
-            E_stick(i,j,k) = min(E_ss_maxst,E_stick(i,j,k))
-            E_ab   (i,j,k) = E_coli*E_stick(i,j,k)
-          endif
-        enddo
-        enddo
-        enddo
+        E_stick_i = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
+        E_stick_i = min(E_ii_maxst,E_stick_i)
       endif ! l_sb_stickyice
 
-
-    ! -- inner part -------------------
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-        dn_col_a(i,j,k) = -rhof(k)*(pi/4)*E_ab(i,j,k)            &
-                   *n_hs(i,j,k)**2 *dlt_0aa*D_a(i,j,k)**2        &
-                   *(th_0aa *v_a(i,j,k)**2+2*sigma_a**2)**0.5
+      ! collision efficiency
+      if (l_sb_lim_aggr) then
+        ! checking whether sufficient size
+        if( D__ci.gt.D_i_a ) then
+          if( D_ci.gt.D_i_b ) then
+            E_ab_i = E_ee_m*E_stick_i
+          else
+            E_ab_i = (E_ee_m*E_stick_i /dif_D_10)* (D_ci - D_i_a)
+          endif
+        endif
+      else ! l_sb_lim_aggr
+        E_ab_i = E_ee_m*E_stick_i
       endif
-    enddo
-    enddo
-    enddo
 
-    ! -- outputs
-    dn_hs_col_sss(2:i1,2:j1,1:k1) = dn_col_a(2:i1,2:j1,1:k1)
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if(q_hs_mask(i,j,k)) then
-       dn_hs_col_sss (i,j,k) = max(min(0.0,dn_hs_col_sss(i,j,k)),-rem_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k))
+      dn_col_a_i = -rhof(k)*(pi/4)*E_ab_i                  &
+                 *n_ci(i,j,k)**2 *dlt_0aa_i*D_ci**2        &
+                 *(th_0aa_i *v_ci**2+2*sigma_ci**2)**0.5
 
-       ! self-collection of snow
-       n_hsp (i,j,k)   = n_hsp(i,j,k) + dn_hs_col_sss (i,j,k) ! adjusted
+      dq_col_a_i = - rhof(k)*(pi/4)*E_ab_i                 &
+           * dlt_1aa_i*n_ci(i,j,k)*q_ci(i,j,k)*D_ci**2     &
+           * ( th_1aa_i*v_ci**2+2*sigma_ci**2)**0.5
 
-       ! q_hsp - no change
-      endif
-    enddo
-    enddo
-    enddo
-
-
-    if (l_sb_dbg) then
-      ! #hh checking the sizes
-      if(any(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-        write(6,*) 'WARNING: snow self-collection too high '
-        write(6,*) ' decreasing number of snowflakes below 0 in ', count(( svm(2:i1,2:j1,1:k1,in_hs)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
-        write(6,*) ' decreasing number of snowflakes too much in ', count(( n_hs(2:i1,2:j1,1:k1)+delt*dn_hs_col_sss(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      endif
+      dq_ci_col_iis = dq_col_a_i
+      dn_ci_col_iis = dn_col_a_i
+     
+      ! limiting dq_ci  --   limit x_cv_ii as per ICON 2017
+      dq_ci_col_iis = max(dq_ci_col_iis, (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+      dn_ci_col_iis = max(dn_ci_col_iis, (-rem_cf_i*svm(i,j,k,in_ci)-n_cip(i,j,k)))
+      dn_ci_col_iis = max(dn_ci_col_iis, dq_ci_col_iis/x_minagg_ii)
+    else
+      dq_ci_col_iis = 0.
+      dn_ci_col_iis = 0.
     endif
 
-    ! cleanup
-    deallocate (D_a, v_a, E_ab, E_stick, dn_col_a, dq_col_a, relax_x_hs)
-    deallocate (qcol_mask)
+    ! Process snow
+    ! ------------
+    if(q_hs_mask) then
+      ! calculating sticking efficiency
+      if (l_sb_stickyice) then
+        E_stick_s = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
+        E_stick_s = min(c_E_o_s,E_stick_s)
+        E_ab_s = E_ee_m*E_stick_s
+      else ! l_sb_stickyice
+        E_stick_s = exp(B_stick_ii*(tmp0(i,j,k)+stick_off)+C_stick_ii)
+        E_stick_s = min(E_ss_maxst,E_stick_s)
+        E_ab_s  = E_ee_m*E_stick_s
+      endif ! l_sb_stickyice
 
-    end subroutine snow_self3
+      dn_col_a_s = -rhof(k)*(pi/4)*E_ab_s                &
+                 *n_hs(i,j,k)**2 *dlt_0aa_s*D_hs**2      &
+                 *(th_0aa_s *v_hs**2+2*sigma_hs**2)**0.5
+
+      dn_hs_col_sss = dn_col_a_s
+      dn_hs_col_sss = max(min(0.0,dn_hs_col_sss),-rem_cf_s*svm(i,j,k,in_hs)-n_hsp(i,j,k))
+    else
+      dn_hs_col_sss = 0.
+    endif
+     
+    n_cip    = n_cip + dn_ci_col_iis
+    q_cip    = q_cip + dq_ci_col_iis
+    
+    n_hsp    = n_hsp - 0.5 * dn_ci_col_iis + dn_hs_col_sss
+    q_hsp    = q_hsp - dq_ci_col_iis
+
+    if (l_sb_dbg) then
+      if((svm(i,j,k,iq_ci)+delt*dq_ci_col_iis .lt. 0.0)) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice than available'
+        ! count((svm(i,j,k,iq_ci) +delt*dq_ci_col_iis).lt. 0.0)
+        write(6,*) ' removing too much ice'
+        ! count(( q_ci(i,j,k)+delt*dq_ci_col_iis).lt. 0.0 )
+        write(6,*) ' getting negative q_t'
+        ! count(( qt0(i,j,k)+delt*q_cip(i,j,k)).lt. 0.0 )
+      endif
+   
+      if((svm(i,j,k,in_ci)+delt*dn_ci_col_iis .lt. 0.0)) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice particles then available'
+        ! count((svm(i,j,k,in_ci) +delt*dn_ci_col_iis).lt. 0.0)
+        write(6,*) ' removing too much ice particles'
+        ! count((n_ci(i,j,k)+delt*dn_ci_col_iis).lt. 0.0)
+      endif
+   
+      if(( svm(i,j,k,in_hs)+delt*dn_hs_col_sss .lt. 0.0 )) then
+        write(6,*) 'WARNING: snow self-collection too high'
+        write(6,*) ' decreasing number of snowflakes below 0'
+        ! count((svm(i,j,k,in_hs)+delt*dn_hs_col_sss).lt. 0.0 )
+        write(6,*) ' decreasing number of snowflakes too much'
+        ! count((n_hs(i,j,k)+delt*dn_hs_col_sss).lt. 0.0 )
+      endif
+  endif
+  enddo
+  enddo
+  enddo
+
+end subroutine ice_aggr_snow_self
 
 ! ****************************************
 ! snow collecting cloud ice
@@ -8382,3 +8160,4 @@ end subroutine hethomfreez3
   end function esl_at_te
 
 end module modbulkmicro3
+
