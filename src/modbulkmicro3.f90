@@ -539,9 +539,6 @@ module modbulkmicro3
              ,dn_hr_sc      (2-ih:i1+ih,2-jh:j1+jh,k1) &
              ,dq_hr_ev      (2-ih:i1+ih,2-jh:j1+jh,k1) &
              ,dn_hr_ev      (2-ih:i1+ih,2-jh:j1+jh,k1) &
-             ,dq_ci_dep     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< deposition rate for clouds
-             ,dq_hs_dep     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< deposition rate for snow
-             ,dq_hg_dep     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< deposition rate for graupel
              ,dq_ci_rime    (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< riming growth of ice
              ,dn_cl_rime_ci (2-ih:i1+ih,2-jh:j1+jh,k1) &    !<  - and impact on n_cl
              ,dq_hs_rime    (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< riming growth of snow
@@ -1409,7 +1406,6 @@ module modbulkmicro3
              ,dq_hr_au,dn_cl_au,dn_hr_au,dq_hr_ac,dn_cl_ac            &
              ,dn_hr_br,dn_hr_sc                                       &
              ,dq_hr_ev, dn_hr_ev                                      &
-             ,dq_ci_dep, dq_hs_dep, dq_hg_dep                         &
              ,dq_ci_rime,dq_hs_rime,dq_hg_rime,dq_hghr_rime           &
              ,dq_hshr_rime ,dn_hr_rime_hs                             &
              ,dn_cl_rime_ci,dn_cl_rime_hs,dn_cl_rime_hg,dn_hr_rime_hg &
@@ -1419,7 +1415,7 @@ module modbulkmicro3
              ,dn_hr_col_rs,dn_hs_col_rs                               &
              ,dq_hr_col_ri,dq_ci_col_ri                               &
              ,dn_ci_col_ri,dn_hr_col_ri                               &
-             ,dq_cl_het,dq_hr_het,dn_hr_het                 &
+             ,dq_cl_het,dq_hr_het,dn_hr_het                           &
              ,dq_cl_hom,                                              &
              ,dq_ci_col_iis,dn_ci_col_iis                             &
              ,dn_hs_col_sss,dq_hsci_col,dn_ci_col_hs                  &
@@ -2780,7 +2776,7 @@ end subroutine icenucle3
 
 
 !! ****************************************************************
-!!  Limiting condensation   and deposition
+!!  Limiting condensation and deposition
 !!  - to prevent negative values
 !!
 !!  - call should be located:
@@ -2790,26 +2786,14 @@ end subroutine icenucle3
 !!
 !!  ************************************************************
 subroutine cor_deposit3
-  use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp
-  use modfields, only : rhof,exnf, qvsl,qvsi, qt0, svm
+  use modglobal, only : i1,j1,k1,cp
+  use modfields, only : exnf,qvsi,qt0,svm
   use modmpi,    only : myid
   implicit none
 
   integer :: i,j,k
-  real    :: tocon, precon, cond_cf, cond_lcf
-
-  real, allocatable, dimension(:,:,:) ::cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep
-
-  allocate( cor_dqci_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-           ,cor_dqhs_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-           ,cor_dqhg_dep (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-           )
-
-
-  ! start values
-  cor_dqci_dep = 0.0
-  cor_dqhs_dep = 0.0
-  cor_dqhg_dep = 0.0
+  real    :: tocon,precon,cond_cf
+  real    :: cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep
 
   ! then correction for ice processes
   do k=1,k1
@@ -2819,7 +2803,7 @@ subroutine cor_deposit3
      tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt
 
      ! consumption of water vapour calculated by nucleation and deposition processes
-     precon = dq_ci_dep(i,j,k)+dq_hs_dep(i,j,k)+dq_hg_dep(i,j,k)
+     precon = dq_ci_dep+dq_hs_dep+dq_hg_dep
 
      if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then ! run only in oversaturted conditions
        ! preparing additive correctors:
@@ -2827,39 +2811,35 @@ subroutine cor_deposit3
        cond_cf = max(min(0.0, cond_cf),-1.0)
 
        ! - corrector for deposition - only if positive deposition
-       cor_dqci_dep(i,j,k) = cond_cf*max(0.0, dq_ci_dep(i,j,k))
-       cor_dqhs_dep(i,j,k) = cond_cf*max(0.0, dq_hs_dep(i,j,k))
-       cor_dqhg_dep(i,j,k) = cond_cf*max(0.0, dq_hg_dep(i,j,k))
+       cor_dqci_dep = cond_cf*max(0.0, dq_ci_dep)
+       cor_dqhs_dep = cond_cf*max(0.0, dq_hs_dep)
+       cor_dqhg_dep = cond_cf*max(0.0, dq_hg_dep)
 
        ! and updating values:
        ! - cloud water content
-       q_cip(i,j,k) =q_cip(i,j,k)+cor_dqci_dep(i,j,k)
+       q_cip(i,j,k) =q_cip(i,j,k)+cor_dqci_dep
 
        ! - correction for hydrometeors
-       q_hsp(i,j,k) = q_hsp(i,j,k)+cor_dqhs_dep(i,j,k)
-       q_hgp(i,j,k) = q_hgp(i,j,k)+cor_dqhg_dep(i,j,k)
+       q_hsp = q_hsp+cor_dqhs_dep
+       q_hgp = q_hgp+cor_dqhg_dep
 
        ! - correction for total water
-       qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep(i,j,k)-cor_dqhg_dep(i,j,k)-cor_dqci_dep(i,j,k)
+       qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep-cor_dqhg_dep-cor_dqci_dep
 
        ! - and correcting for heat
-       thlpmcr(i,j,k) = thlpmcr(i,j,k)                            &
-             +(rlvi/(cp*exnf(k)))*cor_dqci_dep(i,j,k)             & !l: +cor_dqdep(i,j,k))
-             +(rlvi/(cp*exnf(k)))*cor_dqhs_dep(i,j,k)             &
-             +(rlvi/(cp*exnf(k)))*cor_dqhg_dep(i,j,k)
+       thlpmcr(i,j,k) = thlpmcr(i,j,k)                     &
+             +(rlvi/(cp*exnf(k)))*cor_dqci_dep             &
+             +(rlvi/(cp*exnf(k)))*cor_dqhs_dep             &
+             +(rlvi/(cp*exnf(k)))*cor_dqhg_dep
 
        ! corrector for process values
-       dq_ci_dep(i,j,k) =dq_ci_dep(i,j,k)+cor_dqci_dep(i,j,k)
-       dq_hs_dep(i,j,k) =dq_hs_dep(i,j,k)+cor_dqhs_dep(i,j,k)
-       dq_hg_dep(i,j,k) =dq_hg_dep(i,j,k)+cor_dqhg_dep(i,j,k)
+       dq_ci_dep =dq_ci_dep+cor_dqci_dep
+       dq_hs_dep =dq_hs_dep+cor_dqhs_dep
+       dq_hg_dep =dq_hg_dep+cor_dqhg_dep
      endif
   enddo
   enddo
   enddo
-
-  ! clean up
-  deallocate( cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep)
-
 end subroutine cor_deposit3
 
 
@@ -3798,151 +3778,93 @@ end subroutine cor_deposit3
 ! Inner subroutine - takes input from a wrapper
 !  following S&B
 ! ****************************************
-   subroutine deposit_ice3
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
+subroutine deposit_ice3
+  use modglobal, only : i1,j1,k1,rv,rd,cp,pi
+  use modfields, only : exnf,qt0,svm,tmp0,,qvsi,rhof,presf
+  implicit none
 
-    real:: aip,bip, cip ,alphaip,betaip, k_depos, rl_dif  ! constant describing ice particles
-    real ::  esi, cor_dq_dep
-    integer :: i,j,k
-    real:: avent1, bvent1  ! coefficients for ventilation
-    real, allocatable :: Si(:,:,:), G(:,:,:), F(:,:,:), q_avail(:,:,:) ! F(:,:,:),S(:,:,:),G(:,:,:)
-    real, allocatable :: xip(:,:,:), viic(:,:,:), Dvic(:,:,:),nrex(:,:,:),relax_x(:,:,:), nip(:,:,:)
-    logical ,allocatable :: qip_mask(:,:,:)
-    integer :: numel
+  real :: k_depos  ! constant describing ice particles
+  real :: esi
 
-    ! --- outer part - calculation of constants -----
+  real :: F       & ! ventilation factor
+         ,q_avail & ! available water for deposition
+         ,Si      & ! super or undersaturation with respect to ice
+         ,G       & ! G_iv function
+         ,Dvic    & ! size of ice parti
+         ,viic    & ! v for ice cloud particles
+         ,nrex    & ! reynolds number
+         ,xip     & ! particle size
+         ,nip     & ! particle number
 
-    ! setting the difference between rlvi and rlv
-    rl_dif = rlvi-rlv
+  integer :: i,j,k
 
-    ! set constants
-    aip     = a_ci
-    bip     = b_ci
-    cip     = c_ci
-    alphaip = al_ci
-    betaip  = be_ci
+  ! depositional growth constant
+  ! k_depos = 4*pi/c_ci  ! for spherical particles
+  k_depos = 4*pi/c_ci   ! for hexagonal plates - included in ci
 
-    ! for cloud ice particles
-    avent1 = aven_1i
-    bvent1 = bven_1i
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    ! only where saturated
+    if (q_ci_mask(i,j,k).and.(tmp0(i,j,k).le.T_3)) then
+      xip = x_ci(2:i1,2:j1,1:k1)
+      nip = n_ci(2:i1,2:j1,1:k1)
 
-    ! depositional growth constant
-    ! k_depos = 4*pi/cip   ! for spherical particles
-    k_depos = 4*pi/cip   ! for hexagonal plates - included in ci
+      q_avail = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
+      Si = q_avail/qvsi(i,j,k)
 
-    !  particle size
-    allocate( xip (2-ih:i1+ih,2-jh:j1+jh,k1)          & ! particle size
-             ,nip (2-ih:i1+ih,2-jh:j1+jh,k1)          & ! particle number
-            )
-    allocate( qip_mask (2-ih:i1+ih,2-jh:j1+jh,k1))    ! mask
+      ! calculating G_iv
+      esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+      G = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
 
-    ! inserting values
-    xip(2:i1,2:j1,1:k1) =  x_ci(2:i1,2:j1,1:k1)
-    nip(2:i1,2:j1,1:k1) =  n_ci(2:i1,2:j1,1:k1)
-    qip_mask(2:i1,2:j1,1:k1) = q_ci_mask(2:i1,2:j1,1:k1)
+      ! diameter
+      Dvic = a_ci*xip**b_ci
 
-    ! --- inner part -------------------
+      ! terminal velocity
+      viic = al_ci*((rho0s/rhof(k))**0.5)*xip**be_ci
 
-    ! allocate fields and fill
-     allocate( F      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! ventilation factor
-              ,q_avail(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! available water for deposition
-              ,Si     (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! super or undersaturation with respect to ice
-              ,G      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! G_iv function
-              ,Dvic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! size of ice parti
-              ,viic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! v for ice cloud particles
-              ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
-              ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
-             )
+      ! N_re Reynolds number
+      nrex = Dvic*viic/nu_a
 
-    ! - filling
-    F = 0.0
-    Si = 0.0
-    q_avail = 0.0
-    G = 0.0
-    Dvic = 0.0
-    viic = 0.0
-    nrex = 0.0
-    relax_x = 0.0
+      ! calculating from prepared ventilation coefficients
+      F = avent_1i+bvent_1i*Sc_num**(1.0/3.0)*nrex**0.5
 
-    ! clearing the value for the ice deposition
-    dq_ci_dep = 0.0
+      !-> add there lines for the growth itself
+      dq_ci_dep = k_depos*nip*G*Dvic*F*Si
 
-    ! calculate G if water available
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! only where saturated
-      if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
-        q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
+      ! and limiting not to deposit more than available
+      ! ie. allows any negative dq_ci_dep but positive only smaller than amount of available water
+      dq_ci_dep = max(dq_ci_dep,min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+      dq_ci_dep = min(dq_ci_dep,max(0.0,q_avail/delt))
 
-        ! calculating G_iv
-        esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
-        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        G(i,j,k) = 1./G(i,j,k)
+      ! adds to outputs
+      ! no change - in ice particle number
+      !           - in total amount of water
+      q_cip(i,j,k) = q_cip(i,j,k) + dq_ci_dep
 
-        ! diameter
-        Dvic(i,j,k) = aip*xip(i,j,k)**bip
+      qtpmcr(i,j,k) = qtpmcr(i,j,k)- dq_ci_dep
 
-        ! terminal velocity
-        viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
+      ! added heat by ice deposition
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_ci_dep
 
-        ! N_re Reynolds number
-        nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
 
-        ! calculating from prepared ventilation coefficients
-        F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
+      if (l_sb_dbg) then
+        if((svm(i,j,k,iq_ci)+delt*dq_ci_dep).lt. 0.0) then
+          write(6,*) 'WARNING: ice_deposit3 too low'
+        endif
 
-        !-> add there lines for the growth itself
-        dq_ci_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
-
-        ! and limiting not to deposit more than available
-        ! ie. allows any negative dq_ci_dep but positive only smaller than amount of available water
-        dq_ci_dep(i,j,k) = max(dq_ci_dep(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
-        dq_ci_dep(i,j,k) = min(dq_ci_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
+        if(((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_ci_dep).lt.0.0) then
+          write(6,*) 'WARNING: ice_deposit3 too high depositing more ice than available',
+          ! too high:    ((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_ci_dep).lt. 0.0)
+          ! negative qt: ((qt0(i,j,k)-delt*dq_ci_dep).lt. 0.0)
+        endif
       endif
-    enddo
-    enddo
-    enddo
-
-    ! #hh checking the sizes
-    if (l_sb_dbg) then
-     if(any(( svm(2:i1,2:j1,1:k1,iq_ci)+delt*dq_ci_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: ice_deposit3 too low'
-      write(6,*) '  sublimating more ice than available in ',count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-
-     if(any(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_ci_dep(2:i1,2:j1,1:k1)).lt. 0.0 ))) then
-      write(6,*) 'WARNING: ice_deposit3 too high'
-      write(6,*) '  depositing more ice than available in ',count(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_ci_dep(2:i1,2:j1,1:k1)).lt. 0.0 ))
-      write(6,*) '  getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*dq_ci_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
     endif
-
-    ! --- end of the inner part ---------------------------
-
-    ! adds to outputs
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        ! no change - in ice particle number
-        !           - in total amount of water
-        q_cip(i,j,k) = q_cip(i,j,k) + dq_ci_dep(i,j,k)
-
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)- dq_ci_dep(i,j,k)
-
-        ! added heat by ice deposition
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_ci_dep(i,j,k)
-    enddo
-    enddo
-    enddo
-
-    deallocate (F,q_avail,Si,G, Dvic, viic, nrex, xip,nip, relax_x)
-    deallocate(qip_mask)
-
-   end subroutine deposit_ice3
+  enddo
+  enddo
+  enddo
+end subroutine deposit_ice3
 
 
 ! ****************************************
@@ -3954,151 +3876,95 @@ end subroutine cor_deposit3
 !  following S&B
 ! ****************************************
 
-   subroutine deposit_snow3
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    real:: aip,bip, cip ,alphaip,betaip, k_depos  ! constant describing ice particles
-    real ::  esi, cor_dq_dep
-    integer :: i,j,k
-    real:: avent1, bvent1  ! coefficients for ventilation
-    real, allocatable :: Si(:,:,:), G(:,:,:), F(:,:,:),q_avail(:,:,:) ! F(:,:,:),S(:,:,:),G(:,:,:)
-    real, allocatable :: xip(:,:,:), viic(:,:,:), Dvic(:,:,:),nrex(:,:,:),relax_x(:,:,:), nip(:,:,:)
-    logical ,allocatable :: qip_mask(:,:,:)
-    integer :: numel
-
-    ! --- outer part - calculation of constants -----
-
-    ! set constants
-    aip     = a_hs   ! a_ci
-    bip     = b_hs   ! b_ci
-    cip     = c_hs   ! c_ci
-    alphaip = al_hs  ! al_ci
-    betaip  = be_hs  ! be_ci
-
-    ! for cloud ice particles
-    avent1 = aven_1s
-    bvent1 = bven_1s
-
-    ! precalculate constants
-    !->
+subroutine deposit_snow3
+  use modglobal, only : i1,j1,k1,rv,rd,cp,pi
+  use modfields, only : exnf,qt0,svm,tmp0,qvsi,rhof,presf
+  implicit none
 
 
-    ! depositional growth constant
-    ! k_depos = 4*pi/cip   ! for spherical particles
-    k_depos = 4*pi/cip   ! for hexagonal plates - included in ci
+  real ::    F       & ! ventilation factor
+            ,q_avail & ! available water for deposition
+            ,Si      & ! super or undersaturation with respect to ice
+            ,G       & ! G_iv function
+            ,Dvic    & ! size of ice parti
+            ,viic    & ! v for ice cloud particles
+            ,nrex    & ! reynolds number
+            ,xip     & ! particle size
+            ,nip     & ! particle number
 
-    !  particle size
-    allocate( xip (2-ih:i1+ih,2-jh:j1+jh,k1)                   &  ! particle size
-             ,nip (2-ih:i1+ih,2-jh:j1+jh,k1)                   & ! particle number
-            )
-    allocate( qip_mask (2-ih:i1+ih,2-jh:j1+jh,k1))    ! mask
-    !
-    qip_mask(2:i1,2:j1,1:k1) = q_hs_mask (2:i1,2:j1,1:k1) ! mask for particles
-    nip(2:i1,2:j1,1:k1) =  n_hs(2:i1,2:j1,1:k1)
-    xip (2:i1,2:j1,1:k1) =  x_hs(2:i1,2:j1,1:k1)
+  real :: k_depos  ! constant describing ice particles
+  real :: esi
 
+  integer :: i,j,k
 
-    ! --- inner part -------------------
+  ! depositional growth constant
+  ! k_depos = 4*pi/c_hs   ! for spherical particles
+  k_depos = 4*pi/c_hs   ! for hexagonal plates - included in ci
 
-    ! allocate fields and fill
-     allocate( F      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! ventilation factor
-              ,q_avail(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! available water for deposition
-              ,Si     (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! super or undersaturation with respect to ice
-              ,G      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! G_iv function
-              ,Dvic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! size of ice parti
-              ,viic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! v for ice cloud particles
-              ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
-              ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
-             )
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
+      xip = x_hs(2:i1,2:j1,1:k1)
+      nip = n_hs(2:i1,2:j1,1:k1)
 
-    ! - filling
-    F = 0.0
-    Si = 0.0
-    G = 0.0
-    Dvic = 0.0
-    viic = 0.0
-    nrex = 0.0
-    q_avail = 0.0
-    relax_x = 0.0
+      q_avail = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
+      Si = q_avail/qvsi(i,j,k)
 
-    ! nulling the array for depositional growth
-    dq_hs_dep = 0.0
+      ! calculating G_iv
+      esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+      G = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
 
-    ! calculate G if water available
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
-        q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
+      ! diameter
+      Dvic = a_hs*xip**b_hs
 
-        ! calculating G_iv
-        esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
-        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        G(i,j,k) = 1./G(i,j,k)
+      ! terminal velocity
+      viic = al_hs*((rho0s/rhof(k))**0.5)*xip**be_hs
 
-        ! diameter
-        Dvic(i,j,k) = aip*xip(i,j,k)**bip
+      ! N_re Reynolds number
+      nrex = Dvic*viic/nu_a
 
-        ! terminal velocity
-        viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
+      ! calculating from prepared ventilation coefficients
+      F = aven_1s+bven_1s*Sc_num**(1.0/3.0)*nrex**0.5
 
-        ! N_re Reynolds number
-        nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
+      ! depositional growth
+      dq_hs_dep = k_depos*nip*G*Dvic*F*Si
 
-        ! calculating from prepared ventilation coefficients
-        F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
+      ! and limiting not to deposit more than available
+      dq_hs_dep = max(dq_hs_dep,min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
+      dq_hs_dep = min(dq_hs_dep,max(0.0,q_avail/delt))
 
-        ! depositional growth
-        dq_hs_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
+      ! adds to outputs
 
-        ! and limiting not to deposit more than available
-        dq_hs_dep(i,j,k) = max(dq_hs_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
-        dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
+      q_hsp(i,j,k) = q_hsp(i,j,k) + dq_hs_dep
+      ! no change - in ice particle number
+      !           - in total amount of water
+      ! n_cip(i,j,k) = n_cip(i,j,k)
+
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_dep
+
+      ! added heat by ice deposition
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hs_dep
+
+      if (l_sb_dbg) then
+        if((svm(i,j,k,iq_hs)+delt*dq_hs_dep).lt. 0.0) then
+          write(6,*) 'WARNING: deposit_snow3 too low'
+          write(6,*) '  sublimating more snow than available'
+        endif
+
+        if((((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_hs_dep)).lt. 0.0)) then
+          write(6,*) 'WARNING: deposit_snow3 too high'
+          write(6,*) '  depositing more water than available'
+          ! count((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_hs_dep).lt. 0.0)
+          ! getting negative q_t in count((qt0(i,j,k)-delt*dq_hs_dep).lt. 0.0)
+        endif
       endif
-    enddo
-    enddo
-    enddo
-
-    if (l_sb_dbg) then
-     if(any((svm(2:i1,2:j1,1:k1,iq_hs)+delt*dq_hs_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: deposit_snow3 too low'
-      write(6,*) '  sublimating more snow than available in ',count((svm(2:i1,2:j1,1:k1,iq_hs)+delt*dq_hs_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-
-     if(any(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hs_dep(2:i1,2:j1,1:k1)).lt. 0.0))) then
-      write(6,*) 'WARNING: deposit_snow3 too high'
-      write(6,*) '  depositing more water than available in ',count(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hs_dep(2:i1,2:j1,1:k1)).lt. 0.0 ))
-      write(6,*) '  getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*dq_hs_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
     endif
-
-    ! --- end of the inner part ---------------------------
-
-    ! adds to outputs
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        q_hsp(i,j,k) = q_hsp(i,j,k) + dq_hs_dep(i,j,k)
-        ! no change - in ice particle number
-        !           - in total amount of water
-        ! n_cip(i,j,k) = n_cip(i,j,k)
-
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_dep(i,j,k)
-
-        ! added heat by ice deposition
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hs_dep(i,j,k)
-    enddo
-    enddo
-    enddo
-
-
-    deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip,nip, relax_x)
-    deallocate(qip_mask)
-
-   end subroutine deposit_snow3
+  enddo
+  enddo
+  enddo
+end subroutine deposit_snow3
 
 ! ****************************************
 ! Depositional growth of graupel particles
@@ -4110,146 +3976,95 @@ end subroutine cor_deposit3
 !  following S&B
 ! ****************************************
 
-  subroutine deposit_graupel3
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
+subroutine deposit_graupel3
+  use modglobal, only : i1,j1,k1,rv,rd,pi
+  use modfields, only : exnf,qt0,svm,tmp0,qvsi,rhof,presf
+  implicit none
 
-    real:: aip,bip, cip ,alphaip,betaip, k_depos  ! constant describing ice particles
-    real ::  esi, cor_dq_dep
-    integer :: i,j,k
-    real:: avent1, bvent1  ! coefficients for ventilation
-    real, allocatable :: Si(:,:,:), G(:,:,:), F(:,:,:),q_avail(:,:,:) ! F(:,:,:),S(:,:,:),G(:,:,:)
-    real, allocatable :: xip(:,:,:), viic(:,:,:), Dvic(:,:,:),nrex(:,:,:),relax_x(:,:,:), nip(:,:,:)
-    logical ,allocatable :: qip_mask(:,:,:)
-    integer :: numel
+  real:: k_depos  ! constant describing ice particles
+  real ::  esi, cor_dq_dep
+  integer :: i,j,k
 
-    ! --- outer part - calculation of constants -----
+  real ::  F        & ! ventilation factor
+          ,q_avail  & ! available water for deposition
+          ,Si       & ! super or undersaturation with respect to ice
+          ,G        & ! G_iv function
+          ,Dvic     & ! size of ice parti
+          ,viic     & ! v for ice cloud particles
+          ,nrex     & ! reynolds number
+          ,xip      & ! particle size
+          ,nip      & ! particle number
 
-    ! set constants
-    aip     = a_hg   ! a_ci
-    bip     = b_hg   ! b_ci
-    cip     = c_hg   ! c_ci
-    alphaip = al_hg  ! al_ci
-    betaip  = be_hg  ! be_ci
+  ! depositional growth constant
+  ! k_depos = 4*pi/c_hg   ! for spherical particles
+  k_depos = 4*pi/c_hg   ! for hexagonal plates - included in ci
 
-    ! for cloud ice particles
-    avent1 = aven_1g
-    bvent1 = bven_1g
+  ! calculate G if water available
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hg_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
+      nip = n_hg(2:i1,2:j1,1:k1)
+      xip = x_hg(2:i1,2:j1,1:k1)
 
-    ! depositional growth constant
-    ! k_depos = 4*pi/cip   ! for spherical particles
-    k_depos = 4*pi/cip   ! for hexagonal plates - included in ci
+      q_avail = qt0(i,j,k)-q_cl(i,j,k)-qvsi(i,j,k)
+      Si = q_avail/qvsi(i,j,k)
 
-    !  particle size
-    allocate( xip (2-ih:i1+ih,2-jh:j1+jh,k1)          & ! particle size
-             ,nip (2-ih:i1+ih,2-jh:j1+jh,k1)          & ! particle number
-            )
-    allocate( qip_mask (2-ih:i1+ih,2-jh:j1+jh,k1))    ! mask
+      ! calculating G_iv
+      esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+      G = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
 
-    qip_mask(2:i1,2:j1,1:k1) = q_hg_mask(2:i1,2:j1,1:k1)  ! mask for particles
-    nip(2:i1,2:j1,1:k1) =  n_hg(2:i1,2:j1,1:k1)
-    xip(2:i1,2:j1,1:k1) =  x_hg(2:i1,2:j1,1:k1)
+      ! diameter
+      Dvic = a_hg*xip**b_hg
 
+      ! terminal velocity
+      viic = al_hg*((rho0s/rhof(k))**0.5)*xip**be_hg
 
-    ! --- inner part -------------------
+      ! N_re Reynolds number
+      nrex = Dvic*viic/nu_a
 
-    ! allocate fields and fill
-     allocate( F      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! ventilation factor
-              ,q_avail(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! available water for deposition
-              ,Si     (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! super or undersaturation with respect to ice
-              ,G      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! G_iv function
-              ,Dvic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! size of ice parti
-              ,viic   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! v for ice cloud particles
-              ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
-              ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
-             )
+      ! calculating from prepared ventilation coefficients
+      F = aven_1g+bven_1g*Sc_num**(1.0/3.0)*nrex**0.5
 
-    ! - filling
-    F = 0.0
-    Si = 0.0
-    G = 0.0
-    Dvic = 0.0
-    viic = 0.0
-    nrex = 0.0
-    q_avail = 0.0
-    relax_x = 0.0
+      ! add there lines for the growth itself
+      dq_hg_dep = k_depos*nip*G*Dvic*F*Si
 
-    ! nulling the array for depositional growth
-    dq_hg_dep = 0.0
+      ! and limiting not to deposit more than available
+      ! ie. allows to remove only water as much graupel as is available
+      ! ie. allows any negative dq_hg_dep but positive only smaller than amount
+      dq_hg_dep = max(dq_hg_dep,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
+      dq_hg_dep = min(dq_hg_dep,max(0.0,q_avail/delt))
 
-    ! calculate G if water available
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
-        q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
+      ! adds to outputs
+      q_hgp = q_hgp + dq_hg_dep
+      ! no change - in ice particle number
+      !           - in total amount of water
+      ! n_cip(i,j,k) = n_cip(i,j,k)
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hg_dep
+      ! added heat by ice deposition
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hg_dep
 
-        ! calculating G_iv
-        esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
-        G(i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
-        G(i,j,k) = 1./G(i,j,k)
+      ! warnings
+      if (l_sb_dbg) then
+        if((svm(i,j,k,iq_hg)+delt*dq_hg_dep).lt.0.) then
+          write(6,*) 'WARNING: deposit_graupel3 too low'
+          write(6,*) '  sublimating more snow than available'
+          ! count((svm(i,j,k,iq_hg)+delt*dq_hg_dep).lt. 0.0)
+        endif
 
-        ! diameter
-        Dvic(i,j,k) = aip*xip(i,j,k)**bip
-
-        ! terminal velocity
-        viic(i,j,k) = alphaip*((rho0s/rhof(k))**0.5)*xip(i,j,k)**betaip
-
-        ! N_re Reynolds number
-        nrex(i,j,k) = Dvic(i,j,k)*viic(i,j,k)/nu_a
-
-        ! calculating from prepared ventilation coefficients
-        F(i,j,k) = avent1+bvent1*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
-
-        ! add there lines for the growth itself
-        dq_hg_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
-
-        ! and limiting not to deposit more than available
-        ! ie. allows to remove only water as much graupel as is available
-        ! ie. allows any negative dq_hg_dep but positive only smaller than amount
-        dq_hg_dep(i,j,k) = max(dq_hg_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k)))
-        dq_hg_dep(i,j,k) = min(dq_hg_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
+        if(((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_hg_dep).lt. 0.0)) then
+          write(6,*) 'WARNING: deposit_graupel3 too high'
+          write(6,*) '  depositing more water than available'
+          ! count(qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_hg_dep .lt. 0.0)
+          ! getting negative q_t in  count((qt0(i,j,k)-delt*dq_hg_dep).lt. 0.0)
+        endif
       endif
-    enddo
-    enddo
-    enddo
-
-    ! warnings
-     if (l_sb_dbg) then
-      if(any(( svm(2:i1,2:j1,1:k1,iq_hg)+delt*dq_hg_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-       write(6,*) 'WARNING: deposit_graupel3 too low'
-       write(6,*) '  sublimating more snow than available in ',count((svm(2:i1,2:j1,1:k1,iq_hg)+delt*dq_hg_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      endif
-
-      if(any(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hg_dep(2:i1,2:j1,1:k1)).lt. 0.0))) then
-       write(6,*) 'WARNING: deposit_graupel3 too high'
-       write(6,*) '  depositing more water than available in ',count(qip_mask(2:i1,2:j1,1:k1).and.((qt0(2:i1,2:j1,1:k1)-qvsi(2:i1,2:j1,1:k1)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci)-delt*dq_hg_dep(2:i1,2:j1,1:k1)).lt. 0.0 ))
-       write(6,*) '  getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)-delt*dq_hg_dep(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      endif
-     endif
-    ! --- end of the inner part ---------------------------
-
-    ! adds to outputs
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        q_hgp(i,j,k) = q_hgp(i,j,k) + dq_hg_dep(i,j,k)
-        ! no change - in ice particle number
-        !           - in total amount of water
-        ! n_cip(i,j,k) = n_cip(i,j,k)
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hg_dep(i,j,k)
-        ! added heat by ice deposition
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hg_dep(i,j,k)
-    enddo
-    enddo
-    enddo
-
-    deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip, nip, relax_x)
-    deallocate(qip_mask)
-  end subroutine deposit_graupel3
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine deposit_graupel3
 
 ! *******************************************************
 ! Heterogenous and Homogeneous freezing of cloud droplets
@@ -4304,7 +4119,7 @@ subroutine hethomfreez3
 
       dn_cl_het = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_het
       dq_cl_het = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_het
-      
+
       ! basic correction
       dn_cl_het = max(dn_cl_het,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
       dq_cl_het = max(dq_cl_het,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
