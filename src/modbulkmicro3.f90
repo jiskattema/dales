@@ -60,11 +60,8 @@ module modbulkmicro3
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro3
-    use modglobal, only : ih,i1,jh,j1,k1, lwarmstart  &
-                         ,ifnamopt,fname_options     ! #sb3
-    use modmpi,    only : myid   ! #sb3
-    use modmpi,    only : myid,my_real,comm3d,mpi_integer   &
-                         ,mpi_logical  ! #sb3
+    use modglobal, only : ih,i1,jh,j1,k1,lwarmstart,ifnamopt,fname_options
+    use modmpi,    only : myid,my_real,comm3d,mpi_integer,mpi_logical
     implicit none
     integer :: ierr
     ! #sb3 START - namelist for setting of bulk microphysics
@@ -214,27 +211,27 @@ module modbulkmicro3
              ,n_clp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,n_ci      (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! N_{c,i}  number content [ kg^{-1}] for ice cloud droplets,
              ,n_cip     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,n_hr       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,r} number content [ kg^{-1}] for rain
-             ,n_hrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,n_hs       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,s} number content [ kg^{-1}] for snow
-             ,n_hsp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,n_hg       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,g} number content [ kg^{-1}] for graupel
-             ,n_hgp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,n_hr      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,r} number content [ kg^{-1}] for rain
+             ,n_hrp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,n_hs      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,s} number content [ kg^{-1}] for snow
+             ,n_hsp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,n_hg      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! N_{h,g} number content [ kg^{-1}] for graupel
+             ,n_hgp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,q_cl      (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! q_{c,l}  water content [kg kg^{-1}] for liquid cloud droplets,
              ,q_clp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,q_ci      (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! q_{c,i}  water content [kg kg^{-1}] for ice cloud droplets,
              ,q_cip     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,q_hr       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,r} water content [kg kg^{-1}] for rain
-             ,q_hrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,q_hs       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,s} water content [kg kg^{-1}] for snow
-             ,q_hsp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,q_hg       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,g} water content [kg kg^{-1}] for graupel
-             ,q_hgp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,x_ci       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean cloud ice size
-             ,x_cl       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean cloud water size
-             ,x_hs       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean snow size
-             ,x_hg       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean graupel size
-             ,x_hr       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean raindrop size
+             ,q_hr      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,r} water content [kg kg^{-1}] for rain
+             ,q_hrp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,q_hs      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,s} water content [kg kg^{-1}] for snow
+             ,q_hsp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,q_hg      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! q_{h,g} water content [kg kg^{-1}] for graupel
+             ,q_hgp     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,x_ci      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean cloud ice size
+             ,x_cl      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean cloud water size
+             ,x_hs      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean snow size
+             ,x_hg      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean graupel size
+             ,x_hr      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean raindrop size
             )
 
     allocate( precep_l    (2-ih:i1+ih,2-jh:j1+jh,k1)   &
@@ -671,7 +668,7 @@ module modbulkmicro3
       n_hr  (i,j,k) = sv0(i,j,k,in_hr)
       n_hs  (i,j,k) = sv0(i,j,k,in_hs)
       n_hg  (i,j,k) = sv0(i,j,k,in_hg)
-      !
+
       ! reading mass densities
       q_cl  (i,j,k) = sv0(i,j,k,iq_cl)
       q_ci  (i,j,k) = sv0(i,j,k,iq_ci)
@@ -810,7 +807,7 @@ module modbulkmicro3
     dq_cl_sa      = 0.0
     dn_cl_sa      = 0.0
     ret_cc        = 0.0
-    !
+
     precep_l      = 0.0
     precep_i      = 0.0
 
@@ -1068,7 +1065,6 @@ module modbulkmicro3
     ! --------------------------------------------------------------
     ! - raindrop freezing
     ! --------------------------------------------------------------
-
     call rainhetfreez3        ! heterogeneous freezing! #iceout
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'fre.rai')! #d
 
@@ -1094,7 +1090,6 @@ module modbulkmicro3
     ! --------------------------------------------------------------
     ! - melting and evaporation of ice particles
     ! --------------------------------------------------------------
-
     call evapmelting3 ! melting of ice particles
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'melting')! #d
 
@@ -1147,7 +1142,7 @@ module modbulkmicro3
         svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
       else
         svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-        svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
+        svp(i,j,k,in_hr)=svp(i,j,k,in_hr)+n_hrp(i,j,k)
         ! adjust negative qr tendencies at the end of the time-step
       end if
     enddo
@@ -1160,8 +1155,8 @@ module modbulkmicro3
     do k=1,k1
     do j=2,j1
     do i=2,i1
-        qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
-        nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
+      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
       if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then
         ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k)
@@ -1257,7 +1252,7 @@ module modbulkmicro3
         svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
       else
         svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-        svp(i,j,k,in_hr) =svp(i,j,k,in_hr)+n_hrp(i,j,k)
+        svp(i,j,k,in_hr)=svp(i,j,k,in_hr)+n_hrp(i,j,k)
       end if
     enddo
     enddo
@@ -1345,121 +1340,120 @@ module modbulkmicro3
 
   endif ! l_corr__neg_qt
 
-    ! == CCN checking ==
-    if(.not.l_c_ccn) then
-      insv = in_cc
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_ccp(i,j,k))*delt
-        if (nrtest .le.0.0 ) then ! correction
-          svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        else
-          svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
-          ! no change for qt and th
-        end if
-      enddo
-      enddo
-      enddo
-    endif ! not l_c_ccn
-
-    ! == update =====
-    ! and updating main prognostic variables by contribution from mphys processes
+  ! == CCN checking ==
+  if(.not.l_c_ccn) then
+    insv = in_cc
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      thlp(i,j,k) = thlp(i,j,k)+thlpmcr(i,j,k)
-      qtp(i,j,k) = qtp(i,j,k)+qtpmcr(i,j,k)
+      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_ccp(i,j,k))*delt
+      if (nrtest .le.0.0 ) then ! correction
+        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
+      else
+        svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
+        ! no change for qt and th
+      end if
     enddo
     enddo
     enddo
+  endif ! not l_c_ccn
 
-    if(l_sb_dbg_extra) then
-      ! estimating new xc
-      insv = in_cl
-      iqsv = iq_cl
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        nrtest=svm(i,j,k,insv)+delt*svp(i,j,k,insv) ! since n_clp already included
-        ! in clouds only
-        if (nrtest<0.0 ) then
-          xtest(i,j,k) =0.0
-        else
-          !  calculating new droplet size
-          xtest(i,j,k) = (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv)+eps0)
-        endif
-      enddo
-      enddo
-      enddo
+  ! == update =====
+  ! and updating main prognostic variables by contribution from mphys processes
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    thlp(i,j,k) = thlp(i,j,k)+thlpmcr(i,j,k)
+    qtp(i,j,k) = qtp(i,j,k)+qtpmcr(i,j,k)
+  enddo
+  enddo
+  enddo
 
-      ! warning if droplets too large
-      if(any(xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
-        write(6,*) 'warning: cloud droplets at the end of the step too large'
-        write(6,*) '   in ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' gridpoints larger than ',xc_bmax
-        write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
+  if(l_sb_dbg_extra) then
+    ! estimating new xc
+    insv = in_cl
+    iqsv = iq_cl
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      nrtest=svm(i,j,k,insv)+delt*svp(i,j,k,insv) ! since n_clp already included
+      ! in clouds only
+      if (nrtest<0.0 ) then
+        xtest(i,j,k) =0.0
+      else
+        !  calculating new droplet size
+        xtest(i,j,k) = (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv)+eps0)
       endif
-    endif ! l_sb_dbg
+    enddo
+    enddo
+    enddo
 
-
-    ! # statistics
-    ! call microphysics statistics - just once per step
-    call bulkmicrotend3 ! #t5
-    call bulkmicrostat3 ! #t5
-
-
-    if(l_sb_dbg_extra) call check_sizes(flag_do_dbg,flag_warn_size,'all_ups')
-    call check_allupdates(flag_do_dbg_up)
-
-    ! ending line
-    if(l_sb_dbg_extra) then
-        write(6,*) ' =========================='
+    ! warning if droplets too large
+    if(any(xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
+      write(6,*) 'warning: cloud droplets at the end of the step too large'
+      write(6,*) '   in ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' gridpoints larger than ',xc_bmax
+      write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
     endif
+  endif ! l_sb_dbg
 
-    ! deallocating process variables
-    deallocate( xtest)  ! #d
-    !
-    deallocate( dn_cl_nu,dn_ci_inu                                      &
-               ,dq_hr_au,dn_cl_au,dn_hr_au,dq_hr_ac,dn_cl_ac            &
-               ,dn_hr_br,dn_hr_sc                                       &
-               ,dq_hr_ev, dn_hr_ev                                      &
-               ,dq_ci_dep, dq_hs_dep, dq_hg_dep                         &
-               ,dq_ci_rime,dq_hs_rime,dq_hg_rime,dq_hghr_rime           &
-               ,dq_hshr_rime ,dn_hr_rime_hs                             &
-               ,dn_cl_rime_ci,dn_cl_rime_hs,dn_cl_rime_hg,dn_hr_rime_hg &
-               ,dq_hr_rime_ri,dq_ci_rime_ri                             &
-               ,dn_ci_rime_ri ,dn_hr_rime_ri                            &
-               ,dq_hr_col_rs,dq_hs_col_rs                               &
-               ,dn_hr_col_rs,dn_hs_col_rs                               &
-               ,dq_hr_col_ri,dq_ci_col_ri                               &
-               ,dn_ci_col_ri,dn_hr_col_ri                               &
-               ,dq_cl_het,dn_cl_het,dq_hr_het,dn_hr_het                 &
-               ,dq_cl_hom,dn_cl_hom                                     &
-               ,dq_ci_col_iis,dn_ci_col_iis                             &
-               ,dn_hs_col_sss,dq_hsci_col,dn_ci_col_hs                  &
-               ,dq_hghs_col, dn_hs_col_hg                               &
-               ,dq_ci_cv,dq_hs_cv, dn_ci_cv,dn_hs_cv                    &
-               ,dn_cl_sc                                                &
-               ,dn_ci_mul, dq_ci_mul                                    &
-               ,dq_ci_me,dq_hs_me, dq_hg_me                             &
-               ,dn_ci_me,dn_hs_me, dn_hg_me                             &
-               ,dq_ci_ev,dq_hs_ev, dq_hg_ev                          &
-               ,dn_ci_ev,dn_hs_ev, dn_hg_ev                          &
-               ,dn_ci_eme_ic,dq_ci_eme_ic,dn_ci_eme_ri,dq_ci_eme_ri     &
-               ,dn_hs_eme_sc,dq_hs_eme_sc,dn_hs_eme_rs,dq_hs_eme_rs     &
-               ,dn_hg_eme_gc,dq_hg_eme_gc,dn_hg_eme_gr,dq_hg_eme_gr     &
-               ,dq_cl_se,dq_ci_se,dq_hr_se,dq_hs_se,dq_hg_se            &
-               ,dn_cl_se,dn_ci_se,dn_hr_se,dn_hs_se,dn_hg_se            &
-               ,precep_hr, precep_ci, precep_hs,precep_hg               &
-               ,dq_cl_sa ,dn_cl_sa                                      &
-               ,ret_cc                                                  &
-              )
+
+  ! # statistics
+  ! call microphysics statistics - just once per step
+  call bulkmicrotend3 ! #t5
+  call bulkmicrostat3 ! #t5
+
+  if(l_sb_dbg_extra) call check_sizes(flag_do_dbg,flag_warn_size,'all_ups')
+  call check_allupdates(flag_do_dbg_up)
+
+  ! ending line
+  if(l_sb_dbg_extra) then
+      write(6,*) ' =========================='
+  endif
+
+  ! deallocating process variables
+  deallocate( xtest)  ! #d
+  !
+  deallocate( dn_cl_nu,dn_ci_inu                                      &
+             ,dq_hr_au,dn_cl_au,dn_hr_au,dq_hr_ac,dn_cl_ac            &
+             ,dn_hr_br,dn_hr_sc                                       &
+             ,dq_hr_ev, dn_hr_ev                                      &
+             ,dq_ci_dep, dq_hs_dep, dq_hg_dep                         &
+             ,dq_ci_rime,dq_hs_rime,dq_hg_rime,dq_hghr_rime           &
+             ,dq_hshr_rime ,dn_hr_rime_hs                             &
+             ,dn_cl_rime_ci,dn_cl_rime_hs,dn_cl_rime_hg,dn_hr_rime_hg &
+             ,dq_hr_rime_ri,dq_ci_rime_ri                             &
+             ,dn_ci_rime_ri ,dn_hr_rime_ri                            &
+             ,dq_hr_col_rs,dq_hs_col_rs                               &
+             ,dn_hr_col_rs,dn_hs_col_rs                               &
+             ,dq_hr_col_ri,dq_ci_col_ri                               &
+             ,dn_ci_col_ri,dn_hr_col_ri                               &
+             ,dq_cl_het,dn_cl_het,dq_hr_het,dn_hr_het                 &
+             ,dq_cl_hom,dn_cl_hom                                     &
+             ,dq_ci_col_iis,dn_ci_col_iis                             &
+             ,dn_hs_col_sss,dq_hsci_col,dn_ci_col_hs                  &
+             ,dq_hghs_col, dn_hs_col_hg                               &
+             ,dq_ci_cv,dq_hs_cv, dn_ci_cv,dn_hs_cv                    &
+             ,dn_cl_sc                                                &
+             ,dn_ci_mul, dq_ci_mul                                    &
+             ,dq_ci_me,dq_hs_me, dq_hg_me                             &
+             ,dn_ci_me,dn_hs_me, dn_hg_me                             &
+             ,dq_ci_ev,dq_hs_ev, dq_hg_ev                             &
+             ,dn_ci_ev,dn_hs_ev, dn_hg_ev                             &
+             ,dn_ci_eme_ic,dq_ci_eme_ic,dn_ci_eme_ri,dq_ci_eme_ri     &
+             ,dn_hs_eme_sc,dq_hs_eme_sc,dn_hs_eme_rs,dq_hs_eme_rs     &
+             ,dn_hg_eme_gc,dq_hg_eme_gc,dn_hg_eme_gr,dq_hg_eme_gr     &
+             ,dq_cl_se,dq_ci_se,dq_hr_se,dq_hs_se,dq_hg_se            &
+             ,dn_cl_se,dn_ci_se,dn_hr_se,dn_hs_se,dn_hg_se            &
+             ,precep_hr, precep_ci, precep_hs,precep_hg               &
+             ,dq_cl_sa ,dn_cl_sa                                      &
+             ,ret_cc                                                  &
+            )
    ! deallocate sizes
-   deallocate( D_cl,D_ci,D_hr,D_hs,D_hg                                 &
-              ,v_cl,v_ci,v_hr,v_hs,v_hg                                 &
+   deallocate( D_cl,D_ci,D_hr,D_hs,D_hg                               &
+              ,v_cl,v_ci,v_hr,v_hs,v_hg                               &
              )
 
-  end subroutine bulkmicro3
+ end subroutine bulkmicro3
 
 ! ===============================
 !  cloud initialisation
@@ -1543,21 +1537,21 @@ subroutine initccn3
   implicit none
 
   integer :: i,j,k
-  real ::   Nccn_set, n_prop  ! available water and proposed size
+  real ::   Nccn_set, n_prop            ! available water and proposed size
 
-  Nccn_set = Nccn0 ! prescribed number of ccn
+  Nccn_set = Nccn0                      ! prescribed number of ccn
 
-   do k=1,k1
-   do j=2,j1
-   do i=2,i1
-     ! prepare number of CCNs
-     n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
-     ! save values to arrays
-     sv0(i,j,k,in_cc) = n_prop
-     svm(i,j,k,in_cc) = n_prop
-   enddo
-   enddo
-   enddo
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    ! prepare number of CCNs
+    n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
+    ! save values to arrays
+    sv0(i,j,k,in_cc) = n_prop
+    svm(i,j,k,in_cc) = n_prop
+  enddo
+  enddo
+  enddo
 
 end subroutine initccn3
 
@@ -1572,7 +1566,7 @@ end subroutine initccn3
 !   - calculates remaining amount of water available for condensation
 !   - dumps remaining water into cloud
 !
-!   In addition, check the average sie of cloud droplets
+!   In addition, check the average size of cloud droplets
 !   and evaporates droplets that proportionally
 !
 subroutine satadj3
@@ -1593,8 +1587,8 @@ subroutine satadj3
     do j=2,j1
     do i=2,i1
       ! note: threshold might be lower then threshold for cloud computations, obviously
-      ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt ! #t1
-      if (ntest.gt.0.0) then ! (ntest.gt.n_c_min ) then ! (ntest.gt.0.0) then
+      ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt
+      if (ntest.gt.0.0) then
         !
         ! remaining water =
         !    + condesable water available
@@ -1713,11 +1707,8 @@ subroutine satadj3
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    ! and the update itself
     q_clp(i,j,k)  = q_clp(i,j,k) + dq_cl_sa(i,j,k)
     n_clp(i,j,k)  = n_clp(i,j,k) + dn_cl_sa(i,j,k)
-    ! - recover aerosols -already treated
-    ! ret_cc(i,j,k) = ret_cc(i,j,k)-c_ccn_ev_c*dn_cl_sa(i,j,k)
   enddo
   enddo
   enddo
@@ -2924,20 +2915,10 @@ end subroutine cor_deposit3
     Dgr        = 0.0
     wvar0      = 0.0
     N_r0       = 0.0
-    lbdr_try   = 0.0   ! #sb3
-    ! qr_spl   = 0.0
-    ! Nr_spl   = 0.0
+    lbdr_try   = 0.0
 
-
-
-    ! #sb3 - adjust the variable
     qr_spl(2:i1,2:j1,1:k1) = q_hr(2:i1,2:j1,1:k1)
-
-    ! old: qr_spl(2:i1,2:j1,1:k1) = qr(2:i1,2:j1,1:k1)
-    ! #sb3 - adjust the variable
     Nr_spl(2:i1,2:j1,1:k1)  = n_hr(2:i1,2:j1,1:k1)
-    ! old: Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
-    !
 
 
     ! wfallmax = 9.9
@@ -2950,101 +2931,106 @@ end subroutine cor_deposit3
       sed_qr(2:i1,2:j1,1:k1) = 0.
       sed_Nr(2:i1,2:j1,1:k1) = 0.
 
-     if (l_sb ) then
+      if (l_sb ) then
 
       if (l_sb_classic) then
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-        if (qr_spl(i,j,k) > qrmin) then
-          ! limiting procedure (as per S&B)
-          xr_spl (i,j,k) = qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-          xr_try         = max(xrmin,min(xrmax,x_hr(i,j,k)))
-          Dvr_spl(i,j,k) = (xr_try/pirhow)**(1./3.)
-          N_r0_try       = n_hr(i,j,k)/Dvr(i,j,k) ! rhof(k)*n_hr(i,j,k)/Dvr(i,j,k)
-          N_r0(i,j,k)    = max(N_0min/rhof(k),min(N_0max/rhof(k),N_r0_try)) ! max(N_0min,min(N_0max,N_r0_try))
-          !
-          lbdr_try(i,j,k)= (pirhow*N_r0(i,j,k)/(rhof(k)*qr_spl(i,j,k)))**0.25  ! c_lbdr*x_hr(i,j,k)**(-mu_hr_cst)
-          lbdr_spl(i,j,k)    = max(lbdr_min, min(lbdr_max,lbdr_try(i,j,k)))
-          !
-          ! calculation of velocities
-          wfall_qr(i,j,k) = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc            &
-                    -b_tvsbc*(1.+c_tvsbc/lbdr_spl(i,j,k))**(-4.0))) ! k=1
-          wfall_Nr(i,j,k) = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc           &
-                    -b_tvsbc*(1.+c_tvsbc/lbdr_spl(i,j,k))**(-1.0))) ! k=0
-          sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
-          sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)*rhof(k)
-        endif
-       enddo
-       enddo
-       enddo
-      else  ! l_sb_classic
-
-       if (l_lognormal) then
-        do k = 1,kmax
-        do j = 2,j1
-        do i = 2,i1
-          if (qr_spl(i,j,k) > qrmin) then
-            Dgr(i,j,k) = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl(i,j,k) ! correction for width of DSD
-            sed_qr(i,j,k) = 1.*sed_flux3(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
-            sed_Nr(i,j,k) = 1./pirhow*sed_flux3(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
-!        correction for the fact that pwcont .ne. qr_spl
-!        actually in this way for every grid box a fall velocity is determined
-            pwcont = liq_cont3(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)         ! note : kg m-3
-            if (pwcont > eps1) then
-              sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-            end if
-          end if ! qr_spl threshold statement
-        end do
-        end do
-        end do
-
-       else
-      !
-      ! SB rain sedimentation
-      !
-         if (l_mur_cst) then
-          mur_spl(2:i1,2:j1,1:k1) = mur_cst
-         else
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-!             mur_spl(i,j,k) = 10. * (1+tanh(1200.*(Dvr_spl(i,j,k)-0.0014))) ! SS08
-              mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
-            endif
-          enddo
-          enddo
-          enddo
-
-         endif
         do k=1,k1
         do j=2,j1
         do i=2,i1
           if (qr_spl(i,j,k) > qrmin) then
-              lbdr_spl(i,j,k) = ((mur_spl(i,j,k)+3.)*(mur_spl(i,j,k)+2.)* &
-                                 (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
-              wfall_qr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
-              wfall_Nr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
-              sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
-              sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)*rhof(k)
+            ! limiting procedure (as per S&B)
+            xr_spl (i,j,k) = qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
+            xr_try         = max(xrmin,min(xrmax,x_hr(i,j,k)))
+            Dvr_spl(i,j,k) = (xr_try/pirhow)**(1./3.)
+            N_r0_try       = n_hr(i,j,k)/Dvr(i,j,k) ! rhof(k)*n_hr(i,j,k)/Dvr(i,j,k)
+            N_r0(i,j,k)    = max(N_0min/rhof(k),min(N_0max/rhof(k),N_r0_try))
+
+            lbdr_try(i,j,k)= (pirhow*N_r0(i,j,k)/(rhof(k)*qr_spl(i,j,k)))**0.25
+            lbdr_spl(i,j,k)    = max(lbdr_min, min(lbdr_max,lbdr_try(i,j,k)))
+
+            ! calculation of velocities
+            wfall_qr(i,j,k) = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc           &
+                      -b_tvsbc*(1.+c_tvsbc/lbdr_spl(i,j,k))**(-4.0))) ! k=1
+            wfall_Nr(i,j,k) = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc           &
+                      -b_tvsbc*(1.+c_tvsbc/lbdr_spl(i,j,k))**(-1.0))) ! k=0
+            sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
+            sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)*rhof(k)
           endif
         enddo
         enddo
         enddo
+      else  ! l_sb_classic
 
-      endif !l_lognormal
+       if (l_lognormal) then
+         do k = 1,kmax
+         do j = 2,j1
+         do i = 2,i1
+           if (qr_spl(i,j,k) > qrmin) then
+             ! correction for width of DSD
+             Dgr(i,j,k) = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl(i,j,k)
+
+             sed_qr(i,j,k) = 1.*sed_flux3(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
+             sed_Nr(i,j,k) = 1./pirhow*sed_flux3(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
+
+             ! correction for the fact that pwcont .ne. qr_spl
+             ! actually in this way for every grid box a fall velocity is determined
+             pwcont = liq_cont3(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)         ! note : kg m-3
+             if (pwcont > eps1) then
+               sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)
+             end if
+           end if ! qr_spl
+         end do
+         end do
+         end do
+
+       else
+         !
+         ! SB rain sedimentation
+         !
+         if (l_mur_cst) then
+           mur_spl(2:i1,2:j1,1:k1) = mur_cst
+         else
+           do k=1,k1
+           do j=2,j1
+           do i=2,i1
+             if (qr_spl(i,j,k) > qrmin) then
+!              mur_spl(i,j,k) = 10. * (1+tanh(1200.*(Dvr_spl(i,j,k)-0.0014))) ! SS08
+               mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
+             endif
+           enddo
+           enddo
+           enddo
+         endif
+         do k=1,k1
+         do j=2,j1
+         do i=2,i1
+           if (qr_spl(i,j,k) > qrmin) then
+             lbdr_spl(i,j,k) = ((mur_spl(i,j,k)+3.)*(mur_spl(i,j,k)+2.)* &
+                                (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
+             wfall_qr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
+             wfall_Nr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
+             sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
+             sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)*rhof(k)
+           endif
+         enddo
+         enddo
+         enddo
+      endif ! l_lognormal
      endif ! l_sb_classic
     else
-    !
-    ! KK00 rain sedimentation
-    !
+      !
+      ! KK00 rain sedimentation
+      !
       do k=1,k1
       do j=2,j1
       do i=2,i1
         if (qr_spl(i,j,k) > qrmin) then
-           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
-           xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders
+           !JvdD added eps0 to avoid division by zero
+           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
+
+           ! to ensure xr is within borders
+           xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk)
+
            Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k)
            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1) * Nr_spl(i,j,k)
@@ -3054,7 +3040,7 @@ end subroutine cor_deposit3
       enddo
 
     end if !l_sb
-!
+
     do k = 1,kmax
       do j=2,j1
       do i=2,i1
@@ -3082,7 +3068,6 @@ end subroutine cor_deposit3
       do i=2,i1
         precep_hr(i,j,k) = sed_qr(i,j,k)/rhof(k) ! kg kg-1 m s-1
         precep_l(i,j,k) = precep_l(i,j,k) +precep_hr(i,j,k) ! kg kg-1 m s-1
-        ! precep(i,j,k) =  sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1
       enddo
       enddo
       endif
@@ -3091,18 +3076,13 @@ end subroutine cor_deposit3
 !
     enddo ! time splitting loop
 
-    ! #sb3 adjusting the output
-    ! n_hrp(2:i1,2:j1,1:k1)= n_hrp(2:i1,2:j1,1:k1) + &
-    !      (Nr_spl(2:i1,2:j1,1:k1) - n_hr(2:i1,2:j1,1:k1))/delt
-    ! q_hrp(2:i1,2:j1,1:k1)= q_hrp(2:i1,2:j1,1:k1) + &
-    !     (qr_spl(2:i1,2:j1,1:k1) - q_hr(2:i1,2:j1,1:k1))/delt
-
     do k=1,k1
     do j=2,j1
     do i=2,i1
       ! tendencies
       dn_hr_se(i,j,k) = (Nr_spl(i,j,k) - n_hr(i,j,k))/delt
       dq_hr_se(i,j,k) = (qr_spl(i,j,k) - q_hr(i,j,k))/delt
+
       ! updates
       n_hrp(i,j,k)= n_hrp(i,j,k) + dn_hr_se(i,j,k)
       q_hrp(i,j,k)= q_hrp(i,j,k) + dq_hr_se(i,j,k)
@@ -3115,7 +3095,6 @@ end subroutine cor_deposit3
   end subroutine sedim_rain3
 
 
-! #sb3 START
    !*********************************************************************
    ! sedimentation of snow
    !*********************************************************************
@@ -3163,8 +3142,6 @@ end subroutine cor_deposit3
     wfall_qip = 0.0
     wfall_nip = 0.0
 
-    ! write(6,*)'starting sedimentation'
-
     qip_spl(2:i1,2:j1,1:k1)  = q_hs(2:i1,2:j1,1:k1)
     nip_spl(2:i1,2:j1,1:k1)  = n_hs(2:i1,2:j1,1:k1)
 
@@ -3180,18 +3157,14 @@ end subroutine cor_deposit3
             !  ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1)        & !<  lognormal geometric diameter
             ! )
 
-    ! t
-    ! write(6,*)'  allocated'
       wvar    = 0.0
       wvar0   = 0.0
       xip_spl = 0.0
       Dvp_spl = 0.0
 
 
-    ! old: Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
 
     ! inner part of the code
-    ! wfallmax = 9.9   ! <- replace with a highest terminal velocity for particles
     n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
@@ -3269,6 +3242,7 @@ end subroutine cor_deposit3
       ! tendencies
       dn_hs_se(i,j,k) = (nip_spl(i,j,k) - n_hs(i,j,k))/delt
       dq_hs_se(i,j,k) = (qip_spl(i,j,k) - q_hs(i,j,k))/delt
+
       ! updates
       n_hsp(i,j,k)= n_hsp(i,j,k) + dn_hs_se(i,j,k)
       q_hsp(i,j,k)= q_hsp(i,j,k) + dq_hs_se(i,j,k)
@@ -3343,103 +3317,82 @@ end subroutine cor_deposit3
             !  ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1)        & !<  lognormal geometric diameter
             ! )
 
-    ! t
-    ! write(6,*)'  allocated'
-     wvar    = 0.0
-     wvar0   = 0.0
-     xip_spl = 0.0
-     Dvp_spl = 0.0
-
-    ! old: Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
+    wvar    = 0.0
+    wvar0   = 0.0
+    xip_spl = 0.0
+    Dvp_spl = 0.0
 
     ! inner part of the code
-    ! wfallmax = 15.9 ! 9.9   ! <- replace with a highest terminal velocity for particles
     n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
 
     do jn = 1 , n_spl ! time splitting loop
-     ! t
-     !#t write(6,*) '  sedim step ', jn
-
       sed_qip(2:i1,2:j1,1:k1) = 0.
       sed_nip(2:i1,2:j1,1:k1) = 0.
-      ! wvar(2:i1,2:j1,1:k1)    = 0.
 
-      ! t
-     !#t  write(6,*) '   starting '
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-        if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
-          xip_spl (i,j,k) = qip_spl(i,j,k)/(nip_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-          xip_spl (i,j,k) = min(max(xip_spl(i,j,k),xpmin),xpmax) ! to ensure xr is within borders
-          ! Dvp_spl(i,j,k) = aip*xip_spl(i,j,k)**bip
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+       if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
+         xip_spl (i,j,k) = qip_spl(i,j,k)/(nip_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
+         xip_spl (i,j,k) = min(max(xip_spl(i,j,k),xpmin),xpmax) ! to ensure xr is within borders
+         ! Dvp_spl(i,j,k) = aip*xip_spl(i,j,k)**bip
+       endif
+      enddo
+      enddo
+      enddo
+
+      ! terminal fall velocity
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+         if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
+            wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
+            wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
+            sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
+            sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
+         endif
+      enddo
+      enddo
+      enddo
+
+      ! segmentation over levels
+      do k = 1,kmax
+        do j=2,j1
+        do i=2,i1
+          wvar(i,j,k) = qip_spl(i,j,k) +  (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+          wvar0(i,j,k) = nip_spl(i,j,k) + (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
+        if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
+          write(6,*)'  graupel sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
+        end if
+        if (any(wvar0(2:i1,2:j1,k) .lt. 0.)) then
+          write(6,*)'  graupel sedim too large', count(wvar0(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar0), minloc(wvar0)
+        end if
+        do j=2,j1
+        do i=2,i1
+          nip_spl(i,j,k) = nip_spl(i,j,k) + &
+                  (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+          qip_spl(i,j,k) = qip_spl(i,j,k) + &
+                  (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
+
+        ! -> check this part properly later
+        if ( jn == 1. ) then
+          do j=2,j1
+          do i=2,i1
+            precep_hg(i,j,k) = precep_hg(i,j,k)+ sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
+            precep_i(i,j,k) =  precep_i(i,j,k)+ precep_hg(i,j,k)  ! kg kg-1 m s-1
+          enddo
+          enddo
         endif
-       enddo
-       enddo
-       enddo
-
-       ! terminal fall velocity
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-          if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
-             wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
-             wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
-             sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
-             sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
-          endif
-       enddo
-       enddo
-       enddo
-
-     ! segmentation over levels
-     do k = 1,kmax
-      do j=2,j1
-      do i=2,i1
-        wvar(i,j,k) = qip_spl(i,j,k) +  (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-        wvar0(i,j,k) = nip_spl(i,j,k) + (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-      enddo
-      enddo
-      if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
-        ! t
-        write(6,*)'  graupel sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
-      end if
-      if (any(wvar0(2:i1,2:j1,k) .lt. 0.)) then
-        ! t
-        write(6,*)'  graupel sedim too large', count(wvar0(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar0), minloc(wvar0)
-      end if
-      do j=2,j1
-      do i=2,i1
-        nip_spl(i,j,k) = nip_spl(i,j,k) + &
-                (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-        qip_spl(i,j,k) = qip_spl(i,j,k) + &
-                (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-      enddo
-      enddo
-
-      ! -> check this part properly later
-      if ( jn == 1. ) then
-       do j=2,j1
-       do i=2,i1
-        precep_hg(i,j,k) = precep_hg(i,j,k)+ sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-        precep_i(i,j,k) =  precep_i(i,j,k)+ precep_hg(i,j,k)  ! kg kg-1 m s-1
-       enddo
-       enddo
-      endif
-
-     enddo  ! second k loop
-
+      enddo  ! second k loop
     enddo ! time splitting loop
 
-
     ! --- end of the inner part of the code
-
-   ! n_hgp(2:i1,2:j1,1:k1)= n_hgp(2:i1,2:j1,1:k1) + &
-   !       (nip_spl(2:i1,2:j1,1:k1) - n_hg(2:i1,2:j1,1:k1))/delt
-   ! q_hgp(2:i1,2:j1,1:k1)= q_hgp(2:i1,2:j1,1:k1) + &
-   !       (qip_spl(2:i1,2:j1,1:k1) - q_hg(2:i1,2:j1,1:k1))/delt
 
     do k=1,k1
     do j=2,j1
@@ -3447,6 +3400,7 @@ end subroutine cor_deposit3
       ! tendencies
       dn_hg_se(i,j,k) = (nip_spl(i,j,k) - n_hg(i,j,k))/delt
       dq_hg_se(i,j,k) = (qip_spl(i,j,k) - q_hg(i,j,k))/delt
+
       ! updates
       n_hgp(i,j,k)= n_hgp(i,j,k) + dn_hg_se(i,j,k)
       q_hgp(i,j,k)= q_hgp(i,j,k) + dq_hg_se(i,j,k)
@@ -3519,92 +3473,73 @@ end subroutine cor_deposit3
             !  ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1)        & !<  lognormal geometric diameter
             ! )
 
-    ! t
-    ! write(6,*)'  allocated'
-      wvar    = 0.0
-      xip_spl = 0.0
-      Dvp_spl = 0.0
-
-
-    ! old: Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
+    wvar    = 0.0
+    xip_spl = 0.0
+    Dvp_spl = 0.0
 
     ! inner part of the code
-     ! <- replace with a highest terminal velocity for particles
     n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
-
     do jn = 1 , n_spl ! time splitting loop
-     ! t
-     !#t write(6,*) '  sedim step ', jn
 
       sed_qip(2:i1,2:j1,1:k1) = 0.
       sed_nip(2:i1,2:j1,1:k1) = 0.
-      ! wvar(2:i1,2:j1,1:k1)    = 0.
 
-      ! t
-     !#t  write(6,*) '   starting '
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+       if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
+         xip_spl (i,j,k) = qip_spl(i,j,k)/(nip_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
+         xip_spl (i,j,k) = min(max(xip_spl(i,j,k),xpmin),xpmax) ! to ensure xr is within borders
+       endif
+      enddo
+      enddo
+      enddo
 
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
+      ! terminal fall velocity
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
         if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
-          xip_spl (i,j,k) = qip_spl(i,j,k)/(nip_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-          xip_spl (i,j,k) = min(max(xip_spl(i,j,k),xpmin),xpmax) ! to ensure xr is within borders
-          ! Dvp_spl(i,j,k) = aip*xip_spl(i,j,k)**bip
+          wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
+          wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
+          sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
+          sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
         endif
-       enddo
-       enddo
-       enddo
-
-       ! terminal fall velocity
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-          if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
-             wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
-             wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
-             sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
-             sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
-          endif
-       enddo
-       enddo
-       enddo
-
-     ! segmentation over levels
-     do k = 1,kmax
-      do j=2,j1
-      do i=2,i1
-        wvar(i,j,k) = qip_spl(i,j,k) + (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
-      enddo
-      if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
-        ! t
-        write(6,*)'ice sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
-      end if
-      do j=2,j1
-      do i=2,i1
-        nip_spl(i,j,k) = nip_spl(i,j,k) + &
-                (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-        qip_spl(i,j,k) = qip_spl(i,j,k) + &
-                (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
       enddo
 
-      !d -> check this part properly later
-      if ( jn == 1. ) then
-       do j=2,j1
-       do i=2,i1
-        precep_ci(i,j,k) = sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-        precep_i(i,j,k) = precep_i(i,j,k)+ precep_ci(i,j,k)   ! kg kg-1 m s-1
-       enddo
-       enddo
-      endif
+      ! segmentation over levels
+      do k = 1,kmax
+        do j=2,j1
+        do i=2,i1
+          wvar(i,j,k) = qip_spl(i,j,k) + (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
+        if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
+          write(6,*)'ice sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
+        end if
+        do j=2,j1
+        do i=2,i1
+          nip_spl(i,j,k) = nip_spl(i,j,k) + &
+                  (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+          qip_spl(i,j,k) = qip_spl(i,j,k) + &
+                  (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
 
-     enddo  ! second k loop
+        if ( jn == 1. ) then
+          do j=2,j1
+          do i=2,i1
+            precep_ci(i,j,k) = sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
+            precep_i(i,j,k) = precep_i(i,j,k)+ precep_ci(i,j,k)   ! kg kg-1 m s-1
+          enddo
+          enddo
+        endif
 
     enddo ! time splitting loop
-
 
     ! --- end of the inner part of the code
     do k=1,k1
@@ -3613,14 +3548,14 @@ end subroutine cor_deposit3
       ! tendencies
       dn_ci_se(i,j,k) = (nip_spl(i,j,k) - n_ci(i,j,k))/delt
       dq_ci_se(i,j,k) = (qip_spl(i,j,k) - q_ci(i,j,k))/delt
+
       ! updates
       n_cip(i,j,k)= n_cip(i,j,k) + dn_ci_se(i,j,k)
       q_cip(i,j,k)= q_cip(i,j,k) + dq_ci_se(i,j,k)
+
       ! also qtpmcr and thlpmcr change
       qtpmcr(i,j,k)  = qtpmcr(i,j,k) + 0.0
-      !#iceout qtpmcr(i,j,k)  = qtpmcr(i,j,k) + dq_ci_se(i,j,k)
       thlpmcr(i,j,k) = thlpmcr(i,j,k) +0.0
-      !#iceout  thlpmcr(i,j,k) = thlpmcr(i,j,k)- (rlv/(cp*exnf(k)))*dq_ci_se(i,j,k)
     enddo
     enddo
     enddo
@@ -3664,8 +3599,6 @@ end subroutine cor_deposit3
     wfall_qip = 0.0
     wfall_nip = 0.0
 
-    ! write(6,*)'starting sedimentation'
-
     qip_spl(2:i1,2:j1,1:k1)  = q_cl(2:i1,2:j1,1:k1)
     nip_spl(2:i1,2:j1,1:k1)  = n_cl(2:i1,2:j1,1:k1)
 
@@ -3690,107 +3623,82 @@ end subroutine cor_deposit3
             !  ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1)        & !<  lognormal geometric diameter
             ! )
 
-    ! t
-    ! write(6,*)'  allocated'
-      wvar    = 0.0
-      xip_spl = 0.0
-      Dvp_spl = 0.0
+    wvar    = 0.0
+    xip_spl = 0.0
+    Dvp_spl = 0.0
 
-
-    ! old: Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
 
     ! inner part of the code
-     ! <- replace with a highest terminal velocity for particles
     n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
 
     do jn = 1 , n_spl ! time splitting loop
-     ! t
-     !#t  write(6,*) '  sedim step ', jn
 
       sed_qip(2:i1,2:j1,1:k1) = 0.
       sed_nip(2:i1,2:j1,1:k1) = 0.
-      ! wvar(2:i1,2:j1,1:k1)    = 0.
 
-      ! t
-      !#t write(6,*) '   starting '
-
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
         if ((qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0)) then
           xip_spl (i,j,k) = qip_spl(i,j,k)/(nip_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
           xip_spl (i,j,k) = min(max(xip_spl(i,j,k),xpmin),xpmax) ! to ensure xr is within borders
-          ! Dvp_spl(i,j,k) = aip*xip_spl(i,j,k)**bip
         endif
-       enddo
-       enddo
-       enddo
+      enddo
+      enddo
+      enddo
 
-       ! terminal fall velocity
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-          if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
-             wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
-             wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
-             sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
-             sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
-          endif
-       enddo
-       enddo
-       enddo
-
-     ! segmentation over levels
-     do k = 1,kmax
+      ! terminal fall velocity
+      do k=1,k1
       do j=2,j1
       do i=2,i1
-        wvar(i,j,k) = qip_spl(i,j,k) + (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        if ( (qip_spl(i,j,k) > qip_min).and.(nip_spl(i,j,k) > 0.0) ) then
+           wfall_qip(i,j,k) = max(0.0,c_v_1 * xip_spl (i,j,k)**be_ip)
+           wfall_nip(i,j,k) = max(0.0,c_v_0 * xip_spl (i,j,k)**be_ip)
+           sed_qip(i,j,k)   = wfall_qip(i,j,k)*qip_spl(i,j,k)*rhof(k)
+           sed_nip(i,j,k)   = wfall_nip(i,j,k)*nip_spl(i,j,k)*rhof(k)
+        endif
       enddo
-      enddo
-      if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
-        ! t
-        write(6,*)'cloud sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
-      end if
-      do j=2,j1
-      do i=2,i1
-        nip_spl(i,j,k) = nip_spl(i,j,k) + &
-                (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-        qip_spl(i,j,k) = qip_spl(i,j,k) + &
-                (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
       enddo
 
-      ! -> check this part properly later
-      !if ( jn == 1. ) then
-      ! do j=2,j1
-      ! do i=2,i1
-      !  precep(i,j,k) = precep(i,j,k)+ sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-      ! enddo
-      ! enddo
-      !endif
-
-     enddo  ! second k loop
+      ! segmentation over levels
+      do k = 1,kmax
+        do j=2,j1
+        do i=2,i1
+          wvar(i,j,k) = qip_spl(i,j,k) + (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
+        if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
+          ! t
+          write(6,*)'cloud sedim too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
+        end if
+        do j=2,j1
+        do i=2,i1
+          nip_spl(i,j,k) = nip_spl(i,j,k) + &
+                  (sed_nip(i,j,k+1) - sed_nip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+          qip_spl(i,j,k) = qip_spl(i,j,k) + &
+                  (sed_qip(i,j,k+1) - sed_qip(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        enddo
+        enddo
+      enddo  ! second k loop
 
     enddo ! time splitting loop
 
 
     ! --- end of the inner part of the code
-
-    !n_clp(2:i1,2:j1,1:k1)= n_clp(2:i1,2:j1,1:k1) + &
-    !      (nip_spl(2:i1,2:j1,1:k1) - n_cl(2:i1,2:j1,1:k1))/delt
-    !q_clp(2:i1,2:j1,1:k1)= q_clp(2:i1,2:j1,1:k1) + &
-    !      (qip_spl(2:i1,2:j1,1:k1) - q_cl(2:i1,2:j1,1:k1))/delt
     do k=1,k1
     do j=2,j1
     do i=2,i1
       ! tendencies
       dn_cl_se(i,j,k) = (nip_spl(i,j,k) - n_cl(i,j,k))/delt
       dq_cl_se(i,j,k) = (qip_spl(i,j,k) - q_cl(i,j,k))/delt
+
       ! updates
       n_clp(i,j,k)= n_clp(i,j,k) + dn_cl_se(i,j,k)
       q_clp(i,j,k)= q_clp(i,j,k) + dq_cl_se(i,j,k)
+
       ! also qtpmcr and thlpmcr change
       qtpmcr(i,j,k)  = qtpmcr(i,j,k) +  dq_cl_se(i,j,k)
       thlpmcr(i,j,k) = thlpmcr(i,j,k)-(rlv/(cp*exnf(k)))*dq_cl_se(i,j,k)
@@ -3875,13 +3783,13 @@ end subroutine cor_deposit3
     do k=1,k1
     do j=2,j1
     do i=2,i1
-     q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_ev(i,j,k)
-     n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_ev(i,j,k)
-     qtpmcr(i,j,k)  = qtpmcr(i,j,k) -dq_hr_ev(i,j,k)
-     thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ev(i,j,k)
+      q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_ev(i,j,k)
+      n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_ev(i,j,k)
+      qtpmcr(i,j,k)  = qtpmcr(i,j,k) -dq_hr_ev(i,j,k)
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ev(i,j,k)
 
-     ! recovery of aerosols ?
-     ret_cc(i,j,k) = ret_cc(i,j,k) - c_ccn_ev_r*min(0.0,dn_hr_ev(i,j,k))
+      ! recovery of aerosols ?
+      ret_cc(i,j,k) = ret_cc(i,j,k) - c_ccn_ev_r*min(0.0,dn_hr_ev(i,j,k))
     enddo
     enddo
     enddo
@@ -3899,14 +3807,11 @@ end subroutine cor_deposit3
 !  following S&B
 ! ****************************************
    subroutine deposit_ice3
-   ! vapour_deposit(aic,bic,alpaic,betaic,xic,dqdep)
-
     use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
     implicit none
+
     real:: aip,bip, cip ,alphaip,betaip, k_depos, rl_dif  ! constant describing ice particles
-    ! real:: xic(2-ih:i1+ih,2-jh:j1+jh,1:k1)
-    ! real:: dqdep(2-ih:i1+ih,2-jh:j1+jh,1:k1)  ! -> later chnage to be an input variable
     real ::  esi, cor_dq_dep
     integer :: i,j,k
     real:: avent1, bvent1  ! coefficients for ventilation
@@ -3931,7 +3836,6 @@ end subroutine cor_deposit3
     avent1 = aven_1i
     bvent1 = bven_1i
 
-
     ! depositional growth constant
     ! k_depos = 4*pi/cip   ! for spherical particles
     k_depos = 4*pi/cip   ! for hexagonal plates - included in ci
@@ -3941,11 +3845,11 @@ end subroutine cor_deposit3
              ,nip (2-ih:i1+ih,2-jh:j1+jh,k1)          & ! particle number
             )
     allocate( qip_mask (2-ih:i1+ih,2-jh:j1+jh,k1))    ! mask
-    !
+
     ! inserting values
     xip(2:i1,2:j1,1:k1) =  x_ci(2:i1,2:j1,1:k1)
     nip(2:i1,2:j1,1:k1) =  n_ci(2:i1,2:j1,1:k1)
-    qip_mask(2:i1,2:j1,1:k1) = q_ci_mask(2:i1,2:j1,1:k1)  ! mask for particles
+    qip_mask(2:i1,2:j1,1:k1) = q_ci_mask(2:i1,2:j1,1:k1)
 
     ! --- inner part -------------------
 
@@ -3959,8 +3863,7 @@ end subroutine cor_deposit3
               ,nrex   (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! reynolds number
               ,relax_x (2-ih:i1+ih,2-jh:j1+jh,k1)  &  ! to relax high deposition values
              )
-             !  ,dq_dep (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! increase in the ice water mass
-             ! )
+
     ! - filling
     F = 0.0
     Si = 0.0
@@ -3979,10 +3882,9 @@ end subroutine cor_deposit3
     do j=2,j1
     do i=2,i1
       ! only where saturated
-      !->
       if (qip_mask(i,j,k).AND.(tmp0(i,j,k).le.T_3)) then
         q_avail(i,j,k) = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
-        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k) !
+        Si (i,j,k) = q_avail(i,j,k)/qvsi(i,j,k)
 
         ! calculating G_iv
         esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
@@ -4033,15 +3935,14 @@ end subroutine cor_deposit3
     do k=1,k1
     do j=2,j1
     do i=2,i1
-        q_cip(i,j,k) = q_cip(i,j,k) + dq_ci_dep(i,j,k)
         ! no change - in ice particle number
         !           - in total amount of water
-        ! n_cip(i,j,k) = n_cip(i,j,k)
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)- dq_ci_dep(i,j,k) !#iceout
+        q_cip(i,j,k) = q_cip(i,j,k) + dq_ci_dep(i,j,k)
+
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)- dq_ci_dep(i,j,k)
 
         ! added heat by ice deposition
         thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_ci_dep(i,j,k)
-        !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rl_dif/(cp*exnf(k)))*dq_ci_dep(i,j,k)
     enddo
     enddo
     enddo
@@ -4106,7 +4007,6 @@ end subroutine cor_deposit3
     xip (2:i1,2:j1,1:k1) =  x_hs(2:i1,2:j1,1:k1)
 
 
-
     ! --- inner part -------------------
 
     ! allocate fields and fill
@@ -4162,11 +4062,8 @@ end subroutine cor_deposit3
         dq_hs_dep(i,j,k) = k_depos*nip(i,j,k)*G(i,j,k)*Dvic(i,j,k)*F(i,j,k)*Si(i,j,k)
 
         ! and limiting not to deposit more than available
-        ! dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
         dq_hs_dep(i,j,k) = max(dq_hs_dep(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
         dq_hs_dep(i,j,k) = min(dq_hs_dep(i,j,k),max(0.0,q_avail(i,j,k)/delt))
-
-        ! ie. allows any negative dq_hs_dep but positive only smaller than amount
       endif
     enddo
     enddo
@@ -4221,10 +4118,11 @@ end subroutine cor_deposit3
 !  following S&B
 ! ****************************************
 
-   subroutine deposit_graupel3
+  subroutine deposit_graupel3
     use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
     implicit none
+
     real:: aip,bip, cip ,alphaip,betaip, k_depos  ! constant describing ice particles
     real ::  esi, cor_dq_dep
     integer :: i,j,k
@@ -4247,7 +4145,6 @@ end subroutine cor_deposit3
     avent1 = aven_1g
     bvent1 = bven_1g
 
-
     ! depositional growth constant
     ! k_depos = 4*pi/cip   ! for spherical particles
     k_depos = 4*pi/cip   ! for hexagonal plates - included in ci
@@ -4261,7 +4158,6 @@ end subroutine cor_deposit3
     qip_mask(2:i1,2:j1,1:k1) = q_hg_mask(2:i1,2:j1,1:k1)  ! mask for particles
     nip(2:i1,2:j1,1:k1) =  n_hg(2:i1,2:j1,1:k1)
     xip(2:i1,2:j1,1:k1) =  x_hg(2:i1,2:j1,1:k1)
-
 
 
     ! --- inner part -------------------
@@ -4361,7 +4257,7 @@ end subroutine cor_deposit3
 
     deallocate (F,q_avail, Si,G, Dvic, viic, nrex, xip, nip, relax_x)
     deallocate(qip_mask)
-   end subroutine deposit_graupel3
+  end subroutine deposit_graupel3
 
 
 ! ****************************************
@@ -4490,6 +4386,7 @@ end subroutine cor_deposit3
       if (q_hr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
         dn_hr_het(i,j,k) = -c_mmt_1hr *n_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
         dq_hr_het(i,j,k) = -c_mmt_2hr *q_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
+
         ! basic correction
         dn_hr_het(i,j,k) = max(dn_hr_het(i,j,k),min(0.0,-svm(i,j,k,in_hr)/delt-n_hrp(i,j,k)))
         dq_hr_het(i,j,k) = max(dq_hr_het(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))
@@ -5691,19 +5588,11 @@ end subroutine cor_deposit3
     do j=2,j1
     do i=2,i1
       if ( qcol_mask(i,j,k)) then
-       !
        dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*q_ci(i,j,k)    &
             *n_hr(i,j,k)*(dlt_1a*D_a(i,j,k)**2                     &
               +dlt_1ba*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
             *( th_1a*v_a(i,j,k)**2-th_1ba*v_b(i,j,k)*v_a(i,j,k)    &
               +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-
-       !
-       !dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)   &
-       !     *n_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-       !       +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-       !     *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-       !       +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
       endif
     enddo
     enddo
@@ -5716,7 +5605,6 @@ end subroutine cor_deposit3
     dn_ci_col_ri (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
     dn_hr_col_ri (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
     dq_ci_col_ri (2:i1,2:j1,1:k1) = -dq_col_a(2:i1,2:j1,1:k1)
-    ! dn_ci_col_ri (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
 
 
     do k=1,k1
@@ -5726,62 +5614,65 @@ end subroutine cor_deposit3
         ! first adjustment
          dq_ci_col_ri(i,j,k) = max(dq_ci_col_ri(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))   ! following ICON, 2017
          dq_hr_col_ri(i,j,k) = max(dq_hr_col_ri(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))   ! following ICON, 2017
+
         ! adjustment of numbers - both ice and water
          dn_ci_col_ri(i,j,k) = max(dn_ci_col_ri(i,j,k),min(0.0,-rem_ci_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
          dn_ci_col_ri(i,j,k) = max(dn_ci_col_ri(i,j,k),min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
       if(tmp0(i,j,k).lt.T_3) then
-       ! the collection is just riming
+        ! the collection is just riming
         ! decrease in numeber of raindrops same as decrease in number of ice
-         dn_hr_col_ri(i,j,k) = dn_ci_col_ri(i,j,k)
+        dn_hr_col_ri(i,j,k) = dn_ci_col_ri(i,j,k)
+
         ! record the change in cloud ice
-         q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_col_ri (i,j,k)
-         n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_col_ri (i,j,k)
+        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_col_ri (i,j,k)
+        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_col_ri (i,j,k)
+
         ! change in rain
-         q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_ri (i,j,k)
-         n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_ri (i,j,k)
+        q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_ri (i,j,k)
+        n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_ri (i,j,k)
+
         ! and for graupel
-         q_hgp (i,j,k) =q_hgp(i,j,k)-dq_ci_col_ri(i,j,k)-dq_hr_col_ri(i,j,k)
-         n_hgp (i,j,k) =n_hgp(i,j,k)-dn_ci_col_ri(i,j,k)
+        q_hgp (i,j,k) =q_hgp(i,j,k)-dq_ci_col_ri(i,j,k)-dq_hr_col_ri(i,j,k)
+        n_hgp (i,j,k) =n_hgp(i,j,k)-dn_ci_col_ri(i,j,k)
+
         ! change in q_t - decrease in cloud ice
-         qtpmcr(i,j,k) = qtpmcr(i,j,k) + 0.0 ! dq_ci_col_ri (i,j,k)
-        !#iceout qtpmcr(i,j,k) = qtpmcr(i,j,k) +dq_ci_col_ri (i,j,k)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) + 0.0 ! dq_ci_col_ri (i,j,k)
+
         ! change in th_l - release from freezing and removal of ice
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
             -(rlme/(cp*exnf(k)))*dq_hr_col_ri (i,j,k)
-        !#iceout  thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
-        !#iceout     -(rlme/(cp*exnf(k)))*dq_hr_col_ri (i,j,k)   &
-        !#iceout     -(rlv/(cp*exnf(k))) *dq_ci_col_ri (i,j,k)
       else  ! tmp0(i,j,k).gt.T_3
-       ! enhanced melting and graupel formation
+        ! enhanced melting and graupel formation
+
         ! calculate the melting
-         dq_ci_eme_ri(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_ri(i,j,k) ! with + due to negative value of dq_hr here
-         ! limit melting
-         dq_ci_eme_ri(i,j,k) = max(dq_ci_eme_ri(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+        dq_ci_eme_ri(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_ri(i,j,k) ! with + due to negative value of dq_hr here
+
+        ! limit melting
+        dq_ci_eme_ri(i,j,k) = max(dq_ci_eme_ri(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+
         ! calculate how many ice perticles melted
-         dn_ci_eme_ri(i,j,k) = dq_ci_eme_ri(i,j,k)*n_ci(i,j,k)/(q_ci(i,j,k)+eps0) ! q_ci here is always some small positive number
-         ! limit so it dos not melt more than interacting
-         dn_ci_eme_ri(i,j,k) =max(dn_ci_eme_ri(i,j,k),dn_ci_col_ri(i,j,k))
-         ! also limit so that new graupel not larger that max mean size of source ice ?
-         !
+        ! q_ci here is always some small positive number
+        dn_ci_eme_ri(i,j,k) = dq_ci_eme_ri(i,j,k)*n_ci(i,j,k)/(q_ci(i,j,k)+eps0)
+
+        ! limit so it dos not melt more than interacting
+        ! also limit so that new graupel not larger that max mean size of source ice ?
+        dn_ci_eme_ri(i,j,k) =max(dn_ci_eme_ri(i,j,k),dn_ci_col_ri(i,j,k))
+
         ! update ice
-         q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_eme_ri(i,j,k) ! dq_ci_col_ri (i,j,k)
-         n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_eme_ri(i,j,k) ! dn_ci_col_ri (i,j,k)
-        ! update graupel
-        ! q_hgp (i,j,k) =q_hgp(i,j,k)-dq_ci_col_ri(i,j,k)+dq_ci_eme_ri(i,j,k)
-        ! n_hgp (i,j,k) =n_hgp(i,j,k)-dn_ci_col_ri(i,j,k)+dn_ci_eme_ri(i,j,k)
-        ! update rain and rain collection
-         ! no collection of raindrops
-         dq_hr_col_ri(i,j,k) = 0.0
-         dq_ci_col_ri(i,j,k) = 0.0
-         dn_hr_col_ri(i,j,k) = 0.0
-         dn_ci_col_ri(i,j,k) = 0.0
-         ! increase in rain mass
-         q_hrp (i,j,k) = q_hrp(i,j,k) - dq_ci_eme_ri (i,j,k)
-         ! no change in n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_ri (i,j,k)
-        ! update thermodynamic
-         ! no change in q_t
-         ! change in thl - heat spent on melting
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_ci_eme_ri (i,j,k)
+        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_eme_ri(i,j,k) ! dq_ci_col_ri (i,j,k)
+        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_eme_ri(i,j,k) ! dn_ci_col_ri (i,j,k)
+
+        ! no collection of raindrops
+        dq_hr_col_ri(i,j,k) = 0.0
+        dq_ci_col_ri(i,j,k) = 0.0
+        dn_hr_col_ri(i,j,k) = 0.0
+        dn_ci_col_ri(i,j,k) = 0.0
+
+        ! increase in rain mass
+        q_hrp (i,j,k) = q_hrp(i,j,k) - dq_ci_eme_ri (i,j,k)
+
+        ! change in thl - heat spent on melting
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_ci_eme_ri (i,j,k)
       endif
      endif
     enddo
@@ -5789,9 +5680,9 @@ end subroutine cor_deposit3
     enddo
 
 
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
-     deallocate (qcol_mask)
+    ! deallocating
+    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
+    deallocate (qcol_mask)
 
    end subroutine coll_rig3
 
@@ -5942,93 +5833,83 @@ end subroutine cor_deposit3
               +dlt_1ba*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
             *( th_1a*v_a(i,j,k)**2-th_1ba*v_b(i,j,k)*v_a(i,j,k)    &
               +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       !dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)   &
-       !     *n_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-       !       +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-       !     *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-       !       +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
       endif
     enddo
     enddo
     enddo
-
-    !---------------------
 
 
     do k=1,k1
     do j=2,j1
     do i=2,i1
-     if(qcol_mask(i,j,k)) then
+      if(qcol_mask(i,j,k)) then
         ! first adjustment
-         dq_hs_col_rs(i,j,k) = max(-dq_col_a(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))   ! following ICON, 2017
-         dq_hr_col_rs(i,j,k) = max(dq_col_b(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))   ! following ICON, 2017
+        dq_hs_col_rs(i,j,k) = max(-dq_col_a(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))   ! following ICON, 2017
+        dq_hr_col_rs(i,j,k) = max(dq_col_b(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))   ! following ICON, 2017
+
         ! adjustment of numbers - both ice and snow
-         dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hs_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
-         dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
-      if (tmp0(i,j,k).lt.T_3) then
-        ! and copying it to the second one
-         dn_hr_col_rs(i,j,k) = dn_hs_col_rs(i,j,k)
-        ! record the change in cloud ice
-         q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_col_rs (i,j,k)
-         n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_col_rs (i,j,k)
-        ! change in rain
-         q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_rs (i,j,k)
-         n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_rs (i,j,k)
-        ! and for graupel
-         q_hgp (i,j,k) =q_hgp(i,j,k)-dq_hs_col_rs(i,j,k)-dq_hr_col_rs(i,j,k)
-         n_hgp (i,j,k) =n_hgp(i,j,k)-dn_hs_col_rs(i,j,k)
-        ! change in q_t - decrease in cloud ice
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) + 0.0 ! dq_hs_col_rs (i,j,k)
-        !#iceout qtpmcr(i,j,k) = qtpmcr(i,j,k) +dq_hs_col_rs (i,j,k)
-        ! change in th_l - release from freezing and removal of ice
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
-            -(rlme/(cp*exnf(k)))*dq_hr_col_rs (i,j,k)
-        !#iceout  thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
-        !#iceout     -(rlme/(cp*exnf(k)))*dq_hr_col_rs (i,j,k)   &
-        !#iceout     -(rlv/(cp*exnf(k))) *dq_hs_col_rs (i,j,k)
-      else  ! tmp0(i,j,k).gt.T_3
-       ! enhanced melting and graupel formation
-        ! calculate the melting
-         dq_hs_eme_rs(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_rs(i,j,k) ! with + due to negative value of dq_hr here
-         ! snow melting
-         dq_hs_eme_rs(i,j,k) = max(dq_hs_eme_rs(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
-        ! calculate how many snow perticles melted
-         dn_hs_eme_rs(i,j,k) = dq_hs_eme_rs(i,j,k)*n_hs(i,j,k)/q_hs(i,j,k) ! q_hs here is always some small positive number
-         ! limit so it dos not melt more than interacting
-         dn_hs_eme_rs(i,j,k) =max(dn_hs_eme_rs(i,j,k),dn_hs_col_rs(i,j,k))
-         ! also limit so that new graupel not larger that max mean size of source ice ?
-         !
-        ! update snow
-         q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_eme_rs(i,j,k) ! dq_hs_col_rs (i,j,k)
-         n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_eme_rs(i,j,k) ! dn_hs_col_rs (i,j,k)
-        ! update graupel
-        ! q_hgp (i,j,k) =q_hgp(i,j,k)-dq_hs_col_rs(i,j,k)+dq_hs_eme_rs(i,j,k)
-        ! n_hgp (i,j,k) =n_hgp(i,j,k)-dn_hs_col_rs(i,j,k)+dn_hs_eme_rs(i,j,k)
-        ! update rain and rain collection
-         ! no collection of raindrops
-         dq_hr_col_rs(i,j,k) = 0.0
-         dq_hs_col_rs(i,j,k) = 0.0
-         dn_hr_col_rs(i,j,k) = 0.0
-         dn_hs_col_rs(i,j,k) = 0.0
-         ! increase in rain mass
-         q_hrp (i,j,k) = q_hrp(i,j,k) - dq_hs_eme_rs (i,j,k)
-         ! no change in n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_rs (i,j,k)
-        ! update thermodynamic
-         ! no change in q_t
-         ! change in thl - heat spent on melting
-         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hs_eme_rs (i,j,k)
+        dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hs_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
+        dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
+
+         if (tmp0(i,j,k).lt.T_3) then
+           ! and copying it to the second one
+           dn_hr_col_rs(i,j,k) = dn_hs_col_rs(i,j,k)
+
+           ! record the change in cloud ice
+           q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_col_rs (i,j,k)
+           n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_col_rs (i,j,k)
+
+           ! change in rain
+           q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_rs (i,j,k)
+           n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_rs (i,j,k)
+
+           ! and for graupel
+           q_hgp (i,j,k) =q_hgp(i,j,k)-dq_hs_col_rs(i,j,k)-dq_hr_col_rs(i,j,k)
+           n_hgp (i,j,k) =n_hgp(i,j,k)-dn_hs_col_rs(i,j,k)
+
+           ! change in th_l - release from freezing and removal of ice
+           thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
+                -(rlme/(cp*exnf(k)))*dq_hr_col_rs (i,j,k)
+         else  ! tmp0(i,j,k).gt.T_3
+           ! enhanced melting and graupel formation
+           ! calculate the melting
+           ! with + due to negative value of dq_hr here
+           dq_hs_eme_rs(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_rs(i,j,k)
+
+           ! snow melting
+           dq_hs_eme_rs(i,j,k) = max(dq_hs_eme_rs(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
+
+           ! calculate how many snow perticles melted
+           ! q_hs here is always some small positive number
+           dn_hs_eme_rs(i,j,k) = dq_hs_eme_rs(i,j,k)*n_hs(i,j,k)/q_hs(i,j,k)
+
+           ! limit so it dos not melt more than interacting
+           ! also limit so that new graupel not larger that max mean size of source ice ?
+           dn_hs_eme_rs(i,j,k) =max(dn_hs_eme_rs(i,j,k),dn_hs_col_rs(i,j,k))
+
+           ! update snow
+           q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_eme_rs(i,j,k)
+           n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_eme_rs(i,j,k)
+
+           ! no collection of raindrops
+           dq_hr_col_rs(i,j,k) = 0.0
+           dq_hs_col_rs(i,j,k) = 0.0
+           dn_hr_col_rs(i,j,k) = 0.0
+           dn_hs_col_rs(i,j,k) = 0.0
+
+           ! increase in rain mass
+           q_hrp (i,j,k) = q_hrp(i,j,k) - dq_hs_eme_rs (i,j,k)
+
+           ! change in thl - heat spent on melting
+           thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hs_eme_rs (i,j,k)
+       endif
       endif
-     endif
     enddo
     enddo
     enddo
 
-
-
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
-     deallocate (qcol_mask)
+    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
+    deallocate (qcol_mask)
 
    end subroutine coll_rsg3
 
@@ -6252,175 +6133,6 @@ end subroutine cor_deposit3
      deallocate (qcol_mask)
 
    end subroutine coll_scs3
-
-! ****************************************
-!  riming of graupel
-!
-!  !! currently not used - instead using r+s->g
-!  !! in the subroutine: coll_rsg3
-!
-! ****************************************
-    subroutine rime_srs3
-
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: sigma_a, sigma_b ,E_coli              &
-               ,a_a, b_a, al_a, be_a, ga_a           &
-               ,a_b, b_b, al_b, be_b, ga_b           &
-               ,dlt_0a, dlt_0ab, dlt_0b              &
-               ,dlt_1ab, dlt_1b                      &
-               ,th_0a, th_0ab, th_0b                 &
-               ,th_1ab, th_1b
-    real    :: dif_D_10, ntest, qtest, rem_cf
-    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_b, dq_col_a
-    logical ,allocatable :: qcol_mask(:,:,:)
-
-    ! start of the code
-
-    ! allocate fields and fill
-     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
-
-      allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,E_stick (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dn_col_b(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-             )
-      allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
-
-      D_a      = 0.0
-      D_b      = 0.0
-      v_a      = 0.0
-      v_b      = 0.0
-      E_ab     = 0.0
-      E_stick  = 0.0
-      dn_col_b = 0.0
-      dq_col_a = 0.0
-
-    ! set constants
-      sigma_a   = sigma_hs
-      sigma_b   = sigma_hr
-      a_a       = a_hs
-      b_a       = b_hs
-      al_a      = al_hs
-      be_a      = be_hs
-      ga_a      = ga_hs
-      a_b       = a_hr
-      b_b       = b_hr
-      al_b      = al_hr
-      be_b      = be_hr
-      ga_b      = ga_hr
-      E_coli    = E_er_m ! collision efficienty
-      dlt_0a    = dlt_s0 ! dlt_s0
-      dlt_0ab   = dlt_s0r ! dlt_s0i
-      dlt_0b    = dlt_r0
-      dlt_1ab   = dlt_s1r
-      dlt_1b    = dlt_r1
-      th_0a     = th_s0
-      th_0ab    = th_s0r
-      th_0b     = th_r0
-      th_1ab    = th_s1r
-      th_1b     = th_r1
-      !
-      dif_D_10  = D_c_b-D_c_a   !< denominator in calculationg collision efficiency
-      ! remaining
-        rem_cf = (1.0-rem_n_hr_min)/delt
-
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_hs_mask(2:i1,2:j1,1:k1).and.q_hr_mask(2:i1,2:j1,1:k1)
-
-
-        ! setting up diameters and velocities
-     D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
-     v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
-     D_b (2:i1,2:j1,1:k1) = D_hr (2:i1,2:j1,1:k1)
-     v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)
-
-
-    ! -- inner part -------------------
-
-    ! collision efficiency
-    ! skipped for this
-
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       E_ab(i,j,k) =  E_coli
-       !
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)    &
-            *q_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)   &
-            *n_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
-
-
-    ! -- outputs -----------------------
-    ! dq_hshr_rime  (2:i1,2:j1,1:k1) = dq_col_a(2:i1,2:j1,1:k1)
-    ! dn_hr_rime_hs (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if(qcol_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-        dq_hshr_rime(i,j,k) = min( dq_col_a(i,j,k),max(0.0,svm(i,j,k,iq_hr)/delt+q_hrp(i,j,k)))   ! following ICON, 2017
-        ! min(dq_hshr_rime(i,j,k),svm(i,j,k,iq_hr)/delt)
-        dn_hr_rime_hs(i,j,k) =max(dn_col_b(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
-        ! =min(dn_hr_rime_hs(i,j,k),-svm(i,j,k,in_hr)/delt)
-        ! change in the amount of graupel
-         q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hshr_rime (i,j,k)
-        ! change in the amount of rain
-         n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_rime_hs (i,j,k)
-         q_hrp (i,j,k) = q_hrp(i,j,k) - dq_hshr_rime (i,j,k)
-        !
-        ! no change in q_t
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a (i,j,k)
-        ! change in th_l - just heat release from freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlme/(cp*exnf(k)))*dq_hshr_rime (i,j,k)
-     endif
-    enddo
-    enddo
-    enddo
-
-    ! #hh checking the sizes
-    if (l_sb_dbg) then
-     if(any(( svm(2:i1,2:j1,1:k1,iq_hr)-delt*dq_col_a(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_grg3 too high'
-      write(6,*) ' removing more rain water then there in ', count(( svm(2:i1,2:j1,1:k1,iq_hr)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too much rain water in ', count(( q_hr(2:i1,2:j1,1:k1)-delt*dq_hghr_rime(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_hrp(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-     if(any(( svm(2:i1,2:j1,1:k1,in_hr)+delt*dn_col_b(2:i1,2:j1,1:k1) ).lt. 0.0 )) then
-      write(6,*) 'WARNING: coll_grg too high'
-      write(6,*) ' removing more raindrops than available in gridpoints ', count(( svm(2:i1,2:j1,1:k1,in_hr)+delt*dn_hr_rime_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
-      write(6,*) ' removing too many raindrops in gridpoints ', count(( n_hr(2:i1,2:j1,1:k1)+delt*dn_hr_rime_hg(2:i1,2:j1,1:k1) ).lt. 0.0 )
-     endif
-    endif
-
-
-     ! deallocating
-     deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a)
-     deallocate (qcol_mask)
-
-   end subroutine rime_srs3
 
 
 ! ****************************************
