@@ -565,11 +565,9 @@ module modbulkmicro3
              ,dn_ci_col_ri  (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< ice number loss from riming of ice+rain->gr
              ,dn_hr_col_ri  (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< rain number loss from riming of ice+rain->gr
              ,dq_cl_het     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< heterogeneou freezing of cloud water
-             ,dn_cl_het     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< heterogeneou freezing of cloud water
              ,dq_hr_het     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< heterogeneou freezing of raindrops
              ,dn_hr_het     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< heterogeneou freezing of raindrops
              ,dq_cl_hom     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< homogeneous freezing of cloud water
-             ,dn_cl_hom     (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< homogeneous freezing of cloud water
              ,dq_ci_col_iis (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< self-collection of cloud ice
              ,dn_ci_col_iis (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< self-collection of cloud ice
              ,dn_hs_col_sss (2-ih:i1+ih,2-jh:j1+jh,k1) &    !< self-collection of snow
@@ -747,11 +745,9 @@ module modbulkmicro3
     dq_hghr_rime  = 0.0
     dn_hr_rime_hg = 0.0
     dq_cl_het     = 0.0
-    dn_cl_het     = 0.0
     dq_hr_het     = 0.0
     dn_hr_het     = 0.0
     dq_cl_hom     = 0.0
-    dn_cl_hom     = 0.0
     dq_ci_col_iis = 0.0
     dn_ci_col_iis = 0.0
     dn_hs_col_sss = 0.0
@@ -1015,11 +1011,7 @@ module modbulkmicro3
     ! --------------------------------------------------------------
     ! freezing of water droplets
     ! --------------------------------------------------------------
-    call homfreez3        ! homogeneous freezing of cloud droplets
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'hom.fre')! #d
-    call hetfreez3        ! heterogeneous freezing
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'het.fre')! #d
-
+    call hethomfreez3
 
     ! --------------------------------------------------------------
     ! deposition processes
@@ -1427,8 +1419,8 @@ module modbulkmicro3
              ,dn_hr_col_rs,dn_hs_col_rs                               &
              ,dq_hr_col_ri,dq_ci_col_ri                               &
              ,dn_ci_col_ri,dn_hr_col_ri                               &
-             ,dq_cl_het,dn_cl_het,dq_hr_het,dn_hr_het                 &
-             ,dq_cl_hom,dn_cl_hom                                     &
+             ,dq_cl_het,dq_hr_het,dn_hr_het                 &
+             ,dq_cl_hom,                                              &
              ,dq_ci_col_iis,dn_ci_col_iis                             &
              ,dn_hs_col_sss,dq_hsci_col,dn_ci_col_hs                  &
              ,dq_hghs_col, dn_hs_col_hg                               &
@@ -4259,83 +4251,87 @@ end subroutine cor_deposit3
     deallocate(qip_mask)
   end subroutine deposit_graupel3
 
+! *******************************************************
+! Heterogenous and Homogeneous freezing of cloud droplets
+! *******************************************************
+subroutine hethomfreez3
+  use modglobal, only : i1,j1,k1,rlv,cp
+  use modfields, only : svm,tmp0,exnf
+  implicit none
 
-! ****************************************
-! Heterogeneou freezing
-! of cloud droplets
-!
-! ****************************************
-    subroutine hetfreez3
+  real    :: J_hom   ! freezing rate
+  real    :: tmpj    ! adjusted temperature
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real, allocatable, dimension(:,:,:) :: J_het
-    logical ,allocatable :: qfr_mask(:,:,:)
+  real    :: dq_cl_hom !< homogeneous freezing of cloud water
+  real    :: dn_cl_hom !< homogeneous freezing of cloud water
 
-    ! --- inner part -------------------
+  integer :: i,j,k
 
-    ! allocate fields and fill
-     allocate( qfr_mask   (2-ih:i1+ih,2-jh:j1+jh,k1))
-     allocate( J_het      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! freezing rate
-             )
-    ! - filling
-    J_het  = 0.0
-    dn_cl_het = 0.0
-    dq_cl_het = 0.0
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_cl_mask(i,j,k).and.tmp0(i,j,k).lt.T_3) then
 
-    ! putting together masks
-    qfr_mask(2:i1,2:j1,1:k1) = q_cl_mask(2:i1,2:j1,1:k1) ! q_hr_mask(2:i1,2:j1,1:k1).or.q_cl_mask(2:i1,2:j1,1:k1)
+      ! homogeneous freezing of cloud droplets
+      ! --------------------------------------
 
-    ! performing calculation for the freezing rate
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-      ! calculating for all cells with the value
-      if (qfr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-          J_het(i,j,k) = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)  ! maybe only for temperatures below T_3 ?
-      endif
-    enddo
-    enddo
-    enddo
+      ! inserting temperature values
+      !  -- can be later adjusted to include the effect of chemicals in clouds
+      tmpj = tmp0(i,j,k)
+
+      if (tmpj>tmp_lim1_Cf02) then
+          J_hom = exp(C_Cf02+B_Cf02*(tmpj+CC_Cf02))
+      else
+        if(tmpj<tmp_lim2_Cf02) then
+          J_hom = exp(C_30_Cf02)
+        else
+          J_hom = exp(C_20_Cf02                 &
+             + B_21_Cf02*(tmpj-offset_Cf02)     &
+             + B_22_Cf02*(tmpj-offset_Cf02)**2  &
+             + B_23_Cf02*(tmpj-offset_Cf02)**3  &
+             + B_24_Cf02*(tmpj-offset_Cf02)**4  )
+        endif ! quick freezing
+      endif ! slow freezing
+
+      dn_cl_hom        = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_hom
+      dq_cl_hom        = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_hom
+      dn_cl_hom        = max(dn_cl_hom,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
+      dq_cl_hom        = max(dq_cl_hom,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+
+      ! heterogeneous freezing of cloud droplets
+      ! ---------------------------------------
+      J_het = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)
+
+      dn_cl_het = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_het
+      dq_cl_het = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_het
+      
+      ! basic correction
+      dn_cl_het = max(dn_cl_het,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
+      dq_cl_het = max(dq_cl_het,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+
+      ! Apply changes
+      ! -------------
+
+      ! changes in cloud water
+      n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_hom + dn_cl_het
+      q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_hom + dq_cl_het
 
 
-    ! freezing of cloud droplets
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-       if (q_cl_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-        dn_cl_het(i,j,k) = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_het(i,j,k)
-        dq_cl_het(i,j,k) = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_het(i,j,k)
+      ! increase in cloud ice
+      n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_hom - dn_cl_het
+      q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_hom - dq_cl_het
 
-        ! basic correction
-        dn_cl_het(i,j,k) = max(dn_cl_het(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
-        dq_cl_het(i,j,k) = max(dq_cl_het(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+      ! changes in the total amount of water
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) + dq_cl_hom + dq_cl_het
 
-        ! changes in cloud water
-        n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_het(i,j,k)
-        q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_het(i,j,k)
+      ! change in th_l due to freezing
+      thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*(dq_cl_hom+dq_cl_het)
+    endif ! cl_mask
+  enddo
+  enddo
+  enddo
 
-        ! increase in cloud ice
-        n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_het(i,j,k)
-        q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_het(i,j,k)
-
-        ! and consumption of aerosols for heterogeneous freezing  ?
-        ! n_ccp(i,j,k) = n_ccp(i,j,k) + dn_cl_het(i,j,k)
-
-        ! and the change in conditions
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)+dq_cl_het(i,j,k)
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) - ((rlv+rlme)/(cp*exnf(k)))*dq_cl_het(i,j,k)
-       endif
-    enddo
-    enddo
-    enddo
-
-    deallocate(J_het)
-    deallocate(qfr_mask)
-
-   end subroutine hetfreez3
+end subroutine hethomfreez3
 
 ! ****************************************
 ! Heterogeneou freezing of rain
@@ -4417,98 +4413,6 @@ end subroutine cor_deposit3
 
    end subroutine rainhetfreez3
 
-
-! ****************************************
-! Homogeneous freezing
-! of cloud droplets
-!
-! ****************************************
-    subroutine homfreez3
-
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: expC_30
-    real, allocatable, dimension(:,:,:) :: J_hom,tmpj
-    logical ,allocatable :: qfr_mask(:,:,:)
-
-    ! --- inner part -------------------
-
-    ! calculate constants
-    expC_30 = exp(C_30_Cf02)
-
-
-    ! allocate fields and fill
-     allocate( J_hom      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! freezing rate
-              ,tmpj       (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! adjusted temperature
-             )
-
-    ! - filling with 0
-    J_hom     = 0.0
-    dn_cl_hom = 0.0
-    dq_cl_hom = 0.0
-    tmpj     = 0.0
-
-    ! inserting temperature values
-    !  -- can be later adjusted to include the effect of chemicals in clouds
-    tmpj(2:i1,2:j1,1:k1) = tmp0(2:i1,2:j1,1:k1)
-
-    ! performing calculation for the freezing rate
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! calculating for all cells with the value
-      if (q_cl_mask(i,j,k)) then
-        if (tmpj(i,j,k)>tmp_lim1_Cf02) then
-            J_hom(i,j,k) = exp(C_Cf02+B_Cf02*(tmpj(i,j,k)+CC_Cf02))
-        else
-          if(tmpj(i,j,k)<tmp_lim2_Cf02) then
-            J_hom(i,j,k) = expC_30
-          else
-            J_hom(i,j,k) = exp(C_20_Cf02                 &
-               + B_21_Cf02*(tmpj(i,j,k)-offset_Cf02)     &
-               + B_22_Cf02*(tmpj(i,j,k)-offset_Cf02)**2  &
-               + B_23_Cf02*(tmpj(i,j,k)-offset_Cf02)**3  &
-               + B_24_Cf02*(tmpj(i,j,k)-offset_Cf02)**4 )
-          endif ! quick freezing
-        endif ! slow freezing
-      endif ! cl_mask
-    enddo
-    enddo
-    enddo
-
-    ! homogeneous freezing of cloud droplets
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (q_cl_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-        dn_cl_hom(i,j,k) = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_hom(i,j,k)
-        dq_cl_hom(i,j,k) = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_hom(i,j,k)
-        dn_cl_hom(i,j,k) = max(dn_cl_hom(i,j,k),min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
-        dq_cl_hom(i,j,k) = max(dq_cl_hom(i,j,k),min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
-
-        ! changes in cloud water
-        n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_hom(i,j,k)
-        q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_hom(i,j,k)
-
-        ! increase in cloud ice
-        n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_hom(i,j,k)
-        q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_hom(i,j,k)
-
-        ! changes in the total amount of water
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)+ dq_cl_hom(i,j,k)  !#iceout
-
-        ! change in th_l due to freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*dq_cl_hom(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-    deallocate(J_hom,tmpj)
-
-   end subroutine homfreez3
 
 ! Collision/collection processes
 
