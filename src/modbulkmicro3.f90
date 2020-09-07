@@ -2139,50 +2139,51 @@ end subroutine accretion3
 !> Self-collection of cloud droplets
 !! written based on S&B to evaluate the self-collection of cloud droplets
 subroutine cloud_self3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
-  use modfields, only : exnf,rhof, svm
-  use modmpi,    only : myid
+  use modmicrodata3, only : k_cc,rho0s
+  use modglobal, only : i1,j1,k1
+  use modfields, only : svm
   implicit none
 
-  real    ::  k_clsc, rem_cf
+  real, parameter :: k_clsc = - k_cc*rho0s
+
+  real    :: rem_cf
   integer :: i,j,k
 
   ! initialize
   dn_cl_sc = 0.0
 
   ! calculate constant
-  k_clsc = - k_cc*rho0s
   rem_cf = (1.0-rem_n_cl_min)/delt
 
   ! loop sb
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    if (q_cl_mask(i,j,k)) then
-       dn_cl_sc(i,j,k) = k_clsc*(q_cl(i,j,k)**2)* &
-          (nu_cl_cst+2.0)/(nu_cl_cst+1.0)-dn_cl_au(i,j,k)
+    if (q_cl_mask) then
+      dn_cl_sc = k_clsc*(q_cl(i,j,k)**2)* &
+        (nu_cl_cst+2.0)/(nu_cl_cst+1.0)-dn_cl_au(i,j,k)
 
-       ! basic sc collection
-       dn_cl_sc(i,j,k) = min(0.0,dn_cl_sc(i,j,k))
-       dn_cl_sc(i,j,k) = max(dn_cl_sc(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
+      ! basic sc collection
+      dn_cl_sc = min(0.0,dn_cl_sc)
+      dn_cl_sc = max(dn_cl_sc,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
 
-       ! update
-       n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_sc(i,j,k)
+      ! update
+      n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_sc
 
-       ! no change to q_cl
+      ! no change to q_cl
+
+      if (l_sb_dbg) then
+        ! testing for too high values
+        if (svm(i,j,k,in_cl)/delt - dn_cl_sc.lt. 0.) then
+          write(6,*)'WARNING: cloud sc too high'
+          write(6,*) '  getting to negative n_cl'
+          ! count(svm(i,j,k,in_cl)/delt -dn_cl_sc).lt. 0.)
+        endif
+      endif
     endif
   enddo
   enddo
   enddo
-
-  if (l_sb_dbg) then
-    ! testing for too high values
-    if (any(q_cl_mask(2:i1,2:j1,1:k1).and.((svm(2:i1,2:j1,1:k1,in_cl)/delt - dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.))) then
-      write(6,*)'WARNING: cloud sc too high'
-      write(6,*) '  getting to negative n_cl  in gridpoints  ',count((svm(2:i1,2:j1,1:k1,in_cl)/delt -dn_cl_sc(2:i1,2:j1,1:k1)).lt. 0.)
-    endif
-  endif
-
 end subroutine cloud_self3
 
 !> Cloud nucleation
