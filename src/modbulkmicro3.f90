@@ -1025,13 +1025,11 @@ module modbulkmicro3
     ! - rimings
     ! --------------------------------------------------------------
     call coll3
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'g+r->g ')! #d
 
     ! --------------------------------------------------------------
     ! - raindrop freezing
     ! --------------------------------------------------------------
     call rainhetfreez3        ! heterogeneous freezing! #iceout
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'fre.rai')! #d
 
     ! --------------------------------------------------------------
     ! - collision with conversion
@@ -3931,84 +3929,57 @@ subroutine hethomfreez3
 end subroutine hethomfreez3
 
 ! ****************************************
-! Heterogeneou freezing of rain
-!
-!
+! Heterogeneos freezing of rain
 ! ****************************************
-    subroutine rainhetfreez3
+subroutine rainhetfreez3
+  use modglobal, only : i1,jh,j1,k1,pi
+  use modfields, only : svm,tmp0,exnf
+  implicit none
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real, allocatable, dimension(:,:,:) :: J_het
-    logical ,allocatable :: qfr_mask(:,:,:)
+  integer :: i,j,k
+  real    :: J_het
 
-    ! --- inner part -------------------
+  dn_hr_het = 0.0
+  dq_hr_het = 0.0
 
-    ! allocate fields and fill
-     allocate( qfr_mask   (2-ih:i1+ih,2-jh:j1+jh,k1))
-     allocate( J_het      (2-ih:i1+ih,2-jh:j1+jh,k1)  & ! freezing rate
-             )
-    ! - filling
-    J_het  = 0.0
-    dn_hr_het = 0.0
-    dq_hr_het = 0.0
+  ! performing calculation for the freezing rate
+  do j=2,j1
+  do i=2,i1
+  do k=1,k1
+    ! Heterogeneos freezing of rain
+    ! -----------------------------
+    if (q_hr_mask.and.(tmp0(i,j,k).lt.T_3)) then
+      ! maybe only for temperatures below T_3 ?
+      J_het = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)
 
-    ! putting together masks
-    qfr_mask(2:i1,2:j1,1:k1) = q_hr_mask(2:i1,2:j1,1:k1)
+      dn_hr_het = -c_mmt_1hr * n_hr * x_hr * J_het
+      dq_hr_het = -c_mmt_2hr * q_hr * x_hr * J_het
 
-    ! performing calculation for the freezing rate
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-      ! calculating for all cells with the value
-      if (qfr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-          ! maybe only for temperatures below T_3 ?
-          J_het(i,j,k) = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)
-      endif
-    enddo
-    enddo
-    enddo
+      ! basic correction
+      dn_hr_het = max(dn_hr_het,min(0.0,-svm(i,j,k,in_hr)/delt-n_hrp))
+      dq_hr_het = max(dq_hr_het,min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp))
 
+      ! decrease in raindrops
+      n_hrp = n_hrp + dn_hr_het
+      q_hrp = q_hrp + dq_hr_het
 
-    ! freezing of rain
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (q_hr_mask(i,j,k).and.(tmp0(i,j,k).lt.T_3)) then
-        dn_hr_het(i,j,k) = -c_mmt_1hr *n_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
-        dq_hr_het(i,j,k) = -c_mmt_2hr *q_hr(i,j,k) * x_hr(i,j,k)* J_het(i,j,k)
+      ! increase in graupel
+      n_hgp = n_hgp - dn_hr_het
+      q_hgp = q_hgp - dq_hr_het
 
-        ! basic correction
-        dn_hr_het(i,j,k) = max(dn_hr_het(i,j,k),min(0.0,-svm(i,j,k,in_hr)/delt-n_hrp(i,j,k)))
-        dq_hr_het(i,j,k) = max(dq_hr_het(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))
+      ! and consumption of aerosols for heterogeneous freezing  ?
+      ! n_ccp = n_ccp - dn_hr_het
 
-        ! decrease in raindrops
-        n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_het(i,j,k)
-        q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_het(i,j,k)
+      ! no changes in the total amount of water
+      ! qtpmcr(i,j,k) = qtpmcr(i,j,k)
 
-        ! increase in graupel
-        n_hgp(i,j,k) = n_hgp(i,j,k) - dn_hr_het(i,j,k)
-        q_hgp(i,j,k) = q_hgp(i,j,k) - dq_hr_het(i,j,k)
-
-        ! and consumption of aerosols for heterogeneous freezing  ?
-        ! n_ccp(i,j,k) = n_ccp(i,j,k) - dn_hr_het(i,j,k)
-
-        ! no changes in the total amount of water
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k)
-
-        ! change in th_l due to freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlme/(cp*exnf(k)))*dq_hr_het(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-    deallocate(J_het)
-    deallocate(qfr_mask)
-
-   end subroutine rainhetfreez3
+      ! change in th_l due to freezing
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlme/(cp*exnf(k)))*dq_hr_het
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine rainhetfreez3
 
 
 ! Collision/collection processes
