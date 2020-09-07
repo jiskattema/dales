@@ -1044,7 +1044,6 @@ module modbulkmicro3
 
     if (l_sb_conv_par) then
       call conv_partial3 ! partial conversion
-      if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'par.con')! #d
     endif
 
     ! --------------------------------------------------------------
@@ -4932,136 +4931,127 @@ end subroutine coll_rsg3
 !  - have to be called after enhanced melting subroutine
 !
 ! ****************************************
-    subroutine conv_partial3
+subroutine conv_partial3
+  use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,rhow
+  use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
+  use modmicrodata3, only : rhoeps , al_0ice, al_0snow
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,rhow
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    ::pi6rhoe, cc_ci, cc_hs, rem_ci_cf, rem_hs_cf
-    logical ,allocatable, dimension(:,:,:) :: qcol_mask_i      &
-         ,qcol_mask_s ! , qcv_mask_i, qcv_mask_s
+  implicit none
 
+  real, parameter  :: pi6rhoe = (pi/6.0)*rhoeps
+                     ,cc_ci = al_0ice*rhow/rhoeps
+                     ,cc_hs = al_0snow*rhow/rhoeps
+  integer :: i,j,k
 
-      allocate(  qcol_mask_i(2-ih:i1+ih,2-jh:j1+jh,k1) &
-                ,qcol_mask_s(2-ih:i1+ih,2-jh:j1+jh,k1) &
-              )
-              !  ,qcv_mask_i (2-ih:i1+ih,2-jh:j1+jh,k1) &
-              !  ,qcv_mask_s (2-ih:i1+ih,2-jh:j1+jh,k1) &
-              !)
+  real :: rem_ci_cf, rem_hs_cf
 
-    ! calculate constants
-    pi6rhoe = (pi/6.0)*rhoeps
-    cc_ci   = al_0ice*rhow/rhoeps
-    cc_hs   = al_0snow*rhow/rhoeps
+  ! remain coefficients
+  rem_ci_cf = (1.0-rem_n_min_cv)/delt
+  rem_hs_cf = (1.0-rem_n_min_cv)/delt
 
-    ! remain coefficients
-    rem_ci_cf = (1.0-rem_n_min_cv)/delt
-    rem_hs_cf = (1.0-rem_n_min_cv)/delt
+  ! setting values
+  dq_ci_cv = 0.0
+  dq_hs_cv = 0.0
 
-    ! setting values
-    ! D_ci = 0.0
-    ! D_hs = 0.0
-    ! G_ci = 0.0
-    ! G_hs = 0.0
-    dq_ci_cv = 0.0
-    dq_hs_cv = 0.0
+  ! inner term for ice conversion
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_cl_mask) then
+      if (q_ci_mask) then
+        if ((D_ci.gt.D_mincv_ci).and.(tmp0(i,j,k).lt.T_3)) then
+          ! remain coefficient
+          rem_ci_cf = (1.0-rem_n_min_cv)/delt
 
-    ! set up masks
-    qcol_mask_i(2:i1,2:j1,1:k1) =  &
-        q_ci_mask(2:i1,2:j1,1:k1).and.q_cl_mask(2:i1,2:j1,1:k1)
-    qcol_mask_s(2:i1,2:j1,1:k1) =  &
-        q_hs_mask(2:i1,2:j1,1:k1).and.q_cl_mask(2:i1,2:j1,1:k1)
+          dq_ci_cv = cc_ci*(pi6rhoe*D_ci**3 /x_ci-1.0)
+          ! ? not to exceed conversion rate 1 ?
+          ! G_ci = min(1.0, G_ci)
 
+          dq_ci_cv = -dq_ci_rime/dq_ci_cv
+          dq_ci_cv = max(dq_ci_cv,&
+                         min(0.0, &
+                         -svm(i,j,k,iq_ci)/delt-q_cip))  ! based on ICON, 2017
+          ! = max(dq_ci_cv,-svm(i,j,k,iq_ci)/delt)
 
-    ! inner term for ice conversion
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if ( qcol_mask_i(i,j,k)) then
-      if ((D_ci(i,j,k).gt.D_mincv_ci).and.(tmp0(i,j,k).lt.T_3)) then
-       dq_ci_cv(i,j,k) = cc_ci*(pi6rhoe*D_ci(i,j,k)**3 /x_ci(i,j,k)-1.0)
-        ! ? not to exceed conversion rate 1 ?
-        ! G_ci(i,j,k) = min( 1.0, G_ci(i,j,k))
-       dq_ci_cv(i,j,k) = -dq_ci_rime(i,j,k)/dq_ci_cv(i,j,k)
-       dq_ci_cv(i,j,k) = max( dq_ci_cv(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))  ! based on ICON, 2017
-       ! = max( dq_ci_cv(i,j,k),-svm(i,j,k,iq_ci)/delt)
-       dn_ci_cv(i,j,k) = dq_ci_cv(i,j,k)/max(x_ci(i,j,k),x_ci_cvmin)
-       ! = dq_ci_cv(i,j,k)/max(x_ci(i,j,k),x_ci_cvmin)
-       dn_ci_cv(i,j,k) = max(dn_ci_cv(i,j,k),min(0.0,-rem_ci_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
-       ! = max(dn_hs_cv(i,j,k), -svm(i,j,k,in_ci)/delt)
-       ! change in the amount of graupel
-        n_hgp (i,j,k) = n_hgp(i,j,k)-dn_ci_cv (i,j,k)
-        q_hgp (i,j,k) = q_hgp(i,j,k)-dq_ci_cv (i,j,k)
-       ! change in the amount of cloud ice
-        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_cv (i,j,k)
-        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_cv (i,j,k)
-       ! change in q_t -- in case of i->g
-       !#iceout qtpmcr(i,j,k) = qtpmcr(i,j,k) + dq_ci_cv (i,j,k)
-       ! change in th_l - in case of i->g
-       !#iceout thlpmcr(i,j,k) = thlpmcr(i,j,k)- (rlv/(cp*exnf(k)))*dq_ci_cv(i,j,k)
+          dn_ci_cv = dq_ci_cv/max(x_ci,x_ci_cvmin)
+          ! = dq_ci_cv/max(x_ci,x_ci_cvmin)
+
+          dn_ci_cv = max(dn_ci_cv,&
+                         min(0.0,        &
+                         -rem_ci_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
+          ! = max(dn_hs_cv, -svm(i,j,k,in_ci)/delt)
+
+          ! change in the amount of graupel
+          n_hgp = n_hgp - dn_ci_cv
+          q_hgp = q_hgp - dq_ci_cv
+
+          ! change in the amount of cloud ice
+          n_cip = n_cip + dn_ci_cv
+          q_cip = q_cip + dq_ci_cv
+        endif
+
+      ! term for snow conversion
+      if (q_hs_mask) then
+        if ((D_hs.gt.D_mincv_hs).and.(tmp0(i,j,k).lt.T_3)) then
+          ! remain coefficient
+          rem_hs_cf = (1.0-rem_n_min_cv)/delt
+
+          dq_hs_cv = cc_hs*(pi6rhoe*D_hs**3 /x_hs-1)
+          ! ? at the sam time, the value should be limited
+          ! ? not to exceed conversion rate 1
+          ! G_hs = min(1.0, G_hs)
+          dq_hs_cv = -dq_hs_rime/dq_hs_cv
+
+          ! correction - not removing more than available
+          ! dq_hs_cv = max(dq_hs_cv,-q_hs/delt )
+
+          ! basic correction of the tendency
+          dq_hs_cv = max(dq_hs_cv,&
+                         min(0.0, &
+                         -svm(i,j,k,iq_hs)/delt-q_hsp))
+          ! dq_hs_cv = max( dq_hs_cv,-svm(i,j,k,iq_hs)/delt)
+
+          dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
+          ! dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
+
+          dn_hs_cv = max(dn_hs_cv,min(0.0,-rem_hs_cf*svm(i,j,k,in_hs)-n_hsp))
+          ! dn_hs_cv = max(dn_hs_cv, -svm(i,j,k,in_hs)/delt)
+
+          ! and the second correction of the q tendency
+          ! change in the amount of graupel
+          n_hgp = n_hgp - dn_hs_cv
+          q_hgp = q_hgp - dq_hs_cv
+
+          ! change in the amount of snow
+          n_hsp = n_hsp + dn_hs_cv
+          q_hsp = q_hsp + dq_hs_cv
+        endif
       endif
-     endif
-    enddo
-    enddo
-    enddo
 
-    ! inner term for snow conversion
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if ( qcol_mask_s(i,j,k)) then
-      if ((D_hs(i,j,k).gt.D_mincv_hs).and.(tmp0(i,j,k).lt.T_3)) then
-       dq_hs_cv(i,j,k) = cc_hs*(pi6rhoe*D_hs(i,j,k)**3 /x_hs(i,j,k)-1)
-       ! ? at the sam time, the value should be limited
-       ! ? not to exceed conversion rate 1
-       ! G_hs(i,j,k) = min( 1.0, G_hs(i,j,k))
-       dq_hs_cv(i,j,k) = -dq_hs_rime(i,j,k)/dq_hs_cv(i,j,k)
-       ! correction - not removing more than available
-       ! dq_hs_cv(i,j,k) = max(dq_hs_cv(i,j,k),-q_hs(i,j,k)/delt )
-       ! basic correction of the tendency
-       dq_hs_cv(i,j,k) = max( dq_hs_cv(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
-       ! dq_hs_cv(i,j,k) = max( dq_hs_cv(i,j,k),-svm(i,j,k,iq_hs)/delt)
-       dn_hs_cv(i,j,k) = dq_hs_cv(i,j,k)/max(x_hs(i,j,k),x_hs_cvmin)
-       ! dn_hs_cv(i,j,k) = dq_hs_cv(i,j,k)/max(x_hs(i,j,k),x_hs_cvmin)
-       dn_hs_cv(i,j,k) = max(dn_hs_cv(i,j,k),min(0.0,-rem_hs_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
-       ! dn_hs_cv(i,j,k) = max(dn_hs_cv(i,j,k), -svm(i,j,k,in_hs)/delt)
-       ! and the second correction of the q tendency
-      ! change in the amount of graupel
-      n_hgp (i,j,k) = n_hgp(i,j,k)-dn_hs_cv (i,j,k)
-      q_hgp (i,j,k) = q_hgp(i,j,k)-dq_hs_cv (i,j,k)
-      ! change in the amount of snow
-      n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_cv (i,j,k)
-      q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_cv (i,j,k)
-      ! change in q_t    -- none
-      ! change in th_l   -- none
+      ! warnings
+      if (l_sb_dbg) then
+        if(svm(i,j,k,iq_ci)+delt*dq_ci_cv.lt. 0) then
+          write(6,*) 'WARNING: conv_partial3 removing too much ice'
+          write(6,*) ' removing more ice than available'
+          ! count(svm(i,j,k,iq_ci)+delt*dq_ci_cv.lt. 0)
+          write(6,*) ' removing too much ice'
+          ! count(q_ci+delt*dq_ci_cv.lt. 0)
+          write(6,*) ' getting negative q_t'
+          ! count(qt0(i,j,k)+delt*dq_ci_cv.lt. 0)
+        endif
+        if(svm(i,j,k,iq_hs)+delt*dq_hs_cv.lt. 0) then
+          write(6,*) 'WARNING: conv_partial3 removing too much snow'
+          write(6,*) ' removing more snow than available'
+          ! count(svm(i,j,k,iq_hs)+delt*dq_hs_cv).lt. 0)
+          write(6,*) ' removing too much snow'
+          ! count(q_hs+delt*dq_hs_cv.lt. 0)
+        endif
       endif
-     endif
-    enddo
-    enddo
-    enddo
-
-
-    ! warnings
-    if (l_sb_dbg) then
-     if(any(( svm(2:i1,2:j1,1:k1,iq_ci)+delt*dq_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )) then
-      write(6,*) 'WARNING: conv_partial3 removing too much ice'
-      write(6,*) ' removing more ice than available in ', count((svm(2:i1,2:j1,1:k1,iq_ci) +delt*dq_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-      write(6,*) ' removing too much ice in ', count(( q_ci(2:i1,2:j1,1:k1)+delt*dq_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-      write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*dq_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-     endif
-     if(any(( svm(2:i1,2:j1,1:k1,iq_hs)+delt*dq_hs_cv(2:i1,2:j1,1:k1) ).lt. 0 )) then
-      write(6,*) 'WARNING: conv_partial3 removing too much snow'
-      write(6,*) ' removing more snow than available in ', count((svm(2:i1,2:j1,1:k1,iq_hs) +delt*dq_hs_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-      write(6,*) ' removing too much snow in ', count(( q_hs(2:i1,2:j1,1:k1)+delt*dq_hs_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-      ! write(6,*) ' getting negative q_t in  ', count(( qt0(2:i1,2:j1,1:k1)+delt*q_ci_cv(2:i1,2:j1,1:k1) ).lt. 0 )
-     endif
     endif
-
-     ! deallocating
-     deallocate (qcol_mask_i, qcol_mask_s) ! deallocate (qcol_mask_i, qcol_mask_s, qcv_mask_i, qcv_mask_s)
-
-   end subroutine conv_partial3
+  enddo
+  enddo
+  enddo
+end subroutine conv_partial3
 
 ! ***************************************************************
 ! Melting and evaporation of ice particles
