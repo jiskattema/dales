@@ -5061,103 +5061,81 @@ end subroutine conv_partial3
 !
 !
 ! ***************************************************************
-   subroutine evapmelting3
+subroutine evapmelting3
+  use modglobal, only : rlv,cp
+  use modfields, only : exnf,svm
+  implicit none
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,rhow
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    ::pi6rhoe
-    ! real, allocatable, dimension(:,:,:) :: dq_ci_spl, dn_ci_spl, dq_hg_temp
-    ! logical ,allocatable, dimension(:,:,:) :: qcol_mask
+  integer :: i,j,k
 
+  ! ------------------------------------
+  ! calling separate melting processes
+  ! ------------------------------------
 
-    ! allocate( )
+  ! ice
+  call sb_evmelt3(aven_0i,aven_1i,bven_0i,bven_1i,x_ci_bmin        &
+                 ,n_ci,q_ci,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
 
-    ! ------------------------------------
-    ! calling separate melting processes
-    ! ------------------------------------
+  ! loss of ice
+  n_cip  = n_cip + dn_ci_me + dn_ci_ev
+  q_cip  = q_cip + dq_ci_me + dq_ci_ev
 
-    ! ice
-    call sb_evmelt3(aven_0i,aven_1i,bven_0i,bven_1i,x_ci_bmin        &
-       ,n_ci,q_ci,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
-     ! loss of ice
-     n_cip (2:i1,2:j1,1:k1) = n_cip(2:i1,2:j1,1:k1)+ dn_ci_me(2:i1,2:j1,1:k1)+dn_ci_ev(2:i1,2:j1,1:k1)
-     q_cip (2:i1,2:j1,1:k1) = q_cip(2:i1,2:j1,1:k1)+ dq_ci_me(2:i1,2:j1,1:k1)+dq_ci_ev(2:i1,2:j1,1:k1)
-     ! transformed to rain or cloud
-     ! for now into rain - improve possibly later
-     n_hrp (2:i1,2:j1,1:k1) = n_hrp(2:i1,2:j1,1:k1)- dn_ci_me(2:i1,2:j1,1:k1)
-     q_hrp (2:i1,2:j1,1:k1) = q_hrp(2:i1,2:j1,1:k1)- dq_ci_me(2:i1,2:j1,1:k1)
-     ! transfomed to water vapour
-     qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1)-dq_ci_ev(2:i1,2:j1,1:k1)
-     ! and heat production : heat spent on melting and evaporation - done lower
+  ! transformed to rain or cloud
 
-    ! snow
-    call sb_evmelt3(aven_0s,aven_1s,bven_0s,bven_1s,x_hs_bmin        &
-       ,n_hs,q_hs,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
-     ! loss of snow
-     n_hsp (2:i1,2:j1,1:k1) = n_hsp(2:i1,2:j1,1:k1)+ dn_hs_me(2:i1,2:j1,1:k1)+dn_hs_ev(2:i1,2:j1,1:k1)
-     q_hsp (2:i1,2:j1,1:k1) = q_hsp(2:i1,2:j1,1:k1)+ dq_hs_me(2:i1,2:j1,1:k1)+dq_hs_ev(2:i1,2:j1,1:k1)
-     ! transformed to rain
-     n_hrp (2:i1,2:j1,1:k1) = n_hrp(2:i1,2:j1,1:k1)- dn_hs_me(2:i1,2:j1,1:k1)
-     q_hrp (2:i1,2:j1,1:k1) = q_hrp(2:i1,2:j1,1:k1)- dq_hs_me(2:i1,2:j1,1:k1)
-     ! transfomed to water vapour
-     qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1)-dq_hs_ev(2:i1,2:j1,1:k1)
-     ! and heat production : heat spent on melting and evaporation - done lower
+  ! for now into rain - improve possibly later
+  n_hrp = n_hrp - dn_ci_me
+  q_hrp = q_hrp - dq_ci_me
 
-    !
-    ! graupel
-    call sb_evmelt3(aven_0g,aven_1g,bven_0g,bven_1g,x_hg_bmin         &
-      ,n_hg,q_hg,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
-     ! correction
-     !write(6,*) '   n_hg(i,j,k), q_hg(i,j,k), dn_hg_ev(i,j,k), dn_hg_me (i,j,k)' ! #b2t17
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       if (dn_hg_me(i,j,k).lt.0.0) then
-          ! limiting not to remove more water than available
-          ! dn_hg_me (i,j,k) = max(dn_hg_me (i,j,k),(-svm(i,j,k,in_hg)/delt-n_hgp(i,j,k)) )
-          dn_hg_ev(i,j,k) = max(dn_hg_ev(i,j,k),(-svm(i,j,k,in_hg)/delt-n_hgp(i,j,k)) )
-          ! dq_hg_me (i,j,k) = max(dq_hg_me (i,j,k),(-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k)) )
-          dq_hg_ev(i,j,k) = max(dq_hg_ev(i,j,k),(-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k)) )
-          dn_hg_me (i,j,k) = max(dn_hg_me (i,j,k),(-svm(i,j,k,in_hg)/delt-n_hgp(i,j,k)) )
-          dq_hg_me (i,j,k) = max(dq_hg_me (i,j,k),(-svm(i,j,k,iq_hg)/delt-q_hgp(i,j,k)) )
-          !
-       endif
-     enddo
-     enddo
-     enddo
+  ! transfomed to water vapour
+  qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_ci_ev
+  ! and heat production : heat spent on melting and evaporation - done lower
 
-     ! loss of graupel
-     n_hgp (2:i1,2:j1,1:k1) = n_hgp(2:i1,2:j1,1:k1)+ dn_hg_me(2:i1,2:j1,1:k1)+ dn_hg_ev(2:i1,2:j1,1:k1)
-     q_hgp (2:i1,2:j1,1:k1) = q_hgp(2:i1,2:j1,1:k1)+ dq_hg_me(2:i1,2:j1,1:k1)+ dq_hg_ev(2:i1,2:j1,1:k1)
-     ! transformed to rain
-     !
-     n_hrp (2:i1,2:j1,1:k1) = n_hrp(2:i1,2:j1,1:k1)- dn_hg_me(2:i1,2:j1,1:k1)
-     q_hrp (2:i1,2:j1,1:k1) = q_hrp(2:i1,2:j1,1:k1)- dq_hg_me(2:i1,2:j1,1:k1)
-     ! transfomed to water vapour
-     qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1)-dq_hg_ev(2:i1,2:j1,1:k1)
-    !
+  ! snow
+  call sb_evmelt3(aven_0s,aven_1s,bven_0s,bven_1s,x_hs_bmin        &
+                 ,n_hs,q_hs,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
 
-     ! and heat production : heat spent on melting and evaporation - done lower
-     !  - melting goes to rain
-     !  - evaporation goes water vapour
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       thlpmcr(i,j,k) = thlpmcr(i,j,k)+                            &
-          (rlme/(cp*exnf(k)))*(dq_ci_me(i,j,k)+dq_hs_me(i,j,k)+    &
-            dq_hg_me(i,j,k))+                                      &
-          ((rlv+rlme)/(cp*exnf(k)))*(dq_ci_ev(i,j,k)+             &
-            dq_hs_ev(i,j,k)+ dq_hg_ev(i,j,k))
-     enddo
-     enddo
-     enddo
-    ! clean-up
-    ! deallocate( )
+  ! loss of snow
+  n_hsp = n_hsp + dn_hs_me +dn_hs_ev
+  q_hsp = q_hsp + dq_hs_me +dq_hs_ev
 
-   end subroutine evapmelting3
-! ice_melt3(avent0,avent1,bvent0,bvent1,n_e,q_e,x_e,D_e,v_e,dq_e_me,dn_e_me)
+  ! transformed to rain
+  n_hrp = n_hrp - dn_hs_me
+  q_hrp = q_hrp - dq_hs_me
+
+  ! transfomed to water vapour
+  qtpmcr(i,j,k) = qtpmcr(i,j,k)-dq_hs_ev
+  ! and heat production : heat spent on melting and evaporation - done lower
+
+  ! graupel
+  call sb_evmelt3(aven_0g,aven_1g,bven_0g,bven_1g,x_hg_bmin         &
+                 ,n_hg,q_hg,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
+
+  ! limiting not to remove more water than available
+  if (dn_hg_me.lt.0.0) then
+    dn_hg_ev = max(dn_hg_ev,-svm(i,j,k,in_hg)/delt-n_hgp)
+    dq_hg_ev = max(dq_hg_ev,-svm(i,j,k,iq_hg)/delt-q_hgp)
+    dn_hg_me = max(dn_hg_me,-svm(i,j,k,in_hg)/delt-n_hgp)
+    dq_hg_me = max(dq_hg_me,-svm(i,j,k,iq_hg)/delt-q_hgp)
+  endif
+
+  ! loss of graupel
+  n_hgp = n_hgp + dn_hg_me + dn_hg_ev
+  q_hgp = q_hgp + dq_hg_me + dq_hg_ev
+
+  ! transformed to rain
+  n_hrp = n_hrp - dn_hg_me
+  q_hrp = q_hrp - dq_hg_me
+
+  ! transfomed to water vapour
+  qtpmcr(i,j,k) = qtpmcr(i,j,k)-dq_hg_ev
+
+  ! and heat production : heat spent on melting and evaporation - done lower
+  !  - melting goes to rain
+  !  - evaporation goes water vapour
+  thlpmcr(i,j,k) = thlpmcr(i,j,k)+                             &
+            (rlme/(cp*exnf(k)))*(dq_ci_me+dq_hs_me+dq_hg_me) + &
+      ((rlv+rlme)/(cp*exnf(k)))*(dq_ci_ev+dq_hs_ev+dq_hg_ev)
+end subroutine evapmelting3
 
 
 ! Ice multiplication
