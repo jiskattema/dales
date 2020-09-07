@@ -1000,7 +1000,7 @@ module modbulkmicro3
   !*********************************************************************
     call integrals_bulk3
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'before.')! #d
-    call nucleation3      ! cloud nucleation
+    call nucleation3      ! cloud nucleation  !jja w0(:,:,k:k+1) sv0(:,:,k:k+1,iq_cl)
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'nuclea.')! #d
     call icenucle3        ! ice nucleation  ! #Bb ! #iceout
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice nuc')! #d
@@ -1050,13 +1050,11 @@ module modbulkmicro3
     ! - melting and evaporation of ice particles
     ! --------------------------------------------------------------
     call evapmelting3 ! melting of ice particles
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'melting')! #d
 
     ! --------------------------------------------------------------
     ! - basic warm processes
     !  --------------------------------------------------------------
     call autoconversion3
-    if(l_sb_dbg_extra)   call check_nan(flag_do_dbg,flag_nan,'autocon')! #d
     call cloud_self3
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cl self')! #d
     call accretion3
@@ -1065,19 +1063,19 @@ module modbulkmicro3
     call evap_rain3 ! rain evaporation
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'evap_r.')! #d
 
-  ! =============================
-  ! saturation adjustment
-  ! =============================
+    ! =============================
+    ! saturation adjustment
+    ! =============================
     call satadj3
 
   !==================================
   ! sedimentation part
   !==================================
-    call sedim_rain3
-    call sedim_cl3
-    call sedim_ice3
-    call sedim_snow3
-    call sedim_graupel3 !#b2t3
+    call sedim_rain3 !jja sed_qr sed_Nr
+    call sedim_cl3 !jja from routine local, sed_qip, sed_nip
+    call sedim_ice3 !jja from routine local, sed_qip, sed_nip
+    call sedim_snow3 !jja from routine local, sed_qip, sed_nip
+    call sedim_graupel3 !#b2t3 !jja from routine local, sed_qip, sed_nip
 
     ! recovery of ccn aerosols
     call recover_cc
@@ -1860,57 +1858,53 @@ end subroutine integrals_bulk3
 !!   -> faster rain formation. (Seifert)
 subroutine autoconversion3
   use modglobal, only : i1,j1,k1,kmax,rlv,cp
-  use modmpi,    only : myid
-  use modfields, only : exnf,rhof,ql0, svm
+  use modfields, only : exnf,rhof,svm
   implicit none
 
   integer :: i,j,k
   real :: rem_cf
+  real :: tau, phi, nuc
 
   if (l_sb) then
     !
     ! SB autoconversion
     !
-    tau(2:i1,2:j1,1:k1) = 0.
-    phi(2:i1,2:j1,1:k1) = 0.
-    nuc(2:i1,2:j1,1:k1) = 0.
-    ! calculating the constant in the front part of the term
-
     if (l_sb_classic) then  ! l_sb_classic - ie. S&B version
 
       ! autoconversion coefficient
       k_au = k_cc/(20.0*x_s)
+
       ! remain coefficient
       rem_cf = (1.0-rem_n_cl_min)/delt
 
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        if (q_cl_mask(i,j,k)) then
-          dq_hr_au(i,j,k) = k_au * ( nu_cl_cst+2.) * ( nu_cl_cst +4.) / ( nu_cl_cst +1.)**2.    &
-                  * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)
-          tau    (i,j,k) = 1.0 - q_cl(i,j,k) / qltot(i,j,k)
+        if (q_cl_mask) then
+          dq_hr_au = k_au * ( nu_cl_cst+2.) * ( nu_cl_cst +4.) / ( nu_cl_cst +1.)**2.    &
+                  * (q_cl * x_cl)**2. * rho0s ! *rho**2/rho/rho (= 1)
+          tau = 1.0 - q_cl / qltot
 
           ! phi_au computation
-          phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
-          dq_hr_au(i,j,k) = dq_hr_au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
+          phi = k_1 * tau**k_2 * (1.0 -tau**k_2)**3
+          dq_hr_au = dq_hr_au * (1.0 + phi/(1.0 -tau)**2)
 
           ! basic au correction
-          dq_hr_au(i,j,k)  = min(dq_hr_au(i,j,k),max(0.0,svm(i,j,k,iq_cl)/delt+q_clp(i,j,k)))
+          dq_hr_au  = min(dq_hr_au,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp))
 
           ! and calculate cloud droplet numbers
-          dn_cl_au(i,j,k) = (-2.0/x_s)*dq_hr_au(i,j,k)                                          ! and the droplet number
-          dn_cl_au(i,j,k) = max(dn_cl_au(i,j,k),min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp(i,j,k))) ! correct droplet number
-          dn_hr_au(i,j,k) = -0.5*dn_cl_au(i,j,k)                                                ! and the raindrop number
+          dn_cl_au = (-2.0/x_s)*dq_hr_au                                   ! and the droplet number
+          dn_cl_au = max(dn_cl_au,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp)) ! correct droplet number
+          dn_hr_au = -0.5*dn_cl_au                                         ! and the raindrop number
 
           ! and adding updates
-          q_hrp (i,j,k) = q_hrp (i,j,k) + dq_hr_au (i,j,k)
-          n_hrp (i,j,k) = n_hrp (i,j,k) + dn_hr_au(i,j,k)
-          q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_au (i,j,k)
-          n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_au(i,j,k)! #sb3
+          q_hrp = q_hrp + dq_hr_au
+          n_hrp = n_hrp + dn_hr_au
+          q_clp = q_clp - dq_hr_au
+          n_clp = n_clp + dn_cl_au
 
-          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)
-          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au
+          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au
         endif
       enddo
       enddo
@@ -1922,27 +1916,27 @@ subroutine autoconversion3
       do k=1,k1
       do j=2,j1
       do i=2,i1
-         if (q_cl_mask(i,j,k)) then
-            nuc    (i,j,k) = k1nuc*(rhof(k)*q_cl(i,j,k)*1000.) +k2nuc-1. ! #sb3 G09a
-            dq_hr_au(i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
-                    * (q_cl(i,j,k) * x_cl(i,j,k))**2. * rho0s ! *rho**2/rho/rho (= 1)
-            tau    (i,j,k) = 1.0 - q_cl(i,j,k) / qltot(i,j,k) ! #sb3
-            phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3   ! phi_au computation
-            dq_hr_au(i,j,k) = dq_hr_au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
+        if (q_cl_mask) then
+          nuc = k1nuc*(rhof(k)*q_cl*1000.) +k2nuc-1. ! #sb3 G09a
+          dq_hr_au = k_au * (nuc+2.) * (nuc+4.) / (nuc+1.)**2.    &
+                  * (q_cl * x_cl)**2. * rho0s ! *rho**2/rho/rho (= 1)
+          tau            = 1.0 - q_cl / qltot ! #sb3
+          phi = k_1 * tau**k_2 * (1.0 -tau**k_2)**3   ! phi_au computation
+          dq_hr_au = dq_hr_au * (1.0 + phi/(1.0 -tau)**2)
 
-            ! cloud water numbers
-            dn_hr_au(i,j,k) = dq_hr_au(i,j,k)/x_s
-            dn_cl_au(i,j,k) =  (-2.0/x_s)*dq_hr_au(i,j,k)
+          ! cloud water numbers
+          dn_hr_au = dq_hr_au/x_s
+          dn_cl_au = (-2.0/x_s)*dq_hr_au
 
-            ! #sb3 START outputs
-            q_hrp    (i,j,k) = q_hrp    (i,j,k) + dq_hr_au (i,j,k)
-            n_hrp    (i,j,k) = n_hrp    (i,j,k) + dn_hr_au(i,j,k)
-            q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_au (i,j,k)
-            n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_au(i,j,k) ! o:  n_clp (i,j,k) - (2.0/x_s)*rhof(k)*au(i,j,k)
+          ! #sb3 START outputs
+          q_hrp = q_hrp + dq_hr_au
+          n_hrp = n_hrp + dn_hr_au
+          q_clp = q_clp - dq_hr_au
+          n_clp = n_clp + dn_cl_au  ! o:  n_clp - (2.0/x_s)*rhof(k)*au
 
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au(i,j,k)
-            qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au (i,j,k)
-         endif
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_au
+          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_au
+        endif
       enddo
       enddo
       enddo
@@ -1951,14 +1945,14 @@ subroutine autoconversion3
   endif ! l_sb
 
   if (l_sb_dbg) then
-    if (any(q_cl(2:i1,2:j1,1:kmax)/delt - dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)) then
+    if (any(q_cl/delt - dq_hr_au.lt. 0.)) then
       write(6,*) 'WARNING: autoconversion too high'
-      write(6,*) '  removing more cloud water than available in ', count(q_cl(2:i1,2:j1,1:kmax)/delt - dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)
+      write(6,*) '  removing more cloud water than available in ', count(q_cl/delt - dq_hr_au.lt. 0.)
     end if
 
-    if (any(n_cl(2:i1,2:j1,1:kmax)/delt -(2.0/x_s)*dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)) then
+    if (any(n_cl(2:i1,2:j1,1:kmax)/delt -(2.0/x_s)*dq_hr_au.lt. 0.)) then
       write(6,*) 'WARNING: autoconversion too high'
-      write(6,*) '  removing more droplets than available in' , count(n_cl(2:i1,2:j1,1:kmax)/delt - (2.0/x_s)*dq_hr_au(2:i1,2:j1,1:kmax) .lt. 0.)
+      write(6,*) '  removing more droplets than available in' , count(n_cl(2:i1,2:j1,1:kmax)/delt - (2.0/x_s)*dq_hr_au.lt. 0.)
     end if
   endif
 
