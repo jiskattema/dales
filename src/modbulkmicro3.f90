@@ -4691,242 +4691,125 @@ subroutine coll3
   enddo
 endsubroutine coll3
 
- ! ***********************************
- !  riming of ice + rain to graupel
- !
- !
- ! ***********************************
-   subroutine coll_rig3
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: sigma_a, sigma_b ,E_coli              &
-               ,a_a, b_a, al_a, be_a, ga_a           &
-               ,a_b, b_b, al_b, be_b, ga_b           &
-               ,dlt_0a, dlt_0ab, dlt_0b              &
-               ,dlt_1ab, dlt_1b                      &
-               ,th_0a, th_0ab, th_0b                 &
-               ,th_1ab, th_1b                        &
-               ,dlt_0ba, dlt_1ba, dlt_1a             &
-               ,th_0ba, th_1ba, th_1a
-    real    :: dif_D_10, ntest, qtest, rem_ci_cf, rem_hr_cf,k_enhm
-    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b
-    logical ,allocatable :: qcol_mask(:,:,:)
+! riming of ice + rain to graupel
+! -------------------------------
+subroutine coll_rig3
+  use modglobal, only : i1,j1,k1,cp,pi
+  use modfields, only : exnf,svm,tmp0,rhof
+  implicit none
+  integer :: i,j,k
+  real    :: rem_ci_cf,rem_hr_cf,k_enhm
+  real    :: E_ab, dn_col_b, dq_col_a, dq_col_b
 
-    ! start of the code
+  ! setting up extra coefficients
+  ! remain coefficients
+  rem_ci_cf = (1.0-rem_n_ci_min)/delt
+  rem_hr_cf = (1.0-rem_n_hr_min)/delt
 
-    ! allocate fields and fill
-     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
+  ! enhanced melting
+  k_enhm  = c_water/rlme
 
-      allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,E_stick (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dn_col_b(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_b(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-             )
-      allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
+  ! calculating
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_ci_mask.and.q_hr_mask) then
+      E_ab =  E_i_m
 
-      D_a      = 0.0
-      D_b      = 0.0
-      v_a      = 0.0
-      v_b      = 0.0
-      E_ab     = 0.0
-      E_stick  = 0.0
-      dn_col_b = 0.0
-      dq_col_a = 0.0
-      dq_col_b = 0.0
+      dq_col_b = -(rhof(k)*pi/4)*E_ab*n_ci           &
+           *q_hr*(dlt_i0*D_ci**2                     &
+             +dlt_i1r*D_ci*D_hr+dlt_r1*D_hr**2)      &
+           *( th_i0*v_ci**2-th_i1r*v_hr*v_ci         &
+             +th_r1*v_hr**2+sigma_ci**2+sigma_hr**2)**0.5
 
-    ! set constants
-      sigma_a   = sigma_ci
-      sigma_b   = sigma_hr
-      a_a       = a_ci
-      b_a       = b_ci
-      al_a      = al_ci
-      be_a      = be_ci
-      ga_a      = ga_ci
-      a_b       = a_hr
-      b_b       = b_hr
-      al_b      = al_hr
-      be_b      = be_hr
-      ga_b      = ga_hr
-      E_coli    = E_i_m ! collision efficienty
-      dlt_0a    = dlt_i0 ! dlt_s0
-      dlt_0ab   = dlt_i0r ! dlt_s0i
-      dlt_0b    = dlt_r0
-      dlt_1ab   = dlt_i1r
-      dlt_1b    = dlt_r1
-      th_0a     = th_i0
-      th_0ab    = th_i0r
-      th_0b     = th_r0
-      th_1ab    = th_i1r
-      th_1b     = th_r1
-      !
+      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_ci           &
+           *n_hr*(dlt_i0*D_ci**2                     &
+             +dlt_i0r*D_ci*D_hr+dlt_r0*D_hr**2)      &
+           *( th_i0*v_ci**2-th_i0r*v_hr*v_ci         &
+             +th_r0*v_hr**2+sigma_ci**2+sigma_hr**2)**0.5
 
-    ! setting up extra coefficients
-        ! remain coefficients
-        rem_ci_cf = (1.0-rem_n_ci_min)/delt
-        rem_hr_cf = (1.0-rem_n_hr_min)/delt
-        ! enhanced melting
-        k_enhm  = c_water/rlme
+      dq_col_a = (rhof(k)*pi/4)*E_ab*q_ci            &
+           *n_hr*(dlt_i1*D_ci**2                     &
+             +dlt_r1i*D_ci*D_hr+dlt_r0*D_hr**2)      &
+           *( th_i1*v_ci**2-th_r1i*v_hr*v_ci         &
+             +th_r0*v_hr**2+sigma_ci**2+sigma_hr**2)**0.5
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_ci_mask(2:i1,2:j1,1:k1).and.q_hr_mask(2:i1,2:j1,1:k1)
-
-    ! setting up diameters and velocities
-     D_a (2:i1,2:j1,1:k1) = D_ci (2:i1,2:j1,1:k1)
-     v_a (2:i1,2:j1,1:k1) = v_ci (2:i1,2:j1,1:k1)
-     D_b (2:i1,2:j1,1:k1) = D_hr (2:i1,2:j1,1:k1)
-     v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)
+      dq_hr_col_ri =  dq_col_b
+      dn_ci_col_ri =  dn_col_b
+      dn_hr_col_ri =  dn_col_b
+      dq_ci_col_ri = -dq_col_a
 
 
-    ! -- inner part -------------------
+      ! first adjustment
+      dq_ci_col_ri = max(dq_ci_col_ri,min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip))   ! following ICON, 2017
+      dq_hr_col_ri = max(dq_hr_col_ri,min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp))   ! following ICON, 2017
 
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       E_ab(i,j,k) =  E_coli
-       !
-       dq_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)    &
-            *q_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_ci(i,j,k)   &
-            *n_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
+      ! adjustment of numbers - both ice and water
+      dn_ci_col_ri = max(dn_ci_col_ri,min(0.0,-rem_ci_cf*svm(i,j,k,in_ci)-n_cip))
+      dn_ci_col_ri = max(dn_ci_col_ri,min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp))
 
-    ! -- and the second part
-      dlt_0ba   = dlt_r0i ! dlt_0ab   = dlt_i0r
-      ! dlt_0b    = dlt_r0
-      dlt_1ba   = dlt_r1i ! dlt_1ab   = dlt_i1r
-      dlt_1a    = dlt_i1  ! dlt_1b    = dlt_r1
-      th_1a     = th_i1 ! th_0a     = th_i0
-      th_0ba    = th_r0i ! th_0ab    = th_i0r
-      th_0b     = th_r0
-      th_1ba    = th_r1i ! th_1ab    = th_i1r
-
-
-    ! -- inner piece ----
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*q_ci(i,j,k)    &
-            *n_hr(i,j,k)*(dlt_1a*D_a(i,j,k)**2                     &
-              +dlt_1ba*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_1a*v_a(i,j,k)**2-th_1ba*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
-
-    !---------------------
-
-    ! -- outputs -----------------------
-    dq_hr_col_ri (2:i1,2:j1,1:k1) = dq_col_b(2:i1,2:j1,1:k1)
-    dn_ci_col_ri (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
-    dn_hr_col_ri (2:i1,2:j1,1:k1) = dn_col_b(2:i1,2:j1,1:k1)
-    dq_ci_col_ri (2:i1,2:j1,1:k1) = -dq_col_a(2:i1,2:j1,1:k1)
-
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if(qcol_mask(i,j,k)) then
-        ! first adjustment
-         dq_ci_col_ri(i,j,k) = max(dq_ci_col_ri(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))   ! following ICON, 2017
-         dq_hr_col_ri(i,j,k) = max(dq_hr_col_ri(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))   ! following ICON, 2017
-
-        ! adjustment of numbers - both ice and water
-         dn_ci_col_ri(i,j,k) = max(dn_ci_col_ri(i,j,k),min(0.0,-rem_ci_cf*svm(i,j,k,in_ci)-n_cip(i,j,k)))
-         dn_ci_col_ri(i,j,k) = max(dn_ci_col_ri(i,j,k),min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
       if(tmp0(i,j,k).lt.T_3) then
         ! the collection is just riming
         ! decrease in numeber of raindrops same as decrease in number of ice
-        dn_hr_col_ri(i,j,k) = dn_ci_col_ri(i,j,k)
+        dn_hr_col_ri = dn_ci_col_ri
 
         ! record the change in cloud ice
-        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_col_ri (i,j,k)
-        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_col_ri (i,j,k)
+        q_cip = q_cip + dq_ci_col_ri
+        n_cip = n_cip + dn_ci_col_ri
 
         ! change in rain
-        q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_ri (i,j,k)
-        n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_ri (i,j,k)
+        q_hrp = q_hrp + dq_hr_col_ri
+        n_hrp = n_hrp + dn_hr_col_ri
 
         ! and for graupel
-        q_hgp (i,j,k) =q_hgp(i,j,k)-dq_ci_col_ri(i,j,k)-dq_hr_col_ri(i,j,k)
-        n_hgp (i,j,k) =n_hgp(i,j,k)-dn_ci_col_ri(i,j,k)
+        q_hgp = q_hgp - dq_ci_col_ri - dq_hr_col_ri
+        n_hgp = n_hgp - dn_ci_col_ri
 
         ! change in q_t - decrease in cloud ice
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) + 0.0 ! dq_ci_col_ri (i,j,k)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) + 0.0 ! dq_ci_col_ri
 
         ! change in th_l - release from freezing and removal of ice
         thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
-            -(rlme/(cp*exnf(k)))*dq_hr_col_ri (i,j,k)
+            -(rlme/(cp*exnf(k)))*dq_hr_col_ri
       else  ! tmp0(i,j,k).gt.T_3
         ! enhanced melting and graupel formation
 
         ! calculate the melting
-        dq_ci_eme_ri(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_ri(i,j,k) ! with + due to negative value of dq_hr here
+        dq_ci_eme_ri = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_ri ! with + due to negative value of dq_hr here
 
         ! limit melting
-        dq_ci_eme_ri(i,j,k) = max(dq_ci_eme_ri(i,j,k),min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
+        dq_ci_eme_ri = max(dq_ci_eme_ri,min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip))
 
         ! calculate how many ice perticles melted
         ! q_ci here is always some small positive number
-        dn_ci_eme_ri(i,j,k) = dq_ci_eme_ri(i,j,k)*n_ci(i,j,k)/(q_ci(i,j,k)+eps0)
+        dn_ci_eme_ri = dq_ci_eme_ri*n_ci/(q_ci+eps0)
 
         ! limit so it dos not melt more than interacting
         ! also limit so that new graupel not larger that max mean size of source ice ?
-        dn_ci_eme_ri(i,j,k) =max(dn_ci_eme_ri(i,j,k),dn_ci_col_ri(i,j,k))
+        dn_ci_eme_ri =max(dn_ci_eme_ri,dn_ci_col_ri)
 
         ! update ice
-        q_cip (i,j,k) = q_cip(i,j,k) + dq_ci_eme_ri(i,j,k) ! dq_ci_col_ri (i,j,k)
-        n_cip (i,j,k) = n_cip(i,j,k) + dn_ci_eme_ri(i,j,k) ! dn_ci_col_ri (i,j,k)
+        q_cip = q_cip + dq_ci_eme_ri ! dq_ci_col_ri
+        n_cip = n_cip + dn_ci_eme_ri ! dn_ci_col_ri
 
         ! no collection of raindrops
-        dq_hr_col_ri(i,j,k) = 0.0
-        dq_ci_col_ri(i,j,k) = 0.0
-        dn_hr_col_ri(i,j,k) = 0.0
-        dn_ci_col_ri(i,j,k) = 0.0
+        dq_hr_col_ri = 0.0
+        dq_ci_col_ri = 0.0
+        dn_hr_col_ri = 0.0
+        dn_ci_col_ri = 0.0
 
         ! increase in rain mass
-        q_hrp (i,j,k) = q_hrp(i,j,k) - dq_ci_eme_ri (i,j,k)
+        q_hrp = q_hrp - dq_ci_eme_ri
 
         ! change in thl - heat spent on melting
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_ci_eme_ri (i,j,k)
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_ci_eme_ri
       endif
-     endif
-    enddo
-    enddo
-    enddo
-
-
-    ! deallocating
-    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
-    deallocate (qcol_mask)
-
-   end subroutine coll_rig3
-
+   endif
+  enddo
+  enddo
+  enddo
+end subroutine coll_rig3
 
 
  ! ***********************************
