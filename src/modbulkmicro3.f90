@@ -1041,7 +1041,6 @@ module modbulkmicro3
     ! conversions
     !--------------------------------------------------------------
     call ice_multi3 ! ice multiplication of Hallet and Mossop
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice.mul')! #d
 
     if (l_sb_conv_par) then
       call conv_partial3 ! partial conversion
@@ -5171,101 +5170,67 @@ end subroutine coll_rsg3
 ! ice_melt3(avent0,avent1,bvent0,bvent1,n_e,q_e,x_e,D_e,v_e,dq_e_me,dn_e_me)
 
 
-
-! ***************************************************************
 ! Ice multiplication
-!
-! - wrapper
 !   - calls separately H-M process for each of the riming processes
-!
-!
-! ***************************************************************
-   subroutine ice_multi3
+! ------------------
+subroutine ice_multi3
+  implicit none
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,rhow
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    ::pi6rhoe
-    real, allocatable, dimension(:,:,:) :: dq_ci_spl, dn_ci_spl, dq_hg_temp
-    ! logical ,allocatable, dimension(:,:,:) :: qcol_mask
+  integer :: i,j,k
+  real    :: dq_ci_spl, dn_ci_spl, dq_hg_temp
 
+  dq_hg_temp = 0.0
+  dq_ci_spl  = 0.0
+  dn_ci_spl  = 0.0
 
-    ! allocate
-    allocate( dq_hg_temp (2-ih:i1+ih,2-jh:j1+jh,k1)   &
-             ,dq_ci_spl  (2-ih:i1+ih,2-jh:j1+jh,k1)   &
-             ,dn_ci_spl  (2-ih:i1+ih,2-jh:j1+jh,k1)   &
-            )
+  ! ------------------------------------
+  ! calling separate H-M processes
+  ! ------------------------------------
 
-    dq_hg_temp = 0.0
-    dq_ci_spl  = 0.0
-    dn_ci_spl  = 0.0
+  ! i+l -> i
+  call hallet_mossop3 (tmp0(i,j,k),dq_ci_rime,q_ci,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
 
+  ! s+l -> s
+  call hallet_mossop3 (tmp0(i,j,k),dq_hs_rime,q_hs,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
+  dq_ci_mul = dq_ci_mul + dq_ci_spl
+  q_hsp     = q_hsp - dq_ci_spl ! effect on snow
 
-    ! ------------------------------------
-    ! calling separate H-M processes
-    ! ------------------------------------
+  ! g+l -> g
+  call hallet_mossop3 (tmp0(i,j,k),dq_hg_rime,q_hg,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
+  dq_ci_mul = dq_ci_mul + dq_ci_spl
+  q_hgp     = q_hgp - dq_ci_spl ! effect on snow
 
+  ! g+r -> g
+  call hallet_mossop3 (tmp0(i,j,k),dq_hghr_rime,q_hg,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
+  dq_ci_mul = dq_ci_mul + dq_ci_spl
+  q_hgp     = q_hgp - dq_ci_spl  ! effect on snow
 
-    ! i+l -> i
-    call hallet_mossop3 (dq_ci_rime,q_ci,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul(2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1) + dn_ci_spl(2:i1,2:j1,1:k1)
-     ! no change in ice content
-     ! dq_ci_rime(2:i1,2:j1,1:k1) = dq_ci_rime(2:i1,2:j1,1:k1)-dq_ci_spl(2:i1,2:j1,1:k1)
-     ! no change in ice content
+  ! s+r -> g  -- does it make sense to include it?
+  dq_hg_temp = -dq_hs_col_rs - dq_hr_col_rs
+  call hallet_mossop3 (tmp0(i,j,k),dq_hg_temp ,q_hg,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
+  dq_ci_mul = dq_ci_mul + dq_ci_spl
+  q_hgp     = q_hgp - dq_ci_spl ! effect on snow
 
-    ! s+l -> s
-    call hallet_mossop3 (dq_hs_rime,q_hs,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul (2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1)+ dn_ci_spl(2:i1,2:j1,1:k1)
-     dq_ci_mul (2:i1,2:j1,1:k1) = dq_ci_mul(2:i1,2:j1,1:k1)+ dq_ci_spl(2:i1,2:j1,1:k1)
-     ! dq_hs_rime(2:i1,2:j1,1:k1) = dq_hs_rime(2:i1,2:j1,1:k1)- dq_ci_spl(2:i1,2:j1,1:k1)
-     q_hsp     (2:i1,2:j1,1:k1) = q_hsp(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)  ! effect on snow
+  ! i+r-> g   -- does it make sense to include it?
+  dq_hg_temp = -dq_ci_col_ri - dq_hr_col_ri
+  call hallet_mossop3 (tmp0(i,j,k),dq_hg_temp,q_hg,dq_ci_spl,dn_ci_spl)
+  dn_ci_mul = dn_ci_mul + dn_ci_spl
+  dq_ci_mul = dq_ci_mul + dq_ci_spl
+  q_hgp     = q_hgp - dq_ci_spl  ! effect on snow
 
-    ! g+l -> g
-    call hallet_mossop3 (dq_hg_rime,q_hg,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul (2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1)+ dn_ci_spl(2:i1,2:j1,1:k1)
-     dq_ci_mul (2:i1,2:j1,1:k1) = dq_ci_mul(2:i1,2:j1,1:k1)+ dq_ci_spl(2:i1,2:j1,1:k1)
-     ! dq_hg_rime(2:i1,2:j1,1:k1) = dq_hg_rime(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)
-     q_hgp     (2:i1,2:j1,1:k1) = q_hgp(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)  ! effect on snow
+  ! ------------------------------------
+  !   update
+  ! ------------------------------------
+  ! add updates to dq_ci, dn_ci
+  n_cip = n_cip + dn_ci_mul
+  q_cip = q_cip + dq_ci_mul
 
-    ! g+r -> g
-    call hallet_mossop3 (dq_hghr_rime,q_hg,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul(2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1)+ dn_ci_spl(2:i1,2:j1,1:k1)
-     dq_ci_mul(2:i1,2:j1,1:k1) = dq_ci_mul(2:i1,2:j1,1:k1)+ dq_ci_spl(2:i1,2:j1,1:k1)
-     ! dq_hghr_rime(2:i1,2:j1,1:k1) = dq_hghr_rime(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)
-     q_hgp    (2:i1,2:j1,1:k1) = q_hgp(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)  ! effect on snow
-
-    ! s+r -> g  -- does it make sense to include it?
-    dq_hg_temp(2:i1,2:j1,1:k1) = -dq_hs_col_rs(2:i1,2:j1,1:k1)-dq_hr_col_rs(2:i1,2:j1,1:k1)
-    call hallet_mossop3 (dq_hg_temp ,q_hg,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul(2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1)+ dn_ci_spl(2:i1,2:j1,1:k1)
-     dq_ci_mul(2:i1,2:j1,1:k1) = dq_ci_mul(2:i1,2:j1,1:k1)+ dq_ci_spl(2:i1,2:j1,1:k1)
-     ! dq_hghr_rime(2:i1,2:j1,1:k1) = dq_hghr_rime(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)
-     q_hgp    (2:i1,2:j1,1:k1) = q_hgp(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)  ! effect on snow
-
-
-    ! i+r-> g   -- does it make sense to include it?
-    dq_hg_temp(2:i1,2:j1,1:k1) = -dq_ci_col_ri(2:i1,2:j1,1:k1)-dq_hr_col_ri(2:i1,2:j1,1:k1)
-    call hallet_mossop3 (dq_hg_temp,q_hg,dq_ci_spl,dn_ci_spl)
-     dn_ci_mul(2:i1,2:j1,1:k1) = dn_ci_mul(2:i1,2:j1,1:k1)+ dn_ci_spl(2:i1,2:j1,1:k1)
-     dq_ci_mul(2:i1,2:j1,1:k1) = dq_ci_mul(2:i1,2:j1,1:k1)+ dq_ci_spl(2:i1,2:j1,1:k1)
-     ! dq_hghr_rime(2:i1,2:j1,1:k1) = dq_hghr_rime(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)
-     q_hgp    (2:i1,2:j1,1:k1) = q_hgp(2:i1,2:j1,1:k1)    - dq_ci_spl(2:i1,2:j1,1:k1)  ! effect on snow
-
-    ! ------------------------------------
-    !   update
-    ! ------------------------------------
-    ! add updates to dq_ci, dn_ci
-    n_cip(2:i1,2:j1,1:k1)=n_cip(2:i1,2:j1,1:k1)+dn_ci_mul(2:i1,2:j1,1:k1)
-    q_cip(2:i1,2:j1,1:k1)=q_cip(2:i1,2:j1,1:k1)+dq_ci_mul(2:i1,2:j1,1:k1)
-
-
-    ! clean-up
-    deallocate(dq_hg_temp,dq_ci_spl, dn_ci_spl)
-
-   end subroutine ice_multi3
-
-
+end subroutine ice_multi3
 
 
 ! ***************************************************************
@@ -5278,78 +5243,63 @@ end subroutine coll_rsg3
 !    dq_i_hm  - change in moass content during the process
 !    dn_i_hm  - number of newly produced ice particles
 !
-!
 ! ***************************************************************
-   subroutine hallet_mossop3(dq_rime,q_e,dq_i_hm,dn_i_hm)
+subroutine hallet_mossop3(t0,dq_rime,q_e,dq_i_hm,dn_i_hm)
+  use modmicrodata3, only : c_spl_hm74, rem_q_e_hm, tmp_opt_hm74 &
+                           ,tmp_min_hm74,tmp_max_hm74
 
-   use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi,rhow
-   use modfields, only : exnf,qt0,tmp0
-   implicit none
+  implicit none
 
-   ! inputs
-   real, intent(in)  :: dq_rime  (:,:,:)  ! riming rate
-   real, intent(in)  :: q_e      (:,:,:)  ! amount of that ice phase
-   ! outputs
-   real, intent(out) :: dq_i_hm   (:,:,:) ! tendency in q_i by H-M process
-   real, intent(out) :: dn_i_hm   (:,:,:) ! tendency in n_i by H-M process
+  ! inputs
+  real, intent(in)  :: t0        ! tmp0 at this gridpoint
+  real, intent(in)  :: dq_rime   ! riming rate
+  real, intent(in)  :: q_e       ! amount of that ice phase
 
-   ! local variables
-   integer :: i,j,k
-   real    :: c_spl,c_1_hm,c_2_hm                        &  ! constants in calculation
-             ,mult_1, mult_2, mint_1, mint_2             &  ! calculation variables
-             ,dn_try, dq_try, rem_cf                           ! trial variables
+  ! outputs
+  real, intent(out) :: dq_i_hm   ! tendency in q_i by H-M process
+  real, intent(out) :: dn_i_hm   ! tendency in n_i by H-M process
 
-   ! allocated variables
-   ! real, allocatable, dimension(:,:,:) :: f_spl
-   !
-   ! allocating
-   ! allocate( f_spl (2-ih:i1+ih,2-jh:j1+jh,k1) )
+  ! local variables
 
-   ! f_spl = 0.0
+! constants in calculation
+  real, parameter :: c_spl  = c_spl_hm74 &
+                    ,c_1_hm = 1.0/(tmp_opt_hm74-tmp_min_hm74) &
+                    ,c_2_hm = 1.0/(tmp_opt_hm74-tmp_max_hm74)
 
-   ! setting constants
-   c_spl   = c_spl_hm74
-   c_1_hm  = 1.0/(tmp_opt_hm74-tmp_min_hm74)
-   c_2_hm  = 1.0/(tmp_opt_hm74-tmp_max_hm74)
+  real :: mult_1,mult_2,mint_1,mint_2    &  ! calculation variables
+         ,dn_try,dq_try,rem_cf              ! trial variables
 
-   ! setting coefficient for reminder
-   rem_cf  = (1.0-rem_q_e_hm)/delt
+  ! setting coefficient for reminder
+  rem_cf  = (1.0-rem_q_e_hm)/delt
 
+  ! only if riming going on temperature below 0
+  if ((dq_rime.gt.0).and.(t0.lt.T_3)) then
 
-   ! calculation
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-     if ((dq_rime(i,j,k).gt.0).and.(tmp0(i,j,k).lt.T_3)) then ! only if riming going on temperature below 0
-        ! f_spl calculation following ICON
-        mult_1 = c_1_hm *(tmp0(i,j,k)-tmp_min_hm74)   ! positive in the target interval
-        mult_2 = c_2_hm *(tmp0(i,j,k)-tmp_max_hm74)   ! positive in the target interval
-        ! now for intervals
-        mint_1 = max(0.0,min(1.0,mult_1))             !  0 for T<T_min, 1 for T>T_opt
-        mint_2 = max(0.0,min(1.0,mult_2))             !  0 for T>T_max, 1 for T<T_opt
-        ! calculating prediction for the process
-        dn_try = c_spl*mint_1*mint_2*dq_rime(i,j,k)
-        dq_try = x_ci_spl*dn_try
-        ! correcting
-        dq_try = min(dq_try,rem_cf*q_e(i,j,k)+dq_rime(i,j,k))    !  limit splintering
-        dq_try = max(dq_try,0.0)
-        !
-        ! prepare updates
-        dq_i_hm(i,j,k) = dq_try
-        dn_i_hm(i,j,k) = dq_try/x_ci_spl
-        !
-     else
-        dq_i_hm(i,j,k) = 0.0
-        dn_i_hm(i,j,k) = 0.0
-     endif
-    enddo
-    enddo
-    enddo
+     ! f_spl calculation following ICON
+     mult_1 = c_1_hm * (t0-tmp_min_hm74)   ! positive in the target interval
+     mult_2 = c_2_hm * (t0-tmp_max_hm74)   ! positive in the target interval
 
-   ! deallocate(f_spl)
+     ! now for intervals
+     mint_1 = max(0.0,min(1.0,mult_1))     !  0 for T<T_min, 1 for T>T_opt
+     mint_2 = max(0.0,min(1.0,mult_2))     !  0 for T>T_max, 1 for T<T_opt
 
-   end subroutine hallet_mossop3
+     ! calculating prediction for the process
+     dn_try = c_spl*mint_1*mint_2*dq_rime
+     dq_try = x_ci_spl*dn_try
 
+     ! correcting
+     dq_try = min(dq_try,rem_cf*q_e+dq_rime)    !  limit splintering
+     dq_try = max(dq_try,0.0)
+
+     ! prepare updates
+     dq_i_hm = dq_try
+     dn_i_hm = dq_try/x_ci_spl
+     !
+  else
+     dq_i_hm = 0.0
+     dn_i_hm = 0.0
+  endif
+end subroutine hallet_mossop3
 
 
 ! ***************************************************************
