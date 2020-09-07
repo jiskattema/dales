@@ -1035,9 +1035,7 @@ module modbulkmicro3
     ! - collision with conversion
     ! --------------------------------------------------------------
     call coll_rig3 ! riming r+i -> g  !#t2 !#t4
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+i->g ')! #d
     call coll_rsg3 ! riming r+i -> g  !#t7
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'r+s->g ')! #d
 
     !--------------------------------------------------------------
     ! conversions
@@ -4812,230 +4810,118 @@ subroutine coll_rig3
 end subroutine coll_rig3
 
 
- ! ***********************************
- !  riming of rain + snow to graupel
- !
- !
- ! ***********************************
-   subroutine coll_rsg3
+! riming of rain + snow to graupel
+! --------------------------------
+subroutine coll_rsg3
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rd, rlv,cp,pi
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
-    real    :: sigma_a, sigma_b ,E_coli              &
-               ,a_a, b_a, al_a, be_a, ga_a           &
-               ,a_b, b_b, al_b, be_b, ga_b           &
-               ,dlt_0a, dlt_0ab, dlt_0b              &
-               ,dlt_1ab, dlt_1b                      &
-               ,th_0a, th_0ab, th_0b                 &
-               ,th_1ab, th_1b                        &
-               ,dlt_0ba, dlt_1ba, dlt_1a             &
-               ,th_0ba, th_1ba, th_1a
-    real    :: dif_D_10, ntest, qtest, rem_hs_cf, rem_hr_cf, k_enhm
-    real, allocatable, dimension(:,:,:) :: D_a, D_b, v_a, v_b ! <- later move outside of this subroutine
-    real, allocatable, dimension(:,:,:) :: E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b
-    logical ,allocatable :: qcol_mask(:,:,:)
+  use modglobal, only : i1,j1,k1,cp,pi
+  use modfields, only : exnf,svm,tmp0,rhof
+  implicit none
 
-    ! start of the code
+  integer :: i,j,k
+  real    ::
+  real    :: rem_cf, k_enhm
+  real    :: E_ab, dn_col_b, dq_col_a, dq_col_b
 
-    ! allocate fields and fill
-     allocate( D_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,D_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_a     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-              ,v_b     (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
+  dn_col_b = 0.0
+  dq_col_a = 0.0
+  dq_col_b = 0.0
 
-      allocate( E_ab    (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,E_stick (2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dn_col_b(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_a(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-               ,dq_col_b(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-             )
-      allocate( qcol_mask(2-ih:i1+ih,2-jh:j1+jh,k1)   )
+  ! calculating
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask.and.q_hr_mask) then
+      E_ab =  E_s_m
 
-      D_a      = 0.0
-      D_b      = 0.0
-      v_a      = 0.0
-      v_b      = 0.0
-      E_ab     = 0.0
-      E_stick  = 0.0
-      dn_col_b = 0.0
-      dq_col_a = 0.0
-      dq_col_b = 0.0
+      dq_col_b = -(rhof(k)*pi/4)*E_ab*n_hs           &
+           *q_hr*(dlt_s0*D_hs**2                     &
+             +dlt_s1r*D_hs*D_hr+dlt_r1*D_hr**2)      &
+           *( th_s0*v_hs**2-th_s1r*v_hr*v_hs         &
+             +th_r1*v_hr**2+sigma_hs**2+sigma_hr**2)**0.5
 
-    ! set constants
-      sigma_a   = sigma_hs
-      sigma_b   = sigma_hr
-      a_a       = a_hs
-      b_a       = b_hs
-      al_a      = al_hs
-      be_a      = be_hs
-      ga_a      = ga_hs
-      a_b       = a_hr
-      b_b       = b_hr
-      al_b      = al_hr
-      be_b      = be_hr
-      ga_b      = ga_hr
-      E_coli    = E_s_m ! collision efficienty
-      dlt_0a    = dlt_s0 ! dlt_s0
-      dlt_0ab   = dlt_s0r ! dlt_s0i
-      dlt_0b    = dlt_r0
-      dlt_1ab   = dlt_s1r
-      dlt_1b    = dlt_r1
-      th_0a     = th_s0
-      th_0ab    = th_s0r
-      th_0b     = th_r0
-      th_1ab    = th_s1r
-      th_1b     = th_r1
-      !
+      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hs           &
+           *n_hr*(dlt_s0*D_hs**2                     &
+             +dlt_s0r*D_hs*D_hr+dlt_r0*D_hr**2)      &
+           *( th_s0*v_hs**2-th_s0r*v_hr*v_hs         &
+             +th_r0*v_hr**2+sigma_hs**2+sigma_hr**2)**0.5
 
-    ! setting up extra coefficients
-        ! remain coefficients
-        rem_hs_cf = (1.0-rem_n_hs_min)/delt
-        rem_hr_cf = (1.0-rem_n_hr_min)/delt
+      dq_col_a = (rhof(k)*pi/4)*E_ab*q_hs            &
+           *n_hr*(dlt_s1*D_hs**2                     &
+             +dlt_r1s*D_hs*D_hr+dlt_r0*D_hr**2)      &
+           *( th_s1*v_hs**2-th_r1s*v_hr*v_hs         &
+             +th_r0*v_hr**2+sigma_hs**2+sigma_hr**2)**0.5
 
-        ! enhanced melting
+      ! first adjustment following ICON, 2017
+      dq_hs_col_rs = max(-dq_col_a,min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp))
+      dq_hr_col_rs = max( dq_col_b,min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp))
+
+      ! adjustment of numbers - both ice and snow
+      rem_cf = (1.0-rem_n_hs_min)/delt
+      dn_hs_col_rs = max(dn_col_b,min(0.0,-rem_cf*svm(i,j,k,in_hs)-n_hsp))
+
+      rem_cf = (1.0-rem_n_hr_min)/delt
+      dn_hs_col_rs = max(dn_col_b,min(0.0,-rem_cf*svm(i,j,k,in_hr)-n_hrp))
+
+      if (tmp0(i,j,k).lt.T_3) then
+        ! and copying it to the second one
+        dn_hr_col_rs = dn_hs_col_rs
+
+        ! record the change in cloud ice
+        q_hsp = q_hsp + dq_hs_col_rs
+        n_hsp = n_hsp + dn_hs_col_rs
+
+        ! change in rain
+        q_hrp = q_hrp + dq_hr_col_rs
+        n_hrp = n_hrp + dn_hr_col_rs
+
+        ! and for graupel
+        q_hgp = q_hgp - dq_hs_col_rs - dq_hr_col_rs
+        n_hgp = n_hgp - dn_hs_col_rs
+
+        ! change in th_l - release from freezing and removal of ice
+        thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlme/(cp*exnf(k)))*dq_hr_col_rs
+      else  ! tmp0(i,j,k).gt.T_3
+        ! enhanced melting and graupel formation
         k_enhm  = c_water/rlme
 
-    ! setting up mask
-    qcol_mask(2:i1,2:j1,1:k1) =   &
-        q_hs_mask(2:i1,2:j1,1:k1).and.q_hr_mask(2:i1,2:j1,1:k1)
+        ! calculate the melting
+        ! with + due to negative value of dq_hr here
+        dq_hs_eme_rs = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_rs
 
-    ! setting up diameters and velocities
-     D_a (2:i1,2:j1,1:k1) = D_hs (2:i1,2:j1,1:k1)
-     v_a (2:i1,2:j1,1:k1) = v_hs (2:i1,2:j1,1:k1)
-     D_b (2:i1,2:j1,1:k1) = D_hr (2:i1,2:j1,1:k1)
-     v_b (2:i1,2:j1,1:k1) = v_hr (2:i1,2:j1,1:k1)
+        ! snow melting
+        dq_hs_eme_rs = max(dq_hs_eme_rs,min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp))
 
+        ! calculate how many snow perticles melted
+        ! q_hs here is always some small positive number
+        dn_hs_eme_rs = dq_hs_eme_rs*n_hs/q_hs
 
-    ! -- inner part -------------------
+        ! limit so it dos not melt more than interacting
+        ! also limit so that new graupel not larger that max mean size of source ice ?
+        dn_hs_eme_rs = max(dn_hs_eme_rs,dn_hs_col_rs)
 
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       E_ab(i,j,k) =  E_coli
-       !
-       dq_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)    &
-            *q_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_1ab*D_a(i,j,k)*D_b(i,j,k)+dlt_1b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_1ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_1b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-       !
-       dn_col_b(i,j,k) = -(rhof(k)*pi/4)*E_ab(i,j,k)*n_hs(i,j,k)   &
-            *n_hr(i,j,k)*(dlt_0a*D_a(i,j,k)**2                     &
-              +dlt_0ab*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_0a*v_a(i,j,k)**2-th_0ab*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
+        ! update snow
+        q_hsp = q_hsp + dq_hs_eme_rs
+        n_hsp = n_hsp + dn_hs_eme_rs
+
+        ! no collection of raindrops
+        dq_hr_col_rs = 0.0
+        dq_hs_col_rs = 0.0
+        dn_hr_col_rs = 0.0
+        dn_hs_col_rs = 0.0
+
+        ! increase in rain mass
+        q_hrp = q_hrp - dq_hs_eme_rs
+
+        ! change in thl - heat spent on melting
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hs_eme_rs
       endif
-    enddo
-    enddo
-    enddo
+   endif
+  enddo
+  enddo
+  enddo
 
-    ! -- and the second part
-      dlt_0ba   = dlt_r0s ! dlt_0ab   = dlt_i0r
-      ! dlt_0b    = dlt_r0
-      dlt_1ba   = dlt_r1s ! dlt_1ab   = dlt_i1r
-      dlt_1a    = dlt_s1  ! dlt_1b    = dlt_r1
-      th_1a     = th_s1 ! th_0a     = th_i0
-      th_0ba    = th_r0s ! th_0ab    = th_i0r
-      th_0b     = th_r0
-      th_1ba    = th_r1s ! th_1ab    = th_i1r
-
-
-    ! -- inner piece ----
-    ! calculating
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if ( qcol_mask(i,j,k)) then
-       !
-       dq_col_a(i,j,k) = (rhof(k)*pi/4)*E_ab(i,j,k)*q_hs(i,j,k)    &
-            *n_hr(i,j,k)*(dlt_1a*D_a(i,j,k)**2                     &
-              +dlt_1ba*D_a(i,j,k)*D_b(i,j,k)+dlt_0b*D_b(i,j,k)**2) &
-            *( th_1a*v_a(i,j,k)**2-th_1ba*v_b(i,j,k)*v_a(i,j,k)    &
-              +th_0b*v_b(i,j,k)**2+sigma_a**2+sigma_b**2)**0.5
-      endif
-    enddo
-    enddo
-    enddo
-
-
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if(qcol_mask(i,j,k)) then
-        ! first adjustment
-        dq_hs_col_rs(i,j,k) = max(-dq_col_a(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))   ! following ICON, 2017
-        dq_hr_col_rs(i,j,k) = max(dq_col_b(i,j,k),min(0.0,-svm(i,j,k,iq_hr)/delt-q_hrp(i,j,k)))   ! following ICON, 2017
-
-        ! adjustment of numbers - both ice and snow
-        dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hs_cf*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
-        dn_hs_col_rs(i,j,k) = max(dn_col_b(i,j,k) ,min(0.0,-rem_hr_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)))
-
-         if (tmp0(i,j,k).lt.T_3) then
-           ! and copying it to the second one
-           dn_hr_col_rs(i,j,k) = dn_hs_col_rs(i,j,k)
-
-           ! record the change in cloud ice
-           q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_col_rs (i,j,k)
-           n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_col_rs (i,j,k)
-
-           ! change in rain
-           q_hrp (i,j,k) = q_hrp(i,j,k) + dq_hr_col_rs (i,j,k)
-           n_hrp (i,j,k) = n_hrp(i,j,k) + dn_hr_col_rs (i,j,k)
-
-           ! and for graupel
-           q_hgp (i,j,k) =q_hgp(i,j,k)-dq_hs_col_rs(i,j,k)-dq_hr_col_rs(i,j,k)
-           n_hgp (i,j,k) =n_hgp(i,j,k)-dn_hs_col_rs(i,j,k)
-
-           ! change in th_l - release from freezing and removal of ice
-           thlpmcr(i,j,k) = thlpmcr(i,j,k)                  &
-                -(rlme/(cp*exnf(k)))*dq_hr_col_rs (i,j,k)
-         else  ! tmp0(i,j,k).gt.T_3
-           ! enhanced melting and graupel formation
-           ! calculate the melting
-           ! with + due to negative value of dq_hr here
-           dq_hs_eme_rs(i,j,k) = k_enhm*(tmp0(i,j,k)-T_3)*dq_hr_col_rs(i,j,k)
-
-           ! snow melting
-           dq_hs_eme_rs(i,j,k) = max(dq_hs_eme_rs(i,j,k),min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
-
-           ! calculate how many snow perticles melted
-           ! q_hs here is always some small positive number
-           dn_hs_eme_rs(i,j,k) = dq_hs_eme_rs(i,j,k)*n_hs(i,j,k)/q_hs(i,j,k)
-
-           ! limit so it dos not melt more than interacting
-           ! also limit so that new graupel not larger that max mean size of source ice ?
-           dn_hs_eme_rs(i,j,k) =max(dn_hs_eme_rs(i,j,k),dn_hs_col_rs(i,j,k))
-
-           ! update snow
-           q_hsp (i,j,k) = q_hsp(i,j,k) + dq_hs_eme_rs(i,j,k)
-           n_hsp (i,j,k) = n_hsp(i,j,k) + dn_hs_eme_rs(i,j,k)
-
-           ! no collection of raindrops
-           dq_hr_col_rs(i,j,k) = 0.0
-           dq_hs_col_rs(i,j,k) = 0.0
-           dn_hr_col_rs(i,j,k) = 0.0
-           dn_hs_col_rs(i,j,k) = 0.0
-
-           ! increase in rain mass
-           q_hrp (i,j,k) = q_hrp(i,j,k) - dq_hs_eme_rs (i,j,k)
-
-           ! change in thl - heat spent on melting
-           thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hs_eme_rs (i,j,k)
-       endif
-      endif
-    enddo
-    enddo
-    enddo
-
-    deallocate (D_a, D_b, v_a, v_b, E_ab, E_stick, dn_col_b, dq_col_a, dq_col_b)
-    deallocate (qcol_mask)
-
-   end subroutine coll_rsg3
+end subroutine coll_rsg3
 
 ! ****************************************
 !  partial conversion to graupel
