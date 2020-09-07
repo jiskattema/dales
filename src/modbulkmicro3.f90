@@ -1056,7 +1056,6 @@ module modbulkmicro3
     !  --------------------------------------------------------------
     call autoconversion3
     call cloud_self3
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'cl self')! #d
     call accretion3
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'accret.')! #d
 
@@ -1959,31 +1958,18 @@ subroutine autoconversion3
 end subroutine autoconversion3
 
 
-subroutine accretion3
 !*********************************************************************
 ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
 ! base don S&B
 !*********************************************************************
-  use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
-  use modfields, only : exnf,rhof,ql0,qt0, svm, qvsl, qvsi
-  use modmpi,    only : myid
+subroutine accretion3
+  use modglobal, only : i1,j1,k1,rlv,cp
+  use modfields, only : exnf,rhof,ql0,svm
   implicit none
 
-  real , allocatable :: phi_br(:,:,:), Dvrf(:,:,:)
-  real :: rem_cf, rem_clcf
+  real :: phi_br, Dvrf, tau
+  real :: rem_cf
   integer :: i,j,k
-
-  allocate ( phi_br(2-ih:i1+ih,2-jh:j1+jh,k1)      &
-            ,Dvrf  (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3
-           )
-
-  phi_br=0.0   ! #sb3
-  Dvrf =0.0  ! #sb3
-
-  ! calculating coef for ratio for minimal remaing number of droplets #sb3
-  rem_cf = (1.0-rem_n_hr_min)/delt
-  ! remain coefficient for clouds #sb3
-  rem_clcf = (1.0-rem_n_cl_min)/delt
 
   if (l_sb) then
     !
@@ -1994,144 +1980,154 @@ subroutine accretion3
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        if (q_hr_mask(i,j,k) .and. q_cl_mask(i,j,k)) then
+        if (q_hr_mask.and.q_cl_mask) then
           ! since it is forming only where rain
-          tau    (i,j,k) = 1.0 - q_cl(i,j,k)/(qltot(i,j,k))
-          phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
-          dq_hr_ac(i,j,k) = k_cr *rhof(k)*q_cl(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
+          tau = 1.0 - q_cl/qltot
+          phi = (tau/(tau + k_l))**4.
+          dq_hr_ac = k_cr *rhof(k)*q_cl*q_hr * phi * &
                            (rho0s/rhof(k))**0.5  ! rho*rho / rho  = rho
 
           ! basic ac correction
-          dq_hr_ac     (i,j,k) = min(dq_hr_ac(i,j,k),q_cl(i,j,k)/delt) ! min(dq_hr_ac(i,j,k),svm(i,j,k,iq_cl)/delt)\
+          dq_hr_ac = min(dq_hr_ac,q_cl/delt) ! min(dq_hr_ac,svm(i,j,k,iq_cl)/delt)
 
           ! number of cloud droplets
-          dn_cl_ac(i,j,k) = -dq_hr_ac(i,j,k)/x_cl(i,j,k)
-          dn_cl_ac(i,j,k) = max(dn_cl_ac(i,j,k),min(0.0,-rem_clcf*svm(i,j,k,in_cl)-n_clp(i,j,k)))
+          ! remain coefficient for clouds #sb3
+          rem_cf = (1.0-rem_n_cl_min)/delt
+
+          dn_cl_ac = -dq_hr_ac/x_cl
+          dn_cl_ac = max(dn_cl_ac,&
+                         min(0.0, &
+                         -rem_cf*svm(i,j,k,in_cl)-n_clp))
 
           ! update
-          q_hrp  (i,j,k) = q_hrp (i,j,k)  + dq_hr_ac(i,j,k)
+          q_hrp = q_hrp + dq_hr_ac
 
           ! no change n_hrp
           ! and changes in water number for clouds
-          q_clp (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
-          n_clp (i,j,k) = n_clp (i,j,k) + dn_cl_ac(i,j,k)  !o: n_clp (i,j,k) - rhof(k)*ac(i,j,k)/xc(i,j,k)
+          q_clp = q_clp - dq_hr_ac
+          n_clp = n_clp + dn_cl_ac !o: n_clp - rhof(k)*ac/xc
 
-          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
-          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k)
+          qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac
         endif
       enddo
       enddo
       enddo
-   else ! l_sb_classic
-     !*********************************************************************
-     ! determine accr. rate and adjust qrp and Nrp
-     ! accordingly. Break-up : Seifert (2007), a
-     !*********************************************************************
-     tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
-     phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
+    else ! l_sb_classic
+      !*********************************************************************
+      ! determine accr. rate and adjust qrp and Nrp
+      ! accordingly. Break-up : Seifert (2007), a
+      !*********************************************************************
+      tau = 1.0 - ql0(i,j,k)/qltot
+      phi = (tau/(tau + k_l))**4.
 
-     dq_hr_ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * q_hr(i,j,k) * phi(i,j,k) * &
-                      (1.225/rhof(k))**0.5
-     q_hrp  (i,j,k) = q_hrp (i,j,k) + dq_hr_ac(i,j,k)
+      dq_hr_ac = k_r *rhof(k)*ql0(i,j,k) * q_hr * phi * &
+                  (1.225/rhof(k))**0.5
+      q_hrp = q_hrp + dq_hr_ac
 
-     ! no change n_hrp
-     q_clp  (i,j,k) = q_clp (i,j,k) - dq_hr_ac(i,j,k)
-     qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac(i,j,k)
-     thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac(i,j,k)
+      ! no change n_hrp
+      q_clp  = q_clp - dq_hr_ac
+      qtpmcr (i,j,k) = qtpmcr (i,j,k) - dq_hr_ac
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ac
 
-     ! and update on cloud water number
-     dn_cl_ac(i,j,k)= -dq_hr_ac(i,j,k)/x_cl(i,j,k)
-     n_clp (i,j,k)  = n_clp(i,j,k) + dn_cl_ac(i,j,k)
-   endif
+      ! and update on cloud water number
+      dn_cl_ac = -dq_hr_ac/x_cl
+      n_clp = n_clp + dn_cl_ac
+    endif
 
-   !
-   ! SB self-collection & Break-up
-   !
-   if (l_sb_classic) then
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       if (q_hr_mask(i,j,k)) then
-          dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
-            * (1.0 + kappa_r/lbdr(i,j,k))**(-9.)*(rho0s/rhof(k))**0.5
+    !
+    ! SB self-collection & Break-up
+    !
+    if (l_sb_classic) then
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if (q_hr_mask) then
+          dn_hr_sc = -k_rr *rhof(k)* q_hr * n_hr  &
+            * (1.0 + kappa_r/lbdr)**(-9.)*(rho0s/rhof(k))**0.5
 
           ! and calculating size of droplets - adjusted
-          Dvrf(i,j,k)= Dvr(i,j,k) ! for now leaving the same
-          if (Dvrf(i,j,k) .gt. dvrlim) then
-            if (Dvrf(i,j,k) .gt. dvrbiglim) then
+          Dvrf = Dvr ! for now leaving the same
+          if (Dvrf.gt.dvrlim) then
+            if (Dvrf.gt.dvrbiglim) then
               ! for big drops
-              phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvrf(i,j,k)-D_eq))-1.0
+              phi_br = 2.0*exp(kappa_br*(Dvrf-D_eq))-1.0
             else
               ! for smaller drops
-              phi_br(i,j,k) = k_br * (Dvrf(i,j,k)-D_eq)
+              phi_br = k_br * (Dvrf-D_eq)
             endif
-            dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
+            dn_hr_br = -(phi_br + 1.) * dn_hr_sc
           else
-            dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
+            dn_hr_br = 0. ! (phi_br = -1)
           endif
-       endif ! q_hr_mask
-     enddo
-     enddo
-     enddo
-   else ! l_sb_classic
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       ! adjusting variable names in accretion
-       if (q_hr_mask(i,j,k)) then
-          dn_hr_sc(i,j,k) = -k_rr *rhof(k)* q_hr(i,j,k) * n_hr(i,j,k)  &
-            * (1.0 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)*(rho0s/rhof(k))**0.5
-       endif
-       if ((Dvr(i,j,k) .gt. dvrlim) .and. q_hr_mask(i,j,k)) then
-         if (Dvr(i,j,k) .gt. dvrbiglim) then
-           ! for big drops
-           phi_br(i,j,k) = 2.0*exp(kappa_br*(Dvr(i,j,k)-D_eq))-1.0
-         else
-           ! for smaller drops
-           phi_br(i,j,k) = k_br* (Dvr(i,j,k)-D_eq)
-         endif
-         dn_hr_br(i,j,k) = -(phi_br(i,j,k) + 1.) * dn_hr_sc(i,j,k)
-       else
-          dn_hr_br(i,j,k) = 0. ! (phi_br = -1)
-       endif
-     enddo
-     enddo
-     enddo
-   endif ! l_sb_classic
+        endif ! q_hr_mask
+      enddo
+      enddo
+      enddo
+    else ! l_sb_classic
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        ! adjusting variable names in accretion
+        if (q_hr_mask) then
+          dn_hr_sc = -k_rr *rhof(k)* q_hr * n_hr  &
+            * (1.0 + kappa_r/lbdr*pirhow**(1./3.))**(-9.)*(rho0s/rhof(k))**0.5
+        endif
+        if ((Dvr .gt. dvrlim) .and. q_hr_mask) then
+          if (Dvr .gt. dvrbiglim) then
+            ! for big drops
+            phi_br = 2.0*exp(kappa_br*(Dvr-D_eq))-1.0
+          else
+            ! for smaller drops
+            phi_br = k_br* (Dvr-D_eq)
+          endif
+          dn_hr_br = -(phi_br + 1.) * dn_hr_sc
+        else
+          dn_hr_br = 0. ! (phi_br = -1)
+        endif
+      enddo
+      enddo
+      enddo
+  endif ! l_sb_classic
   endif
 
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    if (q_hr_mask(i,j,k)) then
-     ! correcting for low values
-     n_hrp(i,j,k) = n_hrp(i,j,k)                         &
-        +max(min(0.0,-rem_cf*svm(i,j,k,in_hr)-n_hrp(i,j,k)),dn_hr_sc(i,j,k)+dn_hr_br(i,j,k))
+    if (q_hr_mask) then
+      ! correcting for low values
+      ! calculating coef for ratio for minimal remaing number of droplets #sb3
+      rem_cf = (1.0-rem_n_hr_min)/delt
+
+      n_hrp = n_hrp +max(min(0.0,                             &
+                             -rem_cf*svm(i,j,k,in_hr)-n_hrp), &
+                         dn_hr_sc+dn_hr_br)
     endif
   enddo
   enddo
   enddo
 
   if (l_sb_dbg) then
-    if( any((svm(2:i1,2:j1,1:k1,iq_cl)/delt-dq_hr_ac(2:i1,2:j1,1:k1)).lt. 0) ) then
+    if(svm(i,j,k,iq_cl)/delt-dq_hr_ac.lt. 0.) then
       write(6,*) 'WARNING: accretion removing too much water'
-      write(6,*) ' updated below 0 in gridpoints', count((svm(2:i1,2:j1,1:k1,iq_cl)/delt- dq_hr_ac(2:i1,2:j1,1:k1)).lt. 0.0)
+      write(6,*) ' updated below 0'
+      ! count(svm(i,j,k,iq_cl)/delt-dq_hr_ac.lt. 0.0)
     endif
 
-    if( any((svm(2:i1,2:j1,1:k1,in_hr)/delt+dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0) ) then
+    if(svm(i,j,k,in_hr)/delt+dn_hr_sc+dn_hr_br.lt. 0.) then
       write(6,*) 'WARNING: self-collection of rain too high'
-      write(6,*) ' removing more n_hr than available in gridpoints', count((svm(2:i1,2:j1,1:k1,in_hr)/delt-dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0.0 )
-      write(6,*) ' n_hr updated below 0 in gridpoints', count((n_hr(2:i1,2:j1,1:k1)/delt-dn_hr_sc(2:i1,2:j1,1:k1)+dn_hr_br(2:i1,2:j1,1:k1)).lt. 0.0 )
+      write(6,*) ' removing more n_hr than available'
+      ! count(svm(i,j,k,in_hr)/delt-dn_hr_sc+dn_hr_br.lt. 0.0)
+      write(6,*) ' n_hr updated below 0'
+      ! count(n_hr/delt-dn_hr_sc+dn_hr_br.lt. 0.0)
     endif
 
-    if (any((svm(2:i1,2:j1,1:kmax,in_cl)/delt - dq_hr_ac(2:i1,2:j1,1:kmax)/x_cl(i,j,k)).lt. 0.)) then
+    if (svm(i,j,k,in_cl)/delt - dq_hr_ac/x_cl.lt. 0.) then
       write(6,*)'WARNING: ac too large, removing too many droplets'
-      write(6,*)'   in', count((svm(2:i1,2:j1,1:kmax,in_cl)/delt    &
-         - dq_hr_ac(2:i1,2:j1,1:kmax)/x_cl(i,j,k)).lt. 0.),myid
+      write(6,*)'   in'
+      ! count(svm(i,j,k,in_cl)/delt-dq_hr_ac/x_cl.lt. 0.)
     endif
   endif ! l_sb_dbg
-
-  deallocate (phi_br,Dvrf)
 
 end subroutine accretion3
 
