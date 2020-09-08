@@ -1652,179 +1652,111 @@ end subroutine satadj3
 
 ! calculating rain and other integrals
 subroutine integrals_bulk3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax
+  use modglobal, only : i1,j1,k1,kmax
   use modfields, only : rhof
   implicit none
 
-  real , allocatable :: N_r0(:,:,:), lbdr_try(:,:,:)  ! #sb3
   integer :: i,j,k
-  real :: xr, xr_try, N_r0_try
+  real :: xr, N_r0, xr_try, libdr_try, N_r0_try
 
-  allocate ( N_r0     (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-            ,lbdr_try (2-ih:i1+ih,2-jh:j1+jh,k1)      &  ! #sb3
-           )
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (l_rain) then
+      Dvr  = 0.
+      mur  = 30.
+      lbdr = 0.
 
-  N_r0     = 0.0
-  lbdr_try = 0.0
-
-  ! calculations
-  if (l_rain) then
-    Dvr  (2:i1,2:j1,1:k1) = 0.
-    mur  (2:i1,2:j1,1:k1) = 30.
-    lbdr (2:i1,2:j1,1:k1) = 0.
-
-    if (l_sb) then
-      if(l_sb_classic) then
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if (q_hr_mask(i,j,k)) then
+      if (l_sb) then
+        if (q_hr_mask) then
+          if(l_sb_classic) then
             ! limiting procedure (as per S&B)
-            x_hr (i,j,k)   = q_hr(i,j,k)/(n_hr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
-            xr_try         = max(xrmin,min(xrmax,x_hr(i,j,k)))  !
-            x_hr (i,j,k)   = max(xrmin,min(xrmax,x_hr(i,j,k)))  ! same as above, for cold mphys
+            x_hr    = q_hr/(n_hr+eps0) ! JvdD Added eps0 to avoid floating point exception
+            xr_try  = max(xrmin,min(xrmax,x_hr))  !
+            x_hr    = max(xrmin,min(xrmax,x_hr))  ! same as above, for cold mphys
+
+            D_hr = a_hr *x_hr**b_hr
+            v_hr = al_hr*x_hr**be_hr*(rho0s/rhof(k))**ga_hr
+
+            Dvr      = (xr_try/pirhow)**(1./3.)
+            N_r0_try = rhof(k)*n_hr/Dvr
+            N_r0     = max(N_0min,min(N_0max,N_r0_try))
+
+            lbdr_try = (pirhow*N_r0/(rhof(k)*q_hr))**0.25  ! c_lbdr*x_hr**(-mu_hr_cst)
+            lbdr     = max(lbdr_min, min(lbdr_max,lbdr_try))
+          else ! l_sb_classic
+            ! #sb3 changing the variable name
+            x_hr = q_hr/(n_hr+eps0)
+            ! TODO: limit x_hr?
+            xr = min(max(x_hr,xrmin),xrmax) ! to ensure xr is within borders
+            Dvr = (xr/pirhow)**(1./3.)
             !
-            D_hr(i,j,k) = a_hr *x_hr(i,j,k)**b_hr
-            v_hr(i,j,k) = al_hr*x_hr(i,j,k)**be_hr*(rho0s/rhof(k))**ga_hr
-            !
-            Dvr(i,j,k)     = (xr_try/pirhow)**(1./3.)
-            N_r0_try       = rhof(k)*n_hr(i,j,k)/Dvr(i,j,k)
-            N_r0(i,j,k)    = max(N_0min,min(N_0max,N_r0_try))
+            D_hr = a_hr *x_hr**b_hr
+            v_hr = al_hr*x_hr**be_hr*(rho0s/rhof(k))**ga_hr
 
-            lbdr_try(i,j,k)= (pirhow*N_r0(i,j,k)/(rhof(k)*q_hr(i,j,k)))**0.25  ! c_lbdr*x_hr(i,j,k)**(-mu_hr_cst)
-            lbdr(i,j,k)    = max(lbdr_min, min(lbdr_max,lbdr_try(i,j,k)))
-          endif
-        enddo
-        enddo
-        enddo
-
-      else ! l_sb_classic
-
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           ! #sb3 changing the variable name
-           if (q_hr_mask(i,j,k)) then
-             x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
-             ! TODO: limit x_hr?
-             xr = min(max(x_hr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
-             Dvr(i,j,k) = (xr/pirhow)**(1./3.)
-             !
-             D_hr(i,j,k) = a_hr *x_hr(i,j,k)**b_hr
-             v_hr(i,j,k) = al_hr*x_hr(i,j,k)**be_hr*(rho0s/rhof(k))**ga_hr
-           endif
-        enddo
-        enddo
-        enddo
-
-        if (l_mur_cst) then
-          ! mur = cst
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (q_hr_mask(i,j,k)) then
-              mur(i,j,k) = mur_cst
-              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        else
-          ! mur = f(Dv)
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (q_hr_mask(i,j,k)) then
-              mur(i,j,k) = min(mur0_G09b,- 1. + c_G09b/ (q_hr(i,j,k)*rhof(k))**exp_G09b)  ! G09b
-              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        endif
-      endif !  l_sb_classic
-    else !  l_sb
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        if (q_hr_mask(i,j,k).and.n_hr(i,j,k).gt.0.) then
-          x_hr (i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
+            if (l_mur_cst) then
+              ! mur = cst
+              mur  = mur_cst
+              lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
+            else
+              ! mur = f(Dv)
+              mur  = min(mur0_G09b,- 1. + c_G09b/ (q_hr*rhof(k))**exp_G09b)  ! G09b
+              lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
+            endif ! l_mur_cst
+          endif !  l_sb_classic
+        endif ! q_hr_mask
+      else !  l_sb
+        if (q_hr_mask.and.n_hr.gt.0.) then
+          x_hr = q_hr/(n_hr+eps0)
           ! TODO: limit x_hr?
-          Dvr  (i,j,k) = (x_hr(i,j,k)/pirhow)**(1./3.)
-          !
-          D_hr(i,j,k) = a_hr *x_hr(i,j,k)**b_hr
-          v_hr(i,j,k) = al_hr*x_hr(i,j,k)**be_hr*(rho0s/rhof(k))**ga_hr
+          Dvr = (x_hr/pirhow)**(1./3.)
+
+          D_hr = a_hr *x_hr**b_hr
+          v_hr = al_hr*x_hr**be_hr*(rho0s/rhof(k))**ga_hr
         endif
-      enddo
-      enddo
-      enddo
-    endif ! l_sb
-  endif   ! l_rain
+      endif ! l_sb
+    endif   ! l_rain
 
-  ! cloud water
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    if (q_cl_mask(i,j,k)) then
-      x_cl (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0)
-      ! xc (i,j,k) = q_cl(i,j,k)/(n_cl(i,j,k)+eps0)
-      xc (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! to ensure x is within borders
-      x_cl (i,j,k) = min(max(x_cl(i,j,k),x_cl_bmin),x_cl_bmax) ! as well - to limit extrme autoconversion
-      !
-      D_cl(i,j,k) = a_cl *x_cl(i,j,k)**b_cl
-      v_cl(i,j,k) = al_cl*x_cl(i,j,k)**be_cl*(rho0s/rhof(k))**ga_cl
+    ! cloud water
+    if (q_cl_mask) then
+      x_cl = q_cl/(n_cl+eps0)
+      ! xc = q_cl/(n_cl+eps0)
+      xc   = min(max(x_cl,x_cl_bmin),x_cl_bmax) ! to ensure x is within borders
+      x_cl = min(max(x_cl,x_cl_bmin),x_cl_bmax) ! as well - to limit extrme autoconversion
+
+      D_cl = a_cl *x_cl**b_cl
+      v_cl = al_cl*x_cl**be_cl*(rho0s/rhof(k))**ga_cl
+    endif
+
+    ! cloud ice
+    if (q_ci_mask) then
+      x_ci = q_ci/(n_ci+eps0)
+      x_ci = min(max(x_ci,x_ci_bmin),x_ci_bmax) ! to ensure x is within borders
+
+      D_ci = a_ci *x_ci**b_ci
+      v_ci = al_ci*x_ci**be_ci*(rho0s/rhof(k))**ga_ci
+    endif
+
+    ! snow
+    if (q_hs_mask) then
+      x_hs = q_hs/(n_hs+eps0)
+      x_hs = min(max(x_hs,x_hs_bmin),x_hs_bmax) ! to ensure x is within borders
+
+      D_hs = a_hs *x_hs**b_hs
+      v_hs = al_hs*x_hs**be_hs*(rho0s/rhof(k))**ga_hs
+    endif
+
+    ! graupel
+    if (q_hg_mask) then
+      x_hg = q_hg/(n_hg+eps0)
+      x_hg = min(max(x_hg,x_hg_bmin),x_hg_bmax) ! to ensure x is within borders
+
+      D_hg = a_hg *x_hg**b_hg
+      v_hg = al_hg*x_hg**be_hg*(rho0s/rhof(k))**ga_hg
     endif
   enddo
   enddo
   enddo
-
-  ! cloud ice
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    if (q_ci_mask(i,j,k)) then
-      x_ci (i,j,k) = q_ci(i,j,k)/(n_ci(i,j,k)+eps0)
-      x_ci (i,j,k) = min(max(x_ci(i,j,k),x_ci_bmin),x_ci_bmax) ! to ensure x is within borders
-      !
-      D_ci(i,j,k) = a_ci *x_ci(i,j,k)**b_ci
-      v_ci(i,j,k) = al_ci*x_ci(i,j,k)**be_ci*(rho0s/rhof(k))**ga_ci
-    endif
-  enddo
-  enddo
-  enddo
-
-  ! snow
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    if (q_hs_mask(i,j,k)) then
-      x_hs (i,j,k) = q_hs(i,j,k)/(n_hs(i,j,k)+eps0)
-      x_hs (i,j,k) = min(max(x_hs(i,j,k),x_hs_bmin),x_hs_bmax) ! to ensure x is within borders
-      !
-      D_hs(i,j,k) = a_hs *x_hs(i,j,k)**b_hs
-      v_hs(i,j,k) = al_hs*x_hs(i,j,k)**be_hs*(rho0s/rhof(k))**ga_hs
-    endif
-  enddo
-  enddo
-  enddo
-
-  ! graupel
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    if (q_hg_mask(i,j,k)) then
-      x_hg (i,j,k) = q_hg(i,j,k)/(n_hg(i,j,k)+eps0)
-      x_hg (i,j,k) = min(max(x_hg(i,j,k),x_hg_bmin),x_hg_bmax) ! to ensure x is within borders
-      !
-      D_hg(i,j,k) = a_hg *x_hg(i,j,k)**b_hg
-      v_hg(i,j,k) = al_hg*x_hg(i,j,k)**be_hg*(rho0s/rhof(k))**ga_hg
-    endif
-  enddo
-  enddo
-  enddo
-
-  deallocate ( N_r0, lbdr_try)
-
 end subroutine integrals_bulk3
 
 
