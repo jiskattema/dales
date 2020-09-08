@@ -999,8 +999,7 @@ module modbulkmicro3
   ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
   !*********************************************************************
     call integrals_bulk3
-    call nucleation3      ! cloud nucleation  !jja w0(:,:,k:k+1) sv0(:,:,k:k+1,iq_cl)
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'nuclea.')! #d
+    call nucleation3      ! cloud nucleation
     call icenucle3        ! ice nucleation  ! #Bb ! #iceout
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'ice nuc')! #d
 
@@ -1628,7 +1627,7 @@ subroutine satadj3
             !    + condesable water available
             !    - already condensed
             !    - newly condendsed
-            !      ( {change in cloud water} = {newly condendsed or deposited} +
+            !      ( {change in cloud water} = {newly condendsed or deposited}
             !                                         {removed by cloud processes}  )
             !      ( - {newly condendsed or deposited} =
             !          - ({change in liquid cloud water}+{change in ice cloud water})
@@ -2388,165 +2387,99 @@ end subroutine cor_nucl3
 
 
 ! ****************************************************************
-!  Ice nucleation
-! - based on Seifert & Beheng (2003), p. 53
-!  ************************************************************
+! Ice nucleation
+!  - based on Seifert & Beheng (2003), p. 53
+! ****************************************************************
 subroutine icenucle3
-  use modglobal, only : dzf,i1,j1,k1,ih,jh,kmax,rlv,cp
-  use modfields, only : w0, rhof,exnf, qvsi, qt0, ql0, svm, sv0,tmp0   ! <- later remove svm, sv0 - just for testing
+  use modglobal, only : i1,j1,k1,kmax,cp
+  use modfields, only : rhof,exnf,qvsi,qt0,svm,tmp0   ! <- later remove svm - just for testing
   implicit none
 
   integer :: i,j,k
 
-  ! allocatable varibles - supersaturation, derivation of supersaturation
-  real, allocatable :: ssice(:,:,:) !,  dn_ci_inu(:,:,:)
-  real:: n_in,  n_tid, dq_inuc
+  real :: ssice
+  real::  n_in,n_tid
 
-  ! preparing constant values
-  ! rlfcp = rlfr/cp
-
-   allocate( ssice (2-ih:i1+ih,2-jh:j1+jh,k1) ) !
-
-   ssice = 0.0 ! not always how supersaturated is water vapour,
-               ! depending on a flag,  it can also include water already in ice particles
+  ! not always how supersaturated is water vapour, depending on a flag,
+  ! it can also include water already in ice particles
+  ssice = 0.0
 
   dn_ci_inu = 0.0
 
-  ! calculate supersaturation with respect to ice
-  if (l_sb_inuc_sat) then  ! l_sb_inuc_sat
-    ! calculating supersaturation of water vapour only
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-       ! calculating supersaturation
-       ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0
-       ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k) -1.0)
-    enddo
-    enddo
-    enddo
-  else  ! l_sb_inuc_sat
-    ! ie. cloud ice water is also included supersaturation
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! calculating supersaturation
-      ssice(i,j,k) = (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0
-      ! ssice(i,j,k) = max(0.0, (qt0(i,j,k)-q_cl(i,j,k)+q_ci(i,j,k))/qvsi(i,j,k) -1.0)
-    enddo
-    enddo
-    enddo
-  endif   ! l_sb_inuc_sat
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    ! NOTE: not using qcmask condition, since air can be saturated with respect to ice
+    if (tmp0(i,j,k).lt.tmp_inuc) then
 
-  ! loops to calculate ice nucleation
-  if (l_sb_inuc_expl) then ! l_sb_inuc_expl
-    ! explicit ice nucleation - not yet included
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! -> add later
-      !dn_ci_inu(i,j,k) =
-    enddo
-    enddo
-    enddo
-  else  ! l_sb_inuc_expl
-    if (l_sb_reisner) then ! whether to apply reisnerr correction
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        ! not using qcmask condition, since air can be saturated with respect to ice
-        if((tmp0(i,j,k).lt.tmp_inuc).and.(ssice(i,j,k).gt.ssice_min)) then
-          ! if conditions for nucleation, calculate it
+      ! calculate supersaturation with respect to ice
+      if (l_sb_inuc_sat) then  ! l_sb_inuc_sat
+        ! calculating supersaturation of water vapour only
+        ssice = (qt0(i,j,k)-q_cl/qvsi(i,j,k) -1.0
+        ! ssice = max(0.0, (qt0(i,j,k)-q_cl)/qvsi(i,j,k) -1.0)
+      else  ! l_sb_inuc_sat
+        ! ie. cloud ice water is also included supersaturation
+        ssice = (qt0(i,j,k)-q_cl+q_ci)/qvsi(i,j,k) -1.0
+        ! ssice = max(0.0, (qt0(i,j,k)-q_cl+q_ci)/qvsi(i,j,k) -1.0)
+      endif ! l_sb_inuc_sat
+
+      if (ssice.gt.ssice_min) then ! condition for nucleation
+        if (l_sb_inuc_expl) then ! l_sb_inuc_expl
+          ! explicit ice nucleation - not yet included
+          dn_ci_inu = 0. ! BUG: should give not-implemented error
+        else  ! l_sb_inuc_expl
           ! Meyers et al. (1992)
           n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
-                +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
+              +b_M92*min(ssice,ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice)
 
-          ! prepare Reisnerr (1998) correction
-          ! w: n_tid = (1.0/rhof(k))*N_inuc_R*exp( - min(tmp0(i,j,k),c_inuc_R)-T_3)
-          n_tid = (1.0/rhof(k))*N_inuc_R*exp(b_inuc_R*(T_3- max(tmp0(i,j,k),c_inuc_R)))
+          ! whether to apply reisnerr correction
+          if (l_sb_reisner) then
+            ! prepare Reisnerr (1998) correction
+            ! w: n_tid = (1.0/rhof(k))*N_inuc_R*exp( - min(tmp0(i,j,k),c_inuc_R)-T_3)
+            n_tid = (1.0/rhof(k))*N_inuc_R*exp(b_inuc_R*(T_3- max(tmp0(i,j,k),c_inuc_R)))
 
-          ! performing reisner correction
-          n_in = max(a1_inuc_R*n_tid,min(a2_inuc_R*n_tid,n_in))
+            ! performing reisner correction
+            n_in = max(a1_inuc_R*n_tid,min(a2_inuc_R*n_tid,n_in))
+          endif ! l_sb_reisner
 
           ! limiting n_in
           n_in = min(n_i_max, n_in)
 
           ! checking conditions if suitable for nucleation
-          if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
-            dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k))/delt
+          if (n_ci.lt.n_in) then ! condition intentionally left this way
+            dn_ci_inu = (n_in-n_ci)/delt
           else
-            dn_ci_inu(i,j,k) = 0.0
+            dn_ci_inu = 0.0
             ! note - written this way on purpose
             ! in case of further adjustment of nucleation subroutine
           endif
-        endif
+        endif ! l_sb_inuc_expl
 
-        ! basic correction
-        n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
-
-        ! update water density [kg kg^{-1}]
-        q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
-
-        ! update liquid water potential temperature
-        !  - due to latent heat of melting (freezing in this case)
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
-      enddo
-      enddo
-      enddo
-    else !l_sb_reisner
-      ! i.e. when not applying reisnerr correction
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        ! not using qcmask condition,
-        ! since air can be saturated with respect to ice
-        if((tmp0(i,j,k).lt.tmp_inuc).and.(ssice(i,j,k).gt.ssice_min)) then
-          ! if conditions for nucleation, calculate it
-          ! Meyers et al. (1992)
-          n_in = (1.0/rhof(k))*N_inuc*exp( a_M92              &
-                +b_M92*min(ssice(i,j,k),ssice_lim))! o: N_inuc*exp( a_M92 + b_M92*ssice(i,j,k) )
-          ! limiting n_in
-          n_in = min(n_i_max, n_in)
-          ! checking conditions if suitable for nucleation
-          if (n_ci(i,j,k).lt.n_in) then ! condition intentionally left this way
-            dn_ci_inu(i,j,k) = (n_in-n_ci(i,j,k) )/delt
-          else
-            dn_ci_inu(i,j,k) = 0.0
-            ! note - written this way on purpose
-            ! in case of further adjustment of nucleation subroutine
-          endif
-        endif
         ! basic correction  - not suitable
 
-        ! update water numbers and
-        n_cip(i,j,k) = n_cip(i,j,k)+dn_ci_inu(i,j,k)  ! increase in cloud water number
-
-        ! no change n_ccp #inp
+        ! update cloud water number
+        n_cip = n_cip + dn_ci_inu
 
         ! update water density [kg kg^{-1}]
-        q_cip (i,j,k) = q_cip (i,j,k) + x_inuc*dn_ci_inu(i,j,k)
+        q_cip = q_cip + x_inuc*dn_ci_inu
 
         ! update liquid water potential temperature
         !  - due to latent heat of melting (freezing in this case)
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu(i,j,k)  ! #iceout
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu(i,j,k)
-      enddo
-      enddo
-      enddo
-    endif !l_sb_reisner
-  endif  ! l_sb_inuc_expl
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - x_inuc*dn_ci_inu
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*x_inuc*dn_ci_inu
 
-  if (l_sb_dbg) then
-    if (any((ssice(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)) then
-      write(6,*) 'WARNING: high ice nucleation'
-      write(6,*) ' removing too much water in gridpoints ',count((ssice(i,j,k).gt.0.0).and.   &
-        ((qt0(2:i1,2:j1,1:kmax)-qvsi(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_inuc*dn_ci_inu(2:i1,2:j1,1:k1)).lt. 0.)
-    endif
-  endif
-
-  ! deallocation
-  deallocate ( ssice )
-
+        if (l_sb_dbg) then
+          if ((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci))/delt - x_inuc*dn_ci_inu.lt. 0.) then
+            write(6,*) 'WARNING: high ice nucleation'
+            write(6,*) ' removing too much water'
+            ! count((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci))/delt - x_inuc*dn_ci_inu.lt. 0.)
+          endif
+        endif ! l_sb_dbg
+      endif ! ssice.gt.ssice_min
+    endif ! tmp0(i,j,k).lt.tmp_inuc
+  enddo
+  enddo
+  enddo
 end subroutine icenucle3
 
 
