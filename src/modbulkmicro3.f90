@@ -5111,41 +5111,40 @@ end subroutine hallet_mossop3
 !
 !   - to be later replaced based on advance literature
 ! ***************************************************************
-    subroutine recover_cc
+subroutine recover_cc
+  use modglobal, only : ih,i1,j1,k1
+  implicit none
 
-    use modglobal, only : ih,i1,j1,k1  ! ,jh,rv,rd, rlv,cp,pi,rhow
-    ! use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,qvsi,rhof,exnf,presf
-    implicit none
-    integer :: i,j,k
+  integer :: i,j,k
 
-    ! allocations
+  !   - to be later replaced based on advance literature
+  !
+  !   - so far just and easy recovery
+  !     of ccn based on number of water particles that evaporated, sublimated
+  !     or got removed with remaining positive n_
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if(.not.(l_c_ccn)) then ! ie. no change if constant ccn
+        ! decrease in total amount of potential CCN
+        n_ccp = n_ccp    &
+              + dn_cl_sc &
+              + dn_cl_se &
+              + dn_cl_au &
+              + dn_cl_ac &
+              + dn_cl_hom  &
+              + dn_cl_het  &
+              + dn_cl_rime_ci &
+              + dn_cl_rime_hs &
+              + dn_cl_rime_hg
 
-    !   - to be later replaced based on advance literature
-    !
-    !   - so far just and easy recovery
-    !     of ccn based on number of water particles that evaporated, sublimated
-    !     or got removed with remaining positive n_
-    if(.not.(l_c_ccn)) then ! ie. no change if l_c_ccn
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-      ! decrease in total amount of potential CCN
-      ! decrease by cloud processes:
-      !   self-collection, sedim, precip, riming
-      n_ccp(i,j,k)=n_ccp(i,j,k)+dn_cl_sc(i,j,k)+dn_cl_se(i,j,k)+   &
-        dn_cl_au(i,j,k)+dn_cl_ac(i,j,k)+                           &
-        dn_cl_hom(i,j,k)+dn_cl_het(i,j,k)+                         &
-        dn_cl_rime_ci(i,j,k)+dn_cl_rime_hs(i,j,k)+dn_cl_rime_hg(i,j,k)
-      ! recovery of potential CCN
-      n_ccp (i,j,k) = n_ccp (i,j,k)+c_rec_cc*ret_cc(i,j,k)
-     enddo
-     enddo
-     enddo
+        ! recovery of potential CCN
+        n_ccp = n_ccp + c_rec_cc*ret_cc
     endif
-
-    !deallocations
-
-    end subroutine recover_cc
+  enddo
+  enddo
+  enddo
+end subroutine recover_cc
 
 
 ! ****************************************
