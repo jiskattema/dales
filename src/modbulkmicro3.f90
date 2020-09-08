@@ -1057,7 +1057,6 @@ module modbulkmicro3
     call autoconversion3
     call cloud_self3
     call accretion3
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'accret.')! #d
 
     call evap_rain3 ! rain evaporation
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'evap_r.')! #d
@@ -3576,92 +3575,74 @@ end subroutine icenucle3
   end subroutine sedim_cl3
 
 
-  subroutine evap_rain3
-  !*********************************************************************
-  ! Evaporation of prec. : Seifert & Beheng
-  ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
-  !*********************************************************************
+!*********************************************************************
+! Evaporation of prec. : Seifert & Beheng
+! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
+!*********************************************************************
+subroutine evap_rain3
+  use modglobal, only : i1,j1,k1,rv,rlv,cp,pi
+  use modfields, only : exnf,qt0,svm,qvsl,tmp0,rhof
+  implicit none
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
-    implicit none
-    integer :: i,j,k
-    real, allocatable, dimension(:,:,:) :: f0,f1,S,G,vihr,nrex, x_hrf
-    integer :: numel
+  integer :: i,j,k
 
-    allocate(  f0(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! ventilation factor - moment 0
-              ,f1(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! ventilation factor - moment 1
-              ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
-              ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-              ,vihr(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! mean terminal velocity
-              ,nrex(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! Reynolds number N_re(xr)
-              ,x_hrf(2-ih:i1+ih,2-jh:j1+jh,k1) & ! full x_hr without bounds
-             )
+  real :: f0    & ! ventilation factor - moment 0
+         ,f1    & ! ventilation factor - moment 1
+         ,S     & ! super or undersaturation
+         ,G     & ! cond/evap rate of a drop
+         ,vihr  & ! mean terminal velocity
+         ,nrex  & ! Reynolds number N_re(xr)
+         ,x_hrf   ! full x_hr without bounds
 
-    S = 0.0
-    f0 = 0.0
-    f1 = 0.0
-    G = 0.0
-    vihr = 0.0
-    nrex = 0.0
-    x_hrf= 0.0
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hr_mask) then
+      ! adjusting the calculation for saturation
+      S = min(0.,((qt0(i,j,k)-q_cl)/qvsl(i,j,k)- 1.0))
+      G = (rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) &
+        + rlv/(Kt*tmp0(i,j,k))*(rlv/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
 
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      if (q_hr_mask(i,j,k)) then
-        ! adjusting the calculation for saturation
-        S (i,j,k) = min(0.,((qt0(i,j,k)-q_cl(i,j,k))/qvsl(i,j,k)- 1.0))
-        G   (i,j,k) = (rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(rv*tmp0(i,j,k)) -1.)
-        G   (i,j,k) = 1./G(i,j,k)
+      ! terminal velocity  (from mixed scheme)
+      ! xr in this calculation !!
+      vihr = al_hr*((rho0s/rhof(k))**0.5)*x_hr(i,j,k)**be_hr
 
-        ! terminal velocity  (from mixed scheme)
-        vihr(i,j,k) = al_hr*((rho0s/rhof(k))**0.5)*x_hr(i,j,k)**be_hr  ! xr in this calculation !!
+      ! calculating  N_re Reynolds number
+      nrex = Dvr*vihr/nu_a
+      x_hrf = q_hr/(n_hr+eps0)
 
-        ! calculating  N_re Reynolds number
-        nrex(i,j,k) = Dvr(i,j,k)*vihr(i,j,k)/nu_a
-        x_hrf(i,j,k) = q_hr(i,j,k)/(n_hr(i,j,k)+eps0)
+      f0 = aven_0r+bven_0r*Sc_num**(1.0/3.0)*nrex**0.5
+      f1 = aven_1r+bven_1r*Sc_num**(1.0/3.0)*nrex**0.5
+      f0 = max(0.0,f0)
 
-        f0(i,j,k) = aven_0r+bven_0r*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
-        f1(i,j,k) = aven_1r+bven_1r*Sc_num**(1.0/3.0)*nrex(i,j,k)**0.5
-        f0(i,j,k) = max(0.0,f0(i,j,k))
+      dq_hr_ev = 2*pi*n_hr*G*Dvr*f1*S
 
-        dq_hr_ev(i,j,k) = 2*pi*n_hr(i,j,k)*G(i,j,k)*  &
-             Dvr(i,j,k)*f1(i,j,k)*S(i,j,k)
+      dn_hr_ev = 2*pi*n_hr*G*Dvr*f0*S/x_hrf ! x_hr here, not xr
 
-        dn_hr_ev(i,j,k) = 2*pi*n_hr(i,j,k)*G(i,j,k)* &
-             Dvr(i,j,k)*f0(i,j,k)*S(i,j,k)/x_hrf(i,j,k) ! x_hr here, not xr
+      ! and limiting it
+      dn_hr_ev = min(dn_hr_ev, 0.0)
+      dn_hr_ev = max(dn_hr_ev,dq_hr_ev/x_hrf)
 
-        ! and limiting it
-        dn_hr_ev(i,j,k) = min(dn_hr_ev(i,j,k), 0.0)
-        dn_hr_ev(i,j,k) = max(dn_hr_ev(i,j,k),dq_hr_ev(i,j,k)/x_hrf(i,j,k))
-
-        if (((dq_hr_ev(i,j,k) +svm(i,j,k,iq_hr)/delt).lt.0).or.((dn_hr_ev(i,j,k) +svm(i,j,k,in_hr)/delt).lt.0)) then
-          dn_hr_ev(i,j,k) = - svm(i,j,k,in_hr)/delt
-          dq_hr_ev(i,j,k) = - svm(i,j,k,iq_hr)/delt
-        endif
+      if ((dq_hr_ev+svm(i,j,k,iq_hr)/delt.lt.0).or.&
+          (dn_hr_ev+svm(i,j,k,in_hr)/delt.lt.0)) then
+        dn_hr_ev = - svm(i,j,k,in_hr)/delt
+        dq_hr_ev = - svm(i,j,k,iq_hr)/delt
       endif
-    enddo
-    enddo
-    enddo
 
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      q_hrp(i,j,k) = q_hrp(i,j,k) + dq_hr_ev(i,j,k)
-      n_hrp(i,j,k) = n_hrp(i,j,k) + dn_hr_ev(i,j,k)
-      qtpmcr(i,j,k)  = qtpmcr(i,j,k) -dq_hr_ev(i,j,k)
-      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ev(i,j,k)
+      q_hrp = q_hrp + dq_hr_ev
+      n_hrp = n_hrp + dn_hr_ev
+      qtpmcr(i,j,k)  = qtpmcr(i,j,k) -dq_hr_ev
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*dq_hr_ev
 
       ! recovery of aerosols ?
-      ret_cc(i,j,k) = ret_cc(i,j,k) - c_ccn_ev_r*min(0.0,dn_hr_ev(i,j,k))
-    enddo
-    enddo
-    enddo
+      ret_cc = ret_cc - c_ccn_ev_r*min(0.0,dn_hr_ev)
 
-    deallocate (f0, f1 ,S,G, vihr, nrex,x_hrf)
-
-  end subroutine evap_rain3
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine evap_rain3
 
 ! ****************************************
 ! Depositional growth of cloud ice particles
