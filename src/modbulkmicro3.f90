@@ -1057,9 +1057,7 @@ module modbulkmicro3
     call autoconversion3
     call cloud_self3
     call accretion3
-
     call evap_rain3 ! rain evaporation
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'evap_r.')! #d
 
     ! =============================
     ! saturation adjustment
@@ -1525,7 +1523,7 @@ end subroutine initccn3
 !
 subroutine satadj3
   use modglobal, only : ih,i1,jh,j1,k1,kmax
-  use modfields, only : rhof, qt0, svm, svp, qvsl
+  use modfields, only : rhof,qt0,svm,svp,qvsl
   implicit none
 
   integer :: i,j,k
@@ -1536,12 +1534,12 @@ subroutine satadj3
   dn_cl_sa = 0.0
 
   ! calculation
-  if (l_sb_all_or) then
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (l_sb_all_or) then
       ! note: threshold might be lower then threshold for cloud computations, obviously
-      ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt
+      ntest=svm(i,j,k,in_cl)+n_clp*delt
       if (ntest.gt.0.0) then
         !
         ! remaining water =
@@ -1551,25 +1549,19 @@ subroutine satadj3
         !    - removed by mphys processed
         !
         !  calculating amount of available water
-        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
-        dq_cl_sa(i,j,k) = ql_res/delt
-        if ((svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k))).lt.0.0) then
-          dn_cl_sa(i,j,k) = -svm(i,j,k,in_cl)/delt-n_clp(i,j,k)
-          dq_cl_sa(i,j,k) = -svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)
+        ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp)
+        dq_cl_sa = ql_res/delt
+        if ((svm(i,j,k,iq_cl)+delt*(q_clp+dq_cl_sa)).lt.0.0) then
+          dn_cl_sa = -svm(i,j,k,in_cl)/delt-n_clp
+          dq_cl_sa = -svm(i,j,k,iq_cl)/delt-q_clp
         endif
       endif
-    enddo
-    enddo
-    enddo
-  else ! l_sb_all_or
-    if (l_sb_dumpall) then
-      ! dump all water
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
+    else ! l_sb_all_or
+      if (l_sb_dumpall) then
+        ! dump all water
         ! note: threshold might be lower then threshold for cloud computations, obviously
-        if (q_cl_mask(i,j,k)) then
-          ntest= svm(i,j,k,in_cl)+n_clp(i,j,k)*delt ! #t1
+        if (q_cl_mask) then
+          ntest = svm(i,j,k,in_cl)+n_clp*delt ! #t1
           if (ntest.gt.0.0) then
             !
             ! remaining water =
@@ -1580,61 +1572,55 @@ subroutine satadj3
             !
 
             !  calculating amount of available water
-            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
+            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp)
 
             ! limiting so it does not remove more water than in clouds
-            dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),ql_res/delt)
+            dq_cl_sa = max((-svm(i,j,k,iq_cl)/delt)-q_clp,ql_res/delt)
 
             ! adjusting number of cloud droplets
             ! - calculate min size with this amount of water
-            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.1*x_cl_bmin)
+            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp+dq_cl_sa))/(0.1*x_cl_bmin)
             n_bmax = max(n_bmax, 0.0)
 
             ! of course we do not want negative values - but that is alread sorted above
             ! - remove droplets so that mean size in not less than
-            dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
+            dn_cl_sa = min(0.0, n_bmax-ntest)/delt
 
             ! limit change so not in negative numbers
-            dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
+            dn_cl_sa = max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp,dn_cl_sa)
           endif
         endif
-      enddo
-      enddo
-      enddo
-    else ! l_sb_dumpall
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
+      else ! l_sb_dumpall
         ! note: threshold might be lower then threshold for cloud computations, obviously
-        if (q_cl_mask(i,j,k)) then
-          ntest=svm(i,j,k,in_cl)+n_clp(i,j,k)*delt !#t1
+        if (q_cl_mask) then
+          ntest=svm(i,j,k,in_cl)+n_clp*delt !#t1
           if (ntest.gt.0.0) then
             !
             ! and now if we want to enforce limit on cloud droplet size
             !
-            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp(i,j,k))
+            ql_res=(qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl))+delt*(qtpmcr(i,j,k)-q_clp)
 
             ! calculate maximal available update
-            cogr_max =(1.0/delt)*(x_cogr_max*(svm(i,j,k,in_cl)+delt*n_clp(i,j,k))-svm(i,j,k,iq_cl))
+            cogr_max =(1.0/delt)*(x_cogr_max*(svm(i,j,k,in_cl)+delt*n_clp)-svm(i,j,k,iq_cl))
 
             ! dump just what is below max size by condensation growth
-            dq_cl_sa(i,j,k) = min(cogr_max-q_clp(i,j,k),ql_res/delt)
+            dq_cl_sa = min(cogr_max-q_clp,ql_res/delt)
 
             ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max
             ! other possibility: require it to be larger than 0
             ! and prevent negative values of svm + delt *svp
-            dq_cl_sa(i,j,k) = max((-svm(i,j,k,iq_cl)/delt)-q_clp(i,j,k),dq_cl_sa(i,j,k))
+            dq_cl_sa = max((-svm(i,j,k,iq_cl)/delt)-q_clp,dq_cl_sa)
 
             ! adjusting number of cloud droplets
             ! - calculate min size with this amount of water
-            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp(i,j,k)+dq_cl_sa(i,j,k)))/(0.5*x_cl_bmin)
+            n_bmax = (svm(i,j,k,iq_cl)+delt*(q_clp+dq_cl_sa))/(0.5*x_cl_bmin)
             n_bmax = max(n_bmax, 0.0)
 
             ! - remove droplets so that mean size in not by order of magnitude less than x_cl_bmin
-            dn_cl_sa(i,j,k) = min(0.0, n_bmax-ntest)/delt
+            dn_cl_sa = min(0.0, n_bmax-ntest)/delt
 
             ! limit change so not in negative numbers
-            dn_cl_sa(i,j,k)=max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp(i,j,k),dn_cl_sa(i,j,k))
+            dn_cl_sa = max((-svm(i,j,k,in_cl)/delt)-svp(i,j,k,in_cl)-n_clp,dn_cl_sa)
 
             !-------------------------------------
             !! cloud water mixing ratio
@@ -1643,7 +1629,8 @@ subroutine satadj3
             !    + condesable water available
             !    - already condensed
             !    - newly condendsed
-            !      ( {change in cloud water} = {newly condendsed or deposited} + {removed by cloud processes}  )
+            !      ( {change in cloud water} = {newly condendsed or deposited} +
+            !                                         {removed by cloud processes}  )
             !      ( - {newly condendsed or deposited} =
             !          - ({change in liquid cloud water}+{change in ice cloud water})
             !          + {removed by cloud processes}
@@ -1651,18 +1638,12 @@ subroutine satadj3
             ! -----------------------------
           endif
         endif
-      enddo
-      enddo
-      enddo
-    endif
-  endif ! l_sb_all_or
+      endif
+    endif ! l_sb_all_or
 
-  ! and update
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    q_clp(i,j,k)  = q_clp(i,j,k) + dq_cl_sa(i,j,k)
-    n_clp(i,j,k)  = n_clp(i,j,k) + dn_cl_sa(i,j,k)
+    ! and update
+    q_clp  = q_clp + dq_cl_sa
+    n_clp  = n_clp + dn_cl_sa
   enddo
   enddo
   enddo
