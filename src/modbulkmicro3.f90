@@ -999,7 +999,6 @@ module modbulkmicro3
   ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
   !*********************************************************************
     call integrals_bulk3
-    if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'before.')! #d
     call nucleation3      ! cloud nucleation  !jja w0(:,:,k:k+1) sv0(:,:,k:k+1,iq_cl)
     if(l_sb_dbg_extra) call check_nan(flag_do_dbg,flag_nan,'nuclea.')! #d
     call icenucle3        ! ice nucleation  ! #Bb ! #iceout
@@ -2098,309 +2097,212 @@ end subroutine cloud_self3
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
 subroutine nucleation3
-  use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv,cp
-  use modfields, only : w0, rhof,exnf, qvsl, qt0,ql0,svm
-  use modmpi,    only : myid
-
+  use modglobal, only : dzf,i1,j1,k1
+  use modfields, only : w0,rhof,qvsl,qt0,svm
   implicit none
+
   integer :: i,j,k
   real  :: coef_ccn, n_act
 
-  ! allocatable variables - supersaturation, derivation of supersaturation
-  real, allocatable :: ssat(:,:,:), wdssatdz(:,:,:) !, dn_cl_nu(:,:,:)
+  ! note that supersaturation is
+  ! not always how supersaturated is water vapour,
+  ! depending on a flag, it can also include water already in droplets
+  real :: ssat_u    ! supersaturation at (...,k+1)
+         ,ssat      !                 at (...,k)
+         ,ssat_d    !                 at (...,k-1)
+         ,wdssatdz  ! derivation of supersaturation
 
-  ! allocate
-  allocate(  ssat (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-            ,wdssatdz (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-           )
-
-  ssat = 0.0  ! note that supersaturation is
-              ! not always how supersaturated is water vapour,
-              ! depending on a flag, it can also include water already in droplets
-
-  wdssatdz = 0.0
   dn_cl_nu = 0.0
+
   coef_ccn  = 1.0/sat_max**kappa_ccn ! 1.0
   ! allows to keep both definitions consistent
 
-  ! calculating supersaturation:
-  if (l_sb_nuc_sat) then
-    ! loops to determine supersaturation
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! calculating supersaturation of water vapour only
-      ssat(i,j,k)=(100./qvsl(i,j,k))*(qt0(i,j,k)-q_cl(i,j,k)-qvsl(i,j,k))
-    enddo
-    enddo
-    enddo
-  else ! l_sb_nuc_sat
-    ! ie. cloud liquid water is also included supersaturation
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ssat(i,j,k) = (100./qvsl(i,j,k))*(qt0(i,j,k)-qvsl(i,j,k))
-    enddo
-    enddo
-    enddo
-  endif ! l_sb_nuc_sat
-
-  if (l_sb_nuc_expl.and.l_sb_nuc_diff) then
-    ! calculating the derivation - second order estimation?
-    ! ? add switches for different derivation calculation? - so first the firt order only
-    ! option A: central differences lax
-    do k=2,k1-1
-    do j=2,j1
-    do i=2,i1
-      ! if in cloud
-      if ( ssat(i,j,k).gt.0.0 ) then
-        ! calculating the derivation
-        wdssatdz(i,j,k) = 0.5*(w0(i,j,k+1)+ w0(i,j,k))*(ssat(i,j,k+1)-ssat(i,j,k-1))/(dzf(k)+dzf(k-1))
-      endif
-    enddo
-    enddo
-    enddo
-
-    ! now for separate cases k=1 and k = k1
-    k=1
-    do j=2,j1
-    do i=2,i1
-      if (ssat(i,j,k).gt.0.0) then
-        ! just an approximation - same as for the second level
-        wdssatdz(i,j,k) = wdssatdz(i,j,k+1)  ! or 0 to prevent condensation there
-      endif
-    enddo
-    enddo
-
-    k=k1
-    do j=2,j1
-    do i=2,i1
-      if (ssat(i,j,k).gt.0.0) then
-        ! first order approximation of the difference
-        wdssatdz(i,j,k) = w0(i,j,k)* (ssat(i,j,k)-ssat(i,j,k-1)) /dzf(k-1)
-      endif
-    enddo
-    enddo
-  endif ! l_sb_nuc_expl.and.l_sb_nuc_diff
-
-  ! calculation of explicit nucleation
-  if (l_sb_nuc_expl) then
-    if (l_c_ccn) then ! c_ccn is constant
-      if (l_sb_nuc_diff) then
-        if (l_sb_sat_max) then
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if(ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
-                dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-                ! note - written this way on purpose
-                ! in case of further adjustment of nucleation subroutin
-              endif
-              ! basic limiting
-              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-            endif
-          enddo
-          enddo
-          enddo
-        else ! NOT l_sb_sat_max  AND l_sb_nuc_diff
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if( ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if (wdssatdz(i,j,k).gt.0.0) then
-                dn_cl_nu(i,j,k)=c_ccn*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-                ! note - written this way on purpose
-                ! in case of further adjustment of nucleation subroutin
-                ! basic limiting
-                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-              endif
-            endif
-          enddo
-          enddo
-          enddo
-        endif   ! l_sb_sat_max
-      else ! NOT l_sb_nuc_diff
-        if (l_sb_sat_max)  then ! l_sb_sat_max AND NOT l_sb_nuc_diff
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if(ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
-                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
-                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-               endif
-               ! basic limiting
-               dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-            endif
-          enddo
-          enddo
-          enddo
-        else ! NOT l_sb_sat_max AND NOT l_sb_nuc_diff
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if( ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if (w0(i,j,k).gt.0.0) then
-                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              if (w0(i,j,k+1).lt.0.0) then
-                dn_cl_nu(i,j,k)=(c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              ! basic limiting
-              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_clmax -n_cl(i,j,k))/delt))
-            endif
-          enddo
-          enddo
-          enddo
-        endif
-      endif  ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
-    else ! l_c_ccn, ie. c_ccn is not constant, bun dependent on n_cc
-      if (l_sb_nuc_diff) then   ! l_sb_nuc_diff
-        if (l_sb_sat_max ) then ! l_sb_sat_max
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if( ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if ((ssat(i,j,k).lt.sat_max).and.(wdssatdz(i,j,k).gt.0.0)) then
-                dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-                ! basic limiting
-                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-              endif
-            endif
-          enddo
-          enddo
-          enddo
-        else  ! l_sb_sat_max
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if( ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if (wdssatdz(i,j,k).gt.0.0) then
-                dn_cl_nu(i,j,k)=coef_ccn*n_cc(i,j,k)*kappa_ccn*wdssatdz(i,j,k)*ssat(i,j,k)**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
-                ! basic limiting
-                dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-              endif
-            endif
-          enddo
-          enddo
-          enddo
-        endif  ! l_sb_sat_max
-      else  ! l_sb_nuc_diff
-        if (l_sb_sat_max)  then ! l_sb_sat_max  AND NOT l_sb_nuc_diff
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            ! of course only in cloud
-            if(ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k).gt.0.0)) then
-                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*        &
-                   max(0.0,w0(i,j,k)*                                   &
-                  (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              if ((ssat(i,j,k).lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then
-                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
-                   max(0.0,w0(i,j,k+1)*                                  &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              ! basic limiting
-              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-            endif
-          enddo
-          enddo
-          enddo
-        else ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if(ssat(i,j,k).gt.sat_min) then
-              ! if conditions for nucleation, calculate it
-              if (w0(i,j,k).gt.0.0) then
-                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
-                    max(0.0,w0(i,j,k)*                                   &
-                    (ssat(i,j,k)**kappa_ccn-ssat(i,j,k-1)**kappa_ccn))   ! (1/rhof) *rhof = 1
-              endif
-              if (w0(i,j,k+1).lt.0.0) then
-                dn_cl_nu(i,j,k)=(coef_ccn*n_cc(i,j,k)/dzf(k-1))*         &
-                   max(0.0,w0(i,j,k+1)*                                  &
-                   (ssat(i,j,k)**kappa_ccn-ssat(i,j,k+1)**kappa_ccn))    ! (1/rhof) *rhof = 1
-              endif
-              ! basic limiting
-              dn_cl_nu(i,j,k)=max(0.0,min(dn_cl_nu(i,j,k),(n_cc(i,j,k)-n_cl(i,j,k))/delt))
-            endif
-          enddo
-          enddo
-          enddo
-        endif  ! l_sb_sat_max
-      endif  ! l_sb_nuc_diff
-    endif ! l_c_ccn
-  else ! l_sb_nuc_expl
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! of course only in cloud
-      if( ssat(i,j,k).gt.0.0) then
-        ! calculate number of activated n_ccn
-        n_act = coef_ccn*n_cc(i,j,k)*min(sat_max,ssat(i,j,k))**kappa_ccn
-        n_act = max(n_cc(i,j,k),n_act)
-        !
-        if (n_act.gt.n_cl(i,j,k)) then
-          dn_cl_nu(i,j,k) = (n_act-n_cl(i,j,k))/delt
-        else
-          dn_cl_nu(i,j,k) = 0.0
-        endif
-        ! basic limiting - not needed in this case
-        ! dn_cl_nu(i,j,k)=min(dn_cl_nu(i,j,k), (n_cc(i,j,k)-n_cl(i,j,k))/delt)
-      endif
-    enddo
-    enddo
-    enddo
-  endif ! l_sb_nuc_expl
-
-  ! update itself
   do k=1,k1
   do j=2,j1
   do i=2,i1
-     ! basic limiting
-     n_clp(i,j,k) = n_clp(i,j,k)+dn_cl_nu(i,j,k)  ! increase in cloud water number
+    ! calculating supersaturation
+    ! calculating the derivation - second order estimation?
+    ! ? add switches for different derivation calculation? - so first the first order only
+    ! option A: central differences lax
+    if (l_sb_nuc_sat) then
+      ! calculating supersaturation of water vapour only
+      ! NOTE:  we'll need q_cl at points above and below our gridpoint
+      !        as q_cl = sv0(i,j,k,iq_cl), we use sv0 for those points instead.
+      if (k>1) then
+        ssat_d =(100./qvsl(i,j,k-1))*(qt0(i,j,k-1)-sv0(i,j,k-1,iq_cl)-qvsl(i,j,k-1))
+      endif
+      ssat =(100./qvsl(i,j,k))*(qt0(i,j,k)-q_cl-qvsl(i,j,k))
+      if (k<k1) then
+        ssat_u =(100./qvsl(i,j,k+1))*(qt0(i,j,k+1)-sv0(i,j,k+1,iq_cl)-qvsl(i,j,k+1))
+      else
+        ssat_u == ssat
+      endif
+    else ! l_sb_nuc_sat
+      ! ie. cloud liquid water is also included supersaturation
+      if (k>1) then
+        ssat_d = (100./qvsl(i,j,k-1))*(qt0(i,j,k-1)-qvsl(i,j,k-1))
+      endif
+      ssat = (100./qvsl(i,j,k))*(qt0(i,j,k)-qvsl(i,j,k))
+      if (k<k1) then
+        ssat_u = (100./qvsl(i,j,k+1))*(qt0(i,j,k+1)-qvsl(i,j,k+1))
+      endif
+    endif ! l_sb_nuc_sat
 
-     ! update water density [kg kg^{-1}]
-     q_clp (i,j,k) = q_clp (i,j,k) + x_cnuc*dn_cl_nu(i,j,k)
+    if (ssat.gt.sat_min) then ! only used above this threshold
+      if (k.eq.1) then
+        ! just an approximation - same as for the second level, or 0 to prevent condensation there
+        wdssatdz = w0(i,j,2)*(ssat_u-ssat)/dzf(2)
+        ssat_d = ssat ! BUG: div0? original code went out of array
+      elseif (k.eq.k1) then
+        ! first order approximation of the difference
+        wdssatdz = w0(i,j,k1)*(ssat - ssat_d) / dzf(k1-1)
+        ssat_u = ssat + wdssatdz * dzf(k1) / w0(i,j,k1) ! BUG: div0? original code went out of array
+      else
+        wdssatdz = 0.5*(w0(i,j,k+1)+ w0(i,j,k))*(ssat_u - ssat_d)/(dzf(k)+dzf(k-1))
+      endif
+    endif
+
+    if (l_sb_nuc_expl) then ! calculation of explicit nucleation
+
+      if(ssat.gt.sat_min) then ! of course only in cloud
+
+        if (l_c_ccn) then ! c_ccn is constant
+
+          if (l_sb_nuc_diff) then
+
+            if (l_sb_sat_max) then
+
+              if ((ssat.lt.sat_max).and.(wdssatdz.gt.0.0)) then ! condition for nucleation
+                dn_cl_nu = c_ccn*kappa_ccn*wdssatdz*ssat**(kappa_ccn-1.0) ! (1/rhof) *rhof = 1
+              endif
+
+            else ! NOT l_sb_sat_max  AND l_sb_nuc_diff
+
+              if (wdssatdz.gt.0.0) then ! condition for nucleation
+                dn_cl_nu = c_ccn*kappa_ccn*wdssatdz*ssat**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+              endif
+
+            endif ! l_sb_sat_max
+
+          else ! NOT l_sb_nuc_diff
+
+            if (l_sb_sat_max) then ! l_sb_sat_max AND NOT l_sb_nuc_diff
+
+              if ((ssat.lt.sat_max).and.(w0(i,j,k).gt.0.0)) then ! condition for nucleation
+                dn_cl_nu = (c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
+                   (ssat**kappa_ccn-ssat_d**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if ((ssat.lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then ! condition for nucleation
+                dn_cl_nu = (c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
+                   (ssat**kappa_ccn-ssat_u**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+
+            else ! NOT l_sb_sat_max AND NOT l_sb_nuc_diff
+
+              if (w0(i,j,k).gt.0.0) then ! condition for nucleation
+                dn_cl_nu = (c_ccn/dzf(k-1))*max(0.0,w0(i,j,k)*      &
+                   (ssat**kappa_ccn-ssat_d**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if (w0(i,j,k+1).lt.0.0) then ! condition for nucleation
+                dn_cl_nu = (c_ccn/dzf(k-1))*max(0.0,w0(i,j,k+1)*    &
+                   (ssat**kappa_ccn-ssat_u**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+
+            endif  ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
+
+          endif ! NOT l_sb_nuc_diff
+
+          ! basic limiting
+          dn_cl_nu = max(0.0,min(dn_cl_nu,(n_clmax-n_cl)/delt))
+
+        else ! c_ccn is not constant, but dependent on n_cc
+
+          if (l_sb_nuc_diff) then
+
+            if (l_sb_sat_max) then ! l_sb_sat_max
+
+              if ((ssat.lt.sat_max).and.(wdssatdz.gt.0.0)) then ! condition for nucleation
+                dn_cl_nu = coef_ccn*n_cc*kappa_ccn*wdssatdz*ssat**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+              endif
+
+            else  ! l_sb_sat_max
+
+              if (wdssatdz.gt.0.0) then ! condition for nucleation
+                dn_cl_nu = coef_ccn*n_cc*kappa_ccn*wdssatdz*ssat**(kappa_ccn-1.0)  ! (1/rhof) *rhof = 1
+              endif
+
+            endif  ! l_sb_sat_max
+
+          else  ! l_sb_nuc_diff
+
+            if (l_sb_sat_max)  then ! l_sb_sat_max  AND NOT l_sb_nuc_diff
+
+              if ((ssat.lt.sat_max).and.(w0(i,j,k).gt.0.0)) then ! condition for nucleation
+                dn_cl_nu = (coef_ccn*n_cc/dzf(k-1))*max(0.0,w0(i,j,k)*   &
+                  (ssat**kappa_ccn-ssat_d**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if ((ssat.lt.sat_max).and.(w0(i,j,k+1).lt.0.0)) then ! condition for nucleation
+                dn_cl_nu = (coef_ccn*n_cc/dzf(k-1))*max(0.0,w0(i,j,k+1)* &
+                   (ssat**kappa_ccn-ssat_u**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+
+            else ! NOT l_sb_sat_max  AND NOT l_sb_nuc_diff
+
+              if (w0(i,j,k).gt.0.0) then ! condition for nucleation
+                dn_cl_nu = (coef_ccn*n_cc/dzf(k-1))*max(0.0,w0(i,j,k)*   &
+                    (ssat**kappa_ccn-ssat_d**kappa_ccn))   ! (1/rhof) *rhof = 1
+              endif
+              if (w0(i,j,k+1).lt.0.0) then ! condition for nucleation
+                dn_cl_nu = (coef_ccn*n_cc/dzf(k-1))*max(0.0,w0(i,j,k+1)* &
+                   (ssat**kappa_ccn-ssat_u**kappa_ccn))    ! (1/rhof) *rhof = 1
+              endif
+
+            endif  ! l_sb_sat_max
+
+          endif  ! l_sb_nuc_diff
+
+          ! basic limiting
+          dn_cl_nu = max(0.0,min(dn_cl_nu,(n_cc-n_cl)/delt))
+
+        endif ! l_c_ccn
+
+      endif ! ssat.gt.sat_min
+
+    else ! l_sb_nuc_expl
+      if(ssat.gt.0.0) then
+        ! calculate number of activated n_ccn
+        n_act = coef_ccn*n_cc*min(sat_max,ssat)**kappa_ccn
+        n_act = max(n_cc,n_act)
+
+        if (n_act.gt.n_cl) then
+          dn_cl_nu = (n_act-n_cl)/delt
+        endif
+
+        ! basic limiting - not needed in this case
+        ! dn_cl_nu = min(dn_cl_nu, (n_cc - n_cl))/delt)
+      endif ! ssat.gt.0.0
+    endif ! l_sb_nuc_expl
+
+    ! increase in cloud water number
+    n_clp = n_clp + dn_cl_nu
+
+    ! update water density [kg kg^{-1}]
+    q_clp = q_clp + x_cnuc * dn_cl_nu
+
+    if (l_sb_dbg) then
+      ! warning if too high liquid water
+      if (ssat.gt.0.0 .and.( &
+      (qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci))/delt-x_cnuc*dn_cl_nu.lt. 0.)
+      ) then
+        write(6,*) 'WARNING: cloud nucleation too high'
+        write(6,*) ' removing too much water'
+        ! count(ssat.gt.0.0 .and.( &
+        ! (qt0(i,j,k)-qvsl(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci))/delt-x_cnuc*dn_cl_nu.lt.0.))
+      end if
+    endif ! l_sb_dbg
   enddo
   enddo
   enddo
-
-  if (l_sb_dbg) then
-    ! warning if too high liquid water
-    if (any((ssat(i,j,k).gt.0.0).and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)) then
-      write(6,*) 'WARNING: cloud nucleation too high'
-      write(6,*) ' removing too much water in gridpoints ',count((ssat(i,j,k).gt.0.0)  &
-             .and.((qt0(2:i1,2:j1,1:kmax)-qvsl(2:i1,2:j1,1:kmax)-svm(2:i1,2:j1,1:k1,iq_cl)-svm(2:i1,2:j1,1:k1,iq_ci))/delt - x_cnuc*dn_cl_nu(2:i1,2:j1,1:k1)).lt. 0.)
-    end if
-  endif !l_sb_dbg
-
-  ! deallocate variables
-  deallocate(ssat,wdssatdz)
-
 end subroutine  nucleation3
 
 ! ****************************************************************
