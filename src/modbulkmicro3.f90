@@ -53,9 +53,9 @@ module modbulkmicro3
 !  use modmicrodata3
 
   implicit none
-  real :: gamma25  ! TODO: make parameter
-  real :: gamma3   ! TODO: make parameter
-  real :: gamma35  ! TODO: make parameter
+  real :: gamma25
+  real :: gamma3
+  real :: gamma35
   contains
 
 !> Initializes and allocates the arrays
@@ -658,18 +658,18 @@ module modbulkmicro3
       n_cc  (i,j,k) = sv0(i,j,k,in_cc)
 
       ! reading number densities:
-      n_cl  (i,j,k) = sv0(i,j,k,in_cl)
-      n_ci  (i,j,k) = sv0(i,j,k,in_ci)
-      n_hr  (i,j,k) = sv0(i,j,k,in_hr)
-      n_hs  (i,j,k) = sv0(i,j,k,in_hs)
-      n_hg  (i,j,k) = sv0(i,j,k,in_hg)
+      n_cl = sv0(i,j,k,in_cl)
+      n_ci = sv0(i,j,k,in_ci)
+      n_hr = sv0(i,j,k,in_hr)
+      n_hs = sv0(i,j,k,in_hs)
+      n_hg = sv0(i,j,k,in_hg)
 
       ! reading mass densities
-      q_cl  (i,j,k) = sv0(i,j,k,iq_cl)
-      q_ci  (i,j,k) = sv0(i,j,k,iq_ci)
-      q_hr  (i,j,k) = sv0(i,j,k,iq_hr)
-      q_hs  (i,j,k) = sv0(i,j,k,iq_hs)
-      q_hg  (i,j,k) = sv0(i,j,k,iq_hg)
+      q_cl = sv0(i,j,k,iq_cl)
+      q_ci = sv0(i,j,k,iq_ci)
+      q_hr = sv0(i,j,k,iq_hr)
+      q_hs = sv0(i,j,k,iq_hs)
+      q_hg = sv0(i,j,k,iq_hg)
     enddo
     enddo
     enddo
@@ -801,8 +801,6 @@ module modbulkmicro3
     dn_cl_sa      = 0.0
     ret_cc        = 0.0
 
-    precep_l      = 0.0
-    precep_i      = 0.0
 
     ! reset flags
     flag_warn_update = .false.
@@ -1005,23 +1003,31 @@ module modbulkmicro3
     ! --------------------------------------------------------------
     ! freezing of water droplets
     ! --------------------------------------------------------------
-    call hethomfreez3
+    call homfreez3        ! homogeneous freezing of cloud droplets
+    call hetfreez3        ! heterogeneous freezing
 
     ! --------------------------------------------------------------
     ! deposition processes
     ! --------------------------------------------------------------
-    call deposit3
+    call deposit_ice3      ! deposition of vapour to cloud ice
+    call deposit_snow3     ! deposition of vapour to snow
+    call deposit_graupel3  ! deposition of vapour to graupel
+    call cor_deposit3      ! correction for deposition
 
     ! --------------------------------------------------------------
     ! snow aggregation and self-collection
     ! collision processes for snow
     ! --------------------------------------------------------------
-    call ice_aggr_snow_self
+    call coll_sis3  ! snow selfcollection s+i -> s
+    call coll_gsg3  ! snow selfcollection g+s -> g
 
     ! --------------------------------------------------------------
     ! - rimings
     ! --------------------------------------------------------------
-    call coll3
+    call coll_ici3 ! riming i+c -> i
+    call coll_scs3 ! riming s+c -> s
+    call coll_gcg3 ! riming g+c -> g
+    call coll_grg3 ! riming g+r -> g
 
     ! --------------------------------------------------------------
     ! - raindrop freezing
@@ -1061,9 +1067,9 @@ module modbulkmicro3
     ! =============================
     call satadj3
 
-  !==================================
-  ! sedimentation part
-  !==================================
+    !==================================
+    ! sedimentation part
+    !==================================
     call sedim_rain3 !jja sed_qr sed_Nr
     call sedim_cl3 !jja from routine local, sed_qip, sed_nip
     call sedim_ice3 !jja from routine local, sed_qip, sed_nip
@@ -1654,7 +1660,7 @@ subroutine integrals_bulk3
   implicit none
 
   integer :: i,j,k
-  real :: xr, N_r0, xr_try, libdr_try, N_r0_try
+  real :: xr, N_r0, xr_try, libdr_try, N_r0_try, mur
 
   do k=1,k1
   do j=2,j1
@@ -2400,6 +2406,72 @@ subroutine icenucle3
 end subroutine icenucle3
 
 
+!! ****************************************************************
+!!  Limiting condensation and deposition
+!!  - to prevent negative values
+!!
+!!  - call should be located:
+!!      - after depositions
+!!      - after nucleation correction
+!!      - before heterogeneous freezing
+!!
+!!  ************************************************************
+subroutine cor_deposit3
+  use modglobal, only : i1,j1,k1,rv,rd,cp,pi
+  use modfields, only : exnf,qt0,svm,tmp0,,qvsi,rhof,presf
+  implicit none
+
+  real    :: tocon,precon,cond_cf
+  real    :: cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep
+  integer :: i,j,k
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    ! available water vapour for deposition
+    tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt
+
+    ! consumption of water vapour calculated by nucleation and deposition processes
+    precon = dq_ci_dep+dq_hs_dep+dq_hg_dep
+
+    if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then ! run only in oversaturted conditions
+      ! preparing additive correctors:
+      cond_cf = (tocon/(precon+eps0) - 1.0)  ! later added eps0 to prevent 0 values
+      cond_cf = max(min(0.0, cond_cf),-1.0)
+
+      ! - corrector for deposition - only if positive deposition
+      cor_dqci_dep = cond_cf*max(0.0, dq_ci_dep)
+      cor_dqhs_dep = cond_cf*max(0.0, dq_hs_dep)
+      cor_dqhg_dep = cond_cf*max(0.0, dq_hg_dep)
+
+      ! and updating values:
+      q_cip = q_cip + cor_dqci_dep
+      q_hsp = q_hsp + cor_dqhs_dep
+      q_hgp = q_hgp + cor_dqhg_dep
+
+      ! - correction for total water
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) &
+                      -cor_dqhs_dep &
+                      -cor_dqhg_dep &
+                      -cor_dqci_dep
+
+      ! - and correcting for heat
+      thlpmcr(i,j,k) = thlpmcr(i,j,k)                     &
+            +(rlvi/(cp*exnf(k)))*cor_dqci_dep             &
+            +(rlvi/(cp*exnf(k)))*cor_dqhs_dep             &
+            +(rlvi/(cp*exnf(k)))*cor_dqhg_dep
+
+      ! corrector for process values
+      dq_ci_dep = dq_ci_dep + cor_dqci_dep
+      dq_hs_dep = dq_hs_dep + cor_dqhs_dep
+      dq_hg_dep = dq_hg_dep + cor_dqhg_dep
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine cor_deposit3
+
+
 !> Sedimentaion of rain
 !! sedimentation of drizzle water
 !! - gen. gamma distr is assumed. Terminal velocities param according to
@@ -2596,7 +2668,6 @@ end subroutine icenucle3
       do j=2,j1
       do i=2,i1
         precep_hr(i,j,k) = sed_qr(i,j,k)/rhof(k) ! kg kg-1 m s-1
-        precep_l(i,j,k) = precep_l(i,j,k) +precep_hr(i,j,k) ! kg kg-1 m s-1
       enddo
       enddo
       endif
@@ -2755,7 +2826,6 @@ end subroutine icenucle3
           do j=2,j1
           do i=2,i1
             precep_hs(i,j,k) = sed_qip(i,j,k)/rhof(k) ! kg kg-1 m s-1
-            precep_i(i,j,k) = precep_i(i,j,k)+ precep_hs(i,j,k)  ! kg kg-1 m s-1
           enddo
           enddo
         endif
@@ -2914,7 +2984,6 @@ end subroutine icenucle3
           do j=2,j1
           do i=2,i1
             precep_hg(i,j,k) = precep_hg(i,j,k)+ sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-            precep_i(i,j,k) =  precep_i(i,j,k)+ precep_hg(i,j,k)  ! kg kg-1 m s-1
           enddo
           enddo
         endif
@@ -3063,7 +3132,6 @@ end subroutine icenucle3
           do j=2,j1
           do i=2,i1
             precep_ci(i,j,k) = sed_qip(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-            precep_i(i,j,k) = precep_i(i,j,k)+ precep_ci(i,j,k)   ! kg kg-1 m s-1
           enddo
           enddo
         endif
@@ -3309,6 +3377,7 @@ subroutine evap_rain3
   enddo
 end subroutine evap_rain3
 
+
 ! ****************************************
 ! Depositional growth of cloud ice particles
 !  later tunr into:
@@ -3317,15 +3386,12 @@ end subroutine evap_rain3
 ! Inner subroutine - takes input from a wrapper
 !  following S&B
 ! ****************************************
-subroutine deposit3
+subroutine deposit_ice3
   use modglobal, only : i1,j1,k1,rv,rd,cp,pi
   use modfields, only : exnf,qt0,svm,tmp0,,qvsi,rhof,presf
   implicit none
 
   real :: esi
-
-  real    :: tocon,precon,cond_cf
-  real    :: cor_dqci_dep,cor_dqhs_dep,cor_dqhg_dep
 
   real :: F_ci    & ! ventilation factor
          ,q_avail & ! available water for deposition
@@ -3333,20 +3399,14 @@ subroutine deposit3
          ,G       & ! G_iv function
          ,Dvic_ci & ! size of ice parti
          ,viic_ci & ! v for ice cloud particles
-         ,nrex_ci & ! reynolds number
-         ,xip     & ! particle size
-         ,nip     & ! particle number
+         ,nrex_ci   ! reynolds number
 
   integer :: i,j,k
 
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    ! TODO: any of the masks q_ci_mask, q_hg_mask, q_hs_mask
-    if (q_ci_mask(i,j,k).and.(tmp0(i,j,k).le.T_3)) then
-      xip = x_ci(2:i1,2:j1,1:k1)
-      nip = n_ci(2:i1,2:j1,1:k1)
-
+    if (q_ci_mask.AND.(tmp0(i,j,k).le.T_3)) then
       q_avail = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
       Si = q_avail/qvsi(i,j,k)
 
@@ -3356,50 +3416,32 @@ subroutine deposit3
       G = 1./G
 
       ! diameter
-      Dvic_ci = a_ci*xip**b_ci
-      Dvic_hs = a_hs*xip**b_hs
-      Dvic_hg = a_hg*xip**b_hg
+      Dvic_ci = a_ci*x_ci**b_ci
 
       ! terminal velocity
-      viic_ci = al_ci*((rho0s/rhof(k))**0.5)*xip**be_ci
-      viic_hs = al_hs*((rho0s/rhof(k))**0.5)*xip**be_hs
-      viic_hg = al_hg*((rho0s/rhof(k))**0.5)*xip**be_hg
+      viic_ci = al_ci*((rho0s/rhof(k))**0.5)*x_ci**be_ci
 
       ! N_re Reynolds number
       nrex_ci = Dvic_ci*viic_ci/nu_a
-      nrex_hs = Dvic_hs*viic_hs/nu_a
-      nrex_hg = Dvic_hg*viic_hg/nu_a
 
       ! calculating from prepared ventilation coefficients
       F_ci = avent_1i+bvent_1i*Sc_num**(1.0/3.0)*nrex_ci**0.5
-      F_hs = aven_1s+bven_1s*Sc_num**(1.0/3.0)*nrex_hs**0.5
-      F_hg = aven_1g+bven_1g*Sc_num**(1.0/3.0)*nrex_hg**0.5
 
       ! depositional growth
       ! k_depos = 4*pi/c  for spherical particles
       ! k_depos = 4*pi/c  for hexagonal plates - included
-      dq_ci_dep = (4*pi/c_ci)*nip*G*Dvic_ci*F_ci*Si
-      dq_hs_dep = (4*pi/c_hs)*nip*G*Dvic_hs*F_hs*Si
-      dq_hg_dep = (4*pi/c_hg)*nip*G*Dvic_hg*F_hg*Si
+      dq_ci_dep = (4*pi/c_ci)*n_ci*G*Dvic_ci*F_ci*Si
 
       ! and limiting not to deposit more than available
       ! ie. allows any negative dq_ci_dep but positive only smaller than amount of available water
       dq_ci_dep = max(dq_ci_dep,min(0.0,-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
       dq_ci_dep = min(dq_ci_dep,max(0.0,q_avail/delt))
 
-      dq_hs_dep = max(dq_hs_dep,min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
-      dq_hs_dep = min(dq_hs_dep,max(0.0,q_avail/delt))
-
-      dq_hg_dep = max(dq_hg_dep,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
-      dq_hg_dep = min(dq_hg_dep,max(0.0,q_avail/delt))
-
       ! adds to outputs
       q_cip = q_cip + dq_ci_dep
-      q_hsp = q_hsp + dq_hs_dep
-      q_hgp = q_hgp + dq_hg_dep
 
-      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_ci_dep - dq_hs_dep - dq_hg_dep
-      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*(dq_ci_dep+dq_hs_dep+dq_hg_dep)
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_ci_dep
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*(dq_ci_dep)
 
       if (l_sb_dbg) then
         if((svm(i,j,k,iq_ci)+delt*dq_ci_dep).lt. 0.0) then
@@ -3410,7 +3452,79 @@ subroutine deposit3
           ! too high:    ((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_ci_dep).lt. 0.0)
           ! negative qt: ((qt0(i,j,k)-delt*dq_ci_dep).lt. 0.0)
         endif
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine deposit_ice3
 
+
+! ****************************************
+! Depositional growth of snow particles
+!  later turn into:
+!
+! Depositional growth of various ice particles
+! Inner subroutine - takes input from a wrapper
+!  following S&B
+! ****************************************
+subroutine deposit_snow3
+  use modglobal, only : i1,j1,k1,rv,rd,cp,pi
+  use modfields, only : exnf,qt0,svm,tmp0,,qvsi,rhof,presf
+  implicit none
+
+  real :: esi
+
+  real :: F_hs    & ! ventilation factor
+         ,q_avail & ! available water for deposition
+         ,Si      & ! super or undersaturation with respect to ice
+         ,G       & ! G_iv function
+         ,Dvic_hs & ! size of ice parti
+         ,viic_hs & ! v for ice cloud particles
+         ,nrex_hs   ! reynolds number
+
+  integer :: i,j,k
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask.AND.(tmp0(i,j,k).le.T_3)) then
+      q_avail = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
+      Si = q_avail/qvsi(i,j,k)
+
+      ! calculating G_iv
+      esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+      G = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
+
+      ! diameter
+      Dvic_hs = a_hs*x_hs**b_hs
+
+      ! terminal velocity
+      viic_hs = al_hs*((rho0s/rhof(k))**0.5)*x_hs**be_hs
+
+      ! N_re Reynolds number
+      nrex_hs = Dvic_hs*viic_hs/nu_a
+
+      ! calculating from prepared ventilation coefficients
+      F_hs = aven_1s+bven_1s*Sc_num**(1.0/3.0)*nrex_hs**0.5
+
+      ! depositional growth
+      ! k_depos = 4*pi/c  for spherical particles
+      ! k_depos = 4*pi/c  for hexagonal plates - included
+      dq_hs_dep = (4*pi/c_hs)*n_hs*G*Dvic_hs*F_hs*Si
+
+      ! and limiting not to deposit more than available
+      dq_hs_dep = max(dq_hs_dep,min(0.0,-svm(i,j,k,iq_hs)/delt-q_hsp(i,j,k)))
+      dq_hs_dep = min(dq_hs_dep,max(0.0,q_avail/delt))
+
+      ! adds to outputs
+      q_hsp = q_hsp + dq_hs_dep
+
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_dep
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hs_dep
+
+      if (l_sb_dbg) then
         if((svm(i,j,k,iq_hs)+delt*dq_hs_dep).lt. 0.0) then
           write(6,*) 'WARNING: deposit_snow3 too low'
           write(6,*) '  sublimating more snow than available'
@@ -3421,7 +3535,81 @@ subroutine deposit3
           ! count((qt0(i,j,k)-qvsi(i,j,k)-svm(i,j,k,iq_cl)-svm(i,j,k,iq_ci)-delt*dq_hs_dep).lt. 0.0)
           ! getting negative q_t in count((qt0(i,j,k)-delt*dq_hs_dep).lt. 0.0)
         endif
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine deposit_snow3
 
+
+! ****************************************
+! Depositional growth of graupel particles
+! as well as sublimation
+!  later turn into:
+!
+! Depositional growth of various ice particles
+! Inner subroutine - takes input from a wrapper
+!  following S&B
+! ****************************************
+subroutine deposit_graupel3
+  use modglobal, only : i1,j1,k1,rv,rd,cp,pi
+  use modfields, only : exnf,qt0,svm,tmp0,,qvsi,rhof,presf
+  implicit none
+
+  real :: esi
+
+  real :: cor_dqhg_dep
+
+  real :: F_hg    & ! ventilation factor
+         ,q_avail & ! available water for deposition
+         ,Si      & ! super or undersaturation with respect to ice
+         ,G       & ! G_iv function
+         ,Dvic_hg & ! size of particles
+         ,viic_hg & ! v for particles
+         ,nrex_hg   ! reynolds number
+
+  integer :: i,j,k
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hg_mask.AND.(tmp0(i,j,k).le.T_3)) then
+      q_avail = qt0(i,j,k)-q_cl(i,j,k)- qvsi(i,j,k)
+      Si = q_avail/qvsi(i,j,k)
+
+      ! calculating G_iv
+      esi = qvsi(i,j,k)*presf(k)/(rd/rv+(1.0-rd/rv)*qvsi(i,j,k))
+      G = (rv * tmp0(i,j,k)) / (Dv*esi) + rlvi/(Kt*tmp0(i,j,k))*(rlvi/(rv*tmp0(i,j,k)) -1.)
+      G = 1./G
+
+      ! diameter
+      Dvic_hg = a_hg*x_hg**b_hg
+
+      ! terminal velocity
+      viic_hg = al_hg*((rho0s/rhof(k))**0.5)*x_hg**be_hg
+
+      ! N_re Reynolds number
+      nrex_hg = Dvic_hg*viic_hg/nu_a
+
+      ! calculating from prepared ventilation coefficients
+      F_hg = aven_1g+bven_1g*Sc_num**(1.0/3.0)*nrex_hg**0.5
+
+      ! depositional growth
+      ! k_depos = 4*pi/c  for spherical particles
+      ! k_depos = 4*pi/c  for hexagonal plates - included
+      dq_hg_dep = (4*pi/c_hg)*n_hg*G*Dvic_hg*F_hg*Si
+
+      dq_hg_dep = max(dq_hg_dep,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
+      dq_hg_dep = min(dq_hg_dep,max(0.0,q_avail/delt))
+
+      ! adds to outputs
+      q_hgp = q_hgp + dq_hg_dep
+
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hg_dep
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlvi/(cp*exnf(k)))*dq_hg_dep
+
+      if (l_sb_dbg) then
         if((svm(i,j,k,iq_hg)+delt*dq_hg_dep).lt.0.) then
           write(6,*) 'WARNING: deposit_graupel3 too low'
           write(6,*) '  sublimating more snow than available'
@@ -3435,54 +3623,16 @@ subroutine deposit3
         endif
       endif
     endif
-
-    ! available water vapour for deposition
-    tocon = (qt0(i,j,k)-svm(i,j,k,iq_cl)-qvsi(i,j,k))/delt
-
-    ! consumption of water vapour calculated by nucleation and deposition processes
-    precon = dq_ci_dep+dq_hs_dep+dq_hg_dep
-
-    if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then ! run only in oversaturted conditions
-      ! preparing additive correctors:
-      cond_cf = (tocon/(precon+eps0) - 1.0)  ! later added eps0 to prevent 0 values
-      cond_cf = max(min(0.0, cond_cf),-1.0)
-
-      ! - corrector for deposition - only if positive deposition
-      cor_dqci_dep = cond_cf*max(0.0, dq_ci_dep)
-      cor_dqhs_dep = cond_cf*max(0.0, dq_hs_dep)
-      cor_dqhg_dep = cond_cf*max(0.0, dq_hg_dep)
-
-      ! and updating values:
-      ! - cloud water content
-      q_cip = q_cip+cor_dqci_dep
-
-      ! - correction for hydrometeors
-      q_hsp = q_hsp+cor_dqhs_dep
-      q_hgp = q_hgp+cor_dqhg_dep
-
-      ! - correction for total water
-      qtpmcr(i,j,k) = qtpmcr(i,j,k)-cor_dqhs_dep-cor_dqhg_dep-cor_dqci_dep
-
-      ! - and correcting for heat
-      thlpmcr(i,j,k) = thlpmcr(i,j,k)                     &
-            +(rlvi/(cp*exnf(k)))*cor_dqci_dep             &
-            +(rlvi/(cp*exnf(k)))*cor_dqhs_dep             &
-            +(rlvi/(cp*exnf(k)))*cor_dqhg_dep
-
-      ! corrector for process values
-      dq_ci_dep =dq_ci_dep+cor_dqci_dep
-      dq_hs_dep =dq_hs_dep+cor_dqhs_dep
-      dq_hg_dep =dq_hg_dep+cor_dqhg_dep
-    endif
   enddo
   enddo
   enddo
-end subroutine deposit3
+end subroutine deposit_graupel3
 
-! *******************************************************
-! Heterogenous and Homogeneous freezing of cloud droplets
-! *******************************************************
-subroutine hethomfreez3
+
+! ****************************************
+! Heterogeneous freezing of cloud droplets
+! ****************************************
+subroutine hetfreez3
   use modglobal, only : i1,j1,k1,rlv,cp
   use modfields, only : svm,tmp0,exnf
   implicit none
@@ -3498,36 +3648,7 @@ subroutine hethomfreez3
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    if (q_cl_mask(i,j,k).and.tmp0(i,j,k).lt.T_3) then
-
-      ! homogeneous freezing of cloud droplets
-      ! --------------------------------------
-
-      ! inserting temperature values
-      !  -- can be later adjusted to include the effect of chemicals in clouds
-      tmpj = tmp0(i,j,k)
-
-      if (tmpj>tmp_lim1_Cf02) then
-          J_hom = exp(C_Cf02+B_Cf02*(tmpj+CC_Cf02))
-      else
-        if(tmpj<tmp_lim2_Cf02) then
-          J_hom = exp(C_30_Cf02)
-        else
-          J_hom = exp(C_20_Cf02                 &
-             + B_21_Cf02*(tmpj-offset_Cf02)     &
-             + B_22_Cf02*(tmpj-offset_Cf02)**2  &
-             + B_23_Cf02*(tmpj-offset_Cf02)**3  &
-             + B_24_Cf02*(tmpj-offset_Cf02)**4  )
-        endif ! quick freezing
-      endif ! slow freezing
-
-      dn_cl_hom        = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_hom
-      dq_cl_hom        = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_hom
-      dn_cl_hom        = max(dn_cl_hom,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
-      dq_cl_hom        = max(dq_cl_hom,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
-
-      ! heterogeneous freezing of cloud droplets
-      ! ---------------------------------------
+    if (q_cl_mask.and.tmp0(i,j,k).lt.T_3) then
       J_het = A_het *exp( B_het*(T_3-tmp0(i,j,k)) -1)
 
       dn_cl_het = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_het
@@ -3537,29 +3658,95 @@ subroutine hethomfreez3
       dn_cl_het = max(dn_cl_het,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
       dq_cl_het = max(dq_cl_het,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
 
-      ! Apply changes
-      ! -------------
-
       ! changes in cloud water
-      n_clp(i,j,k) = n_clp(i,j,k) + dn_cl_hom + dn_cl_het
-      q_clp(i,j,k) = q_clp(i,j,k) + dq_cl_hom + dq_cl_het
-
+      n_clp = n_clp + dn_cl_het
+      q_clp = q_clp + dq_cl_het
 
       ! increase in cloud ice
-      n_cip(i,j,k) = n_cip(i,j,k) - dn_cl_hom - dn_cl_het
-      q_cip(i,j,k) = q_cip(i,j,k) - dq_cl_hom - dq_cl_het
+      n_cip = n_cip - dn_cl_het
+      q_cip = q_cip - dq_cl_het
 
       ! changes in the total amount of water
-      qtpmcr(i,j,k) = qtpmcr(i,j,k) + dq_cl_hom + dq_cl_het
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) + dq_cl_het
 
       ! change in th_l due to freezing
-      thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*(dq_cl_hom+dq_cl_het)
+      thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*(dq_cl_het)
     endif ! cl_mask
   enddo
   enddo
   enddo
+end subroutine hetfreez3
 
-end subroutine hethomfreez3
+
+! ****************************************
+! Homogeneous freezing
+! of cloud droplets
+!
+! ****************************************
+subroutine homfreez3
+  use modglobal, only : i1,j1,k1,rlv,cp
+  use modfields, only : svm,tmp0,exnf
+  implicit none
+
+  real    :: J_hom   ! freezing rate
+  real    :: tmpj    ! adjusted temperature
+
+  real    :: dq_cl_hom !< homogeneous freezing of cloud water
+  real    :: dn_cl_hom !< homogeneous freezing of cloud water
+
+  ! calculate constants
+  real, parameter :: expC_30 = exp(C_30_Cf02)
+
+  integer :: i,j,k
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_cl_mask.and.tmp0(i,j,k).lt.T_3) then
+
+      ! homogeneous freezing of cloud droplets
+      ! --------------------------------------
+
+      ! inserting temperature values
+      !  -- can be later adjusted to include the effect of chemicals in clouds
+      tmpj = tmp0(i,j,k)
+
+      if (tmpj>tmp_lim1_Cf02) then
+        J_hom = exp(C_Cf02+B_Cf02*(tmpj+CC_Cf02))
+      else if(tmpj<tmp_lim2_Cf02) then
+        J_hom = expC_30
+      else
+        J_hom = exp(C_20_Cf02                 &
+           + B_21_Cf02*(tmpj-offset_Cf02)     &
+           + B_22_Cf02*(tmpj-offset_Cf02)**2  &
+           + B_23_Cf02*(tmpj-offset_Cf02)**3  &
+           + B_24_Cf02*(tmpj-offset_Cf02)**4  )
+      endif
+
+      dn_cl_hom        = -c_mmt_1cl *n_cl(i,j,k) * x_cl(i,j,k)* J_hom
+      dq_cl_hom        = -c_mmt_2cl *q_cl(i,j,k) * x_cl(i,j,k)* J_hom
+      dn_cl_hom        = max(dn_cl_hom,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp(i,j,k)))
+      dq_cl_hom        = max(dq_cl_hom,min(0.0,-svm(i,j,k,iq_cl)/delt-q_clp(i,j,k)))
+
+      ! changes in cloud water
+      n_clp = n_clp + dn_cl_hom
+      q_clp = q_clp + dq_cl_hom
+
+      ! increase in cloud ice
+      n_cip = n_cip - dn_cl_hom
+      q_cip = q_cip - dq_cl_hom
+
+      ! changes in the total amount of water
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) + dq_cl_hom
+
+      ! change in th_l due to freezing
+      thlpmcr(i,j,k) = thlpmcr(i,j,k)-((rlv+rlme)/(cp*exnf(k)))*dq_cl_hom
+    endif ! cl_mask
+  enddo
+  enddo
+  enddo
+ end subroutine homfreez3
+
 
 ! ****************************************
 ! Heterogeneos freezing of rain
@@ -3614,30 +3801,26 @@ subroutine rainhetfreez3
   enddo
 end subroutine rainhetfreez3
 
-
 ! Collision/collection processes
+
 ! ****************************************
 ! ice selfcollection and aggregation to snow
 !  - all collection of ice by ice treated as snow
 !
-! snow selfcollection
-! snow collecting cloud ice
-!
 ! follows Seifert, 2002
 ! ****************************************
-subroutine ice_aggr_snow_self
+subroutine ice_aggr3
   use modglobal, only : i1,j1,k1,rv,pi
   use modfields, only : qt0,svm,tmp0,rhof
   implicit none
   integer :: i,j,k
 
-  real    :: dlt_0aa_i ,dlt_0aa_s          &
-            ,dlt_1aa_i ,dlt_1aa_s          &
-            ,th_0aa_i  ,th_0aa_s           &
-            ,th_1aa_i  ,th_1aa_s           &
-            ,rem_cf_i  ,rem_cf_s
+  real    :: dlt_0aa_i &
+            ,dlt_1aa_i &
+            ,th_0aa_i  &
+            ,th_1aa_i
 
-  real :: dif_D_10, x_crit_ii, x_minagg_ii
+  real :: dif_D_10, x_crit_ii, x_minagg_ii, rem_cf_i
 
   ! Temporary variables, value changes several times in this routine
   real :: E_ab, E_stick
@@ -3648,32 +3831,19 @@ subroutine ice_aggr_snow_self
   th_0aa_i    = 2*th_i0 - th_i0i   ! from Seifert, 2002
   th_1aa_i    = th_i0 - th_i1i + th_i1
 
-  dlt_0aa_s   = 2*dlt_s0 + dlt_s0s
-  dlt_1aa_s   = dlt_s0 + dlt_s1s + dlt_s1
-  th_0aa_s    = 2*th_s0 - th_s0s   ! from Seifert, 2002
-  th_1aa_s    = th_s0 - th_s1s + th_s1 ! th_1ab    = th_i1i
-
-  ! adjusting coefficient
-  ! prepare coefficient for remaining water number
-  rem_cf_i = (1.0-rem_n_ci_min)/delt
-  rem_cf_s = (1.0-rem_n_hs_min)/delt
-
-  ! and the minimal conversion size
-  x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
-
-  ! and the critical size for the start of conversion
-  x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
-
-
   do k=1,k1
   do j=2,j1
   do i=2,i1
-
-    ! Process ice
-    ! -----------
-    dif_D_10  = D_i_b-D_i_a  ! difference in ice cloud droplet intervals
-
     if(q_ci_mask.and.(x_ci.gt.x_crit_ii).and.(q_ci.gt.q_crit_ii)) then
+      ! prepare coefficient for remaining water number
+      rem_cf_i = (1.0-rem_n_ci_min)/delt
+
+      ! and the minimal conversion size
+      x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
+
+      ! and the critical size for the start of conversion
+      x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
+
       ! calculating sticking efficiency
       if (l_sb_stickyice) then
         E_stick = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
@@ -3690,6 +3860,7 @@ subroutine ice_aggr_snow_self
           if( D_ci.gt.D_i_b ) then
             E_ab = E_ee_m*E_stick
           else
+            dif_D_10  = D_i_b-D_i_a  ! difference in ice cloud droplet intervals
             E_ab = (E_ee_m*E_stick /dif_D_10)* (D_ci - D_i_a)
           endif
         endif
@@ -3702,7 +3873,7 @@ subroutine ice_aggr_snow_self
                       *(th_0aa_i *v_ci**2+2*sigma_ci**2)**0.5
 
       dq_ci_col_iis = -rhof(k)*(pi/4)*E_ab                           &
-                      *dlt_1aa_i*n_ci(i,j,k)*q_ci(i,j,k)*D_ci**2     &
+                      *dlt_1aa_i*n_ci(i,j,k)*q_ci*D_ci**2     &
                       *(th_1aa_i*v_ci**2+2*sigma_ci**2)**0.5
 
 
@@ -3710,13 +3881,60 @@ subroutine ice_aggr_snow_self
       dq_ci_col_iis = max(dq_ci_col_iis, (-svm(i,j,k,iq_ci)/delt-q_cip(i,j,k)))
       dn_ci_col_iis = max(dn_ci_col_iis, (-rem_cf_i*svm(i,j,k,in_ci)-n_cip(i,j,k)))
       dn_ci_col_iis = max(dn_ci_col_iis, dq_ci_col_iis/x_minagg_ii)
-    else
-      dq_ci_col_iis = 0.
-      dn_ci_col_iis = 0.
     endif
 
-    ! Process snow
-    ! ------------
+    n_cip    = n_cip + dn_ci_col_iis
+    q_cip    = q_cip + dq_ci_col_iis
+    n_hsp    = n_hsp - dn_ci_col_iis
+    q_hsp    = q_hsp - dq_ci_col_iis
+
+    if (l_sb_dbg) then
+      if((svm(i,j,k,iq_ci)+delt*dq_ci_col_iis .lt. 0.0)) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice than available'
+        ! count((svm(i,j,k,iq_ci) +delt*dq_ci_col_iis).lt. 0.0)
+        write(6,*) ' removing too much ice'
+        ! count(( q_ci+delt*dq_ci_col_iis).lt. 0.0 )
+        write(6,*) ' getting negative q_t'
+        ! count(( qt0(i,j,k)+delt*q_cip(i,j,k)).lt. 0.0 )
+      endif
+
+      if((svm(i,j,k,in_ci)+delt*dn_ci_col_iis .lt. 0.0)) then
+        write(6,*) 'WARNING: ice_aggr3 too high'
+        write(6,*) ' removing more ice particles then available'
+        ! count((svm(i,j,k,in_ci) +delt*dn_ci_col_iis).lt. 0.0)
+        write(6,*) ' removing too much ice particles'
+        ! count((n_ci(i,j,k)+delt*dn_ci_col_iis).lt. 0.0)
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine ice_aggr3
+
+
+! *************************************************
+! snow selfcollection
+!
+! *************************************************
+subroutine snow_self3
+  use modglobal, only : i1,j1,k1,rv,pi
+  use modfields, only : qt0,svm,tmp0,rhof
+  implicit none
+  integer :: i,j,k
+
+  real :: dif_D_10, rem_cf_s
+
+  ! Temporary variables, value changes several times in this routine
+  real :: E_ab, E_stick
+
+  ! adjusting coefficient
+  ! prepare coefficient for remaining water number
+  rem_cf_s = (1.0-rem_n_hs_min)/delt
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
     if(q_hs_mask) then
       ! calculating sticking efficiency
       if (l_sb_stickyice) then
@@ -3734,20 +3952,53 @@ subroutine ice_aggr_snow_self
                       *(th_0aa_s *v_hs**2+2*sigma_hs**2)**0.5
 
       dn_hs_col_sss = max(min(0.0,dn_hs_col_sss),-rem_cf_s*svm(i,j,k,in_hs)-n_hsp(i,j,k))
-    else
-      dn_hs_col_sss = 0.
     endif
 
-    ! snow collecting cloud ice
-    ! -------------------------
-    if (q_hs_mask(i,j,k).and.q_ci_mask(i,j,k)) then
+    n_hsp    = n_hsp + dn_hs_col_sss
+
+    if (l_sb_dbg) then
+      if(( svm(i,j,k,in_hs)+delt*dn_hs_col_sss .lt. 0.0 )) then
+        write(6,*) 'WARNING: snow self-collection too high'
+        write(6,*) ' decreasing number of snowflakes below 0'
+        ! count((svm(i,j,k,in_hs)+delt*dn_hs_col_sss).lt. 0.0 )
+        write(6,*) ' decreasing number of snowflakes too much'
+        ! count((n_hs(i,j,k)+delt*dn_hs_col_sss).lt. 0.0 )
+      endif
+  enddo
+  enddo
+  enddo
+end subroutine snow_self3
+
+
+! ****************************************
+! snow collecting cloud ice
+!
+! s + i -> s
+! ****************************************
+subroutine coll_sis3
+  use modglobal, only : i1,j1,k1,rv,pi
+  use modfields, only : qt0,svm,tmp0,rhof
+  implicit none
+  integer :: i,j,k
+
+  ! Temporary variables, value changes several times in this routine
+  real :: E_ab, E_stick, rem_cf_i
+
+  ! adjusting coefficient
+  ! prepare coefficient for remaining water number
+  rem_cf_i = (1.0-rem_n_ci_min)/delt
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask.and.q_ci_mask) then
       ! calculating sticking efficiency
       E_stick = c_E_o_s*exp(B_stick *(tmp0(i,j,k)+stick_off))
       E_stick =min(c_E_o_s,E_stick)
       E_ab = E_ee_m*E_stick
 
       dq_hsci_col = (rhof(k)*pi/4)*E_ab*n_hs(i,j,k)                &
-                    *q_ci(i,j,k)*(dlt_s0*D_hs**2                   &
+                    *q_ci*(dlt_s0*D_hs**2                   &
                     +dlt_s1i*D_hs*D_ci+dlt_i1*D_ci**2)             &
                     *(th_s0*v_hs**2-th_s1i*v_ci*v_hs               &
                     +th_1i*v_ci**2+sigma_hs**2+sigma_ci**2)**0.5
@@ -3760,11 +4011,57 @@ subroutine ice_aggr_snow_self
 
       dq_hsci_col = min(dq_hsci_col,max(0.0,svm(i,j,k,iq_ci)/delt+q_cip(i,j,k)))   ! following ICON, 2017
       dn_ci_col_hs = max(dn_ci_col_hs,min(0.0,-rem_cf_i*svm(i,j,k,in_ci)-n_cip(i,j,k)))
-    else
-      dq_hsci_col = 0.
-      dn_ci_col_hs = 0.
     endif
 
+    n_cip    = n_cip + dn_ci_col_hs
+    q_cip    = q_cip + dq_hsci_col
+    q_hsp    = q_hsp - dq_hsci_col
+
+    if (l_sb_dbg) then
+      if(svm(i,j,k,iq_ci)-delt*dq_hsci_col.lt. 0.0) then
+        write(6,*) 'WARNING: coll_sis3 too high removing more ice than available'
+        write(6,*) ' removing more ice than available'
+        ! count((svm(i,j,k,iq_ci)-delt*dq_hsci_col).lt. 0.0)
+        write(6,*) ' removing too much ice'
+        ! count((q_ci-delt*dq_hsci_col).lt. 0.0)
+        write(6,*) ' getting negative q_t'
+        ! count((qt0(i,j,k)-delt*q_cip).lt. 0.0 )
+      endif
+
+      if(svm(i,j,k,in_ci)+delt*dn_ci_col_hs.lt. 0.0) then
+        write(6,*) 'WARNING: coll_sis3 too high'
+        write(6,*) ' removing more ice particles then available in gridpoints'
+        ! count(svm(i,j,k,in_ci)+delt*dn_ci_col_hs.lt. 0.0)
+        write(6,*) ' removing too many ice particles in gridpoints '
+        ! count((n_ci(i,j,k)+delt*dn_ci_col_hs).lt. 0.0)
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine coll_sis3
+
+
+! ****************************************
+! snow collecting cloud ice
+!
+! g+s -> g
+! ****************************************
+subroutine coll_gsg3
+  use modglobal, only : i1,j1,k1,rv,pi
+  use modfields, only : qt0,svm,tmp0,rhof
+  implicit none
+  integer :: i,j,k
+
+  real :: E_ab, E_stick, rem_cf_s
+
+  ! adjusting coefficient
+  ! prepare coefficient for remaining water number
+  rem_cf_s = (1.0-rem_n_hs_min)/delt
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
     ! graupel collecting snow
     if (q_hg_mask.and.q_hs_mask) then
       ! calculating sticking efficiency
@@ -3784,65 +4081,19 @@ subroutine ice_aggr_snow_self
            *( th_g0*v_hg**2-th_g0s*v_hs*v_hg               &
              +th_s0*v_hs**2+sigma_hg**2+sigma_hs**2)**0.5
 
-
-      dq_hghs_col = min(dq_hghs_col,max(0.0,svm(i,j,k,iq_hs)/delt+q_hsp(i,j,k)))   ! following ICON, 2017
-      dn_hs_col_hg = max(dn_hs_col_hg,min(0.0,-rem_cf_s*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
-    else
-      dq_hghs_col = 0.
-      dn_hs_col_hg = 0.
+      dq_hghs_col = min(dq_hghs_col,&
+                        max(0.0,    &
+                        svm(i,j,k,iq_hs)/delt+q_hsp(i,j,k)))   ! following ICON, 2017
+      dn_hs_col_hg = max(dn_hs_col_hg,&
+                         min(0.0,     &
+                         -rem_cf_s*svm(i,j,k,in_hs)-n_hsp(i,j,k)))
     endif
 
-    n_cip    = n_cip + dn_ci_col_iis + dn_ci_col_hs
-    q_cip    = q_cip + dq_ci_col_iis - dq_hsci_col
-    n_hsp    = n_hsp - 0.5 * dn_ci_col_iis + dn_hs_col_sss + dn_hs_col_hg
-    q_hsp    = q_hsp - dq_ci_col_iis + dq_hsci_col - dq_hghs_col
+    n_hsp    = n_hsp + dn_hs_col_hg
+    q_hsp    = q_hsp - dq_hghs_col
     q_hgp    = q_hgp + dq_hghs_col
 
     if (l_sb_dbg) then
-      if((svm(i,j,k,iq_ci)+delt*dq_ci_col_iis .lt. 0.0)) then
-        write(6,*) 'WARNING: ice_aggr3 too high'
-        write(6,*) ' removing more ice than available'
-        ! count((svm(i,j,k,iq_ci) +delt*dq_ci_col_iis).lt. 0.0)
-        write(6,*) ' removing too much ice'
-        ! count(( q_ci(i,j,k)+delt*dq_ci_col_iis).lt. 0.0 )
-        write(6,*) ' getting negative q_t'
-        ! count(( qt0(i,j,k)+delt*q_cip(i,j,k)).lt. 0.0 )
-      endif
-
-      if((svm(i,j,k,in_ci)+delt*dn_ci_col_iis .lt. 0.0)) then
-        write(6,*) 'WARNING: ice_aggr3 too high'
-        write(6,*) ' removing more ice particles then available'
-        ! count((svm(i,j,k,in_ci) +delt*dn_ci_col_iis).lt. 0.0)
-        write(6,*) ' removing too much ice particles'
-        ! count((n_ci(i,j,k)+delt*dn_ci_col_iis).lt. 0.0)
-      endif
-
-      if(( svm(i,j,k,in_hs)+delt*dn_hs_col_sss .lt. 0.0 )) then
-        write(6,*) 'WARNING: snow self-collection too high'
-        write(6,*) ' decreasing number of snowflakes below 0'
-        ! count((svm(i,j,k,in_hs)+delt*dn_hs_col_sss).lt. 0.0 )
-        write(6,*) ' decreasing number of snowflakes too much'
-        ! count((n_hs(i,j,k)+delt*dn_hs_col_sss).lt. 0.0 )
-      endif
-
-      if(svm(i,j,k,iq_ci)-delt*dq_hsci_col.lt. 0.0) then
-        write(6,*) 'WARNING: coll_sis3 too high removing more ice than available'
-        write(6,*) ' removing more ice than available'
-        ! count((svm(i,j,k,iq_ci)-delt*dq_hsci_col).lt. 0.0)
-        write(6,*) ' removing too much ice'
-        ! count((q_ci(i,j,k)-delt*dq_hsci_col).lt. 0.0)
-        write(6,*) ' getting negative q_t'
-        ! count((qt0(i,j,k)-delt*q_cip).lt. 0.0 )
-      endif
-
-      if(svm(i,j,k,in_ci)+delt*dn_col_b.lt. 0.0) then
-        write(6,*) 'WARNING: coll_sis3 too high'
-        write(6,*) ' removing more ice particles then available in gridpoints'
-        ! count(svm(i,j,k,in_ci)+delt*dn_ci_col_hs.lt. 0.0)
-        write(6,*) ' removing too many ice particles in gridpoints '
-        ! count((n_ci(i,j,k)+delt*dn_ci_col_hs).lt. 0.0)
-      endif
-
       if((svm(i,j,k,iq_hs)-delt*dq_hghs_col).lt. 0.0) then
         write(6,*) 'WARNING: coll_gsg3 too high removing more ice than available'
         write(6,*) ' removing more ice than available'
@@ -3860,16 +4111,23 @@ subroutine ice_aggr_snow_self
         write(6,*) ' removing too many ice particles'
         ! count(n_hs+delt*dn_hs_col_hg.lt. 0.0)
       endif
-
     endif
   enddo
   enddo
   enddo
+end subroutine coll_gsg3
 
-end subroutine ice_aggr_snow_self
 
-
-subroutine coll3
+!****************************************
+! Collection of clpoud droplets by ice
+!
+! - based on Seifert & Beheng (2004)
+! - resulting process is:
+!    - ice riming by cloud ice
+!    - enhanced melting
+!
+!****************************************
+subroutine coll_ici3
   use modglobal, only : i1,j1,k1,cp,pi
   use modfields, only : qt0,svm,tmp0,rhof,exnf
 
@@ -3882,18 +4140,10 @@ subroutine coll3
   real :: k_enhm
   real :: rem_cf
   real :: dn_col_ici, dq_col_ici
-  real :: dn_col_b, dq_col_a
 
   do k=1,k1
   do j=2,j1
   do i=2,i1
-
-    ! Collection of cloud droplets by ice
-    ! - based on Seifert & Beheng (2004)
-    ! - resulting process is:
-    !    - ice riming by cloud ice
-    !    - enhanced melting
-    ! ------------------------------------
 
     ! collision efficiency
     if (q_ci_mask.and.q_cl_mask) then
@@ -3927,7 +4177,7 @@ subroutine coll3
         rem_cf = (1.0-rem_n_cl_min)/delt
 
         dq_ci_rime = min(dq_col_ici,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp))   ! following ICON, 2017
-        dn_cl_rime_ci =max(dn_col_ici,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp))
+        dn_cl_rime_ci = max(dn_col_ici,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp))
       else
         ! scheding and enhanced melting
         k_enhm  = c_water/rlme
@@ -3974,355 +4224,10 @@ subroutine coll3
         ! count(n_cl+delt*dn_cl_rime_ci.lt. 0.0)
       endif
     endif
-
-    ! riming of snow
-    ! ---------------
-    if (q_hs_mask.and.q_cl_mask) then
-
-      ! checking whether sufficient size
-      if( (D_cl.gt.D_c_a).and.(D_hs.gt.D_i0)) then
-        if( D_cl.gt.D_c_b ) then
-          E_ab = E_s_m
-        else
-          ! denominator in calculationg collision efficiency
-          dif_D_10  = D_c_b-D_c_a
-          E_ab = (E_s_m/dif_D_10)* (D_cl - D_c_a)
-        endif
-      endif
-
-      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hs(i,j,k)                  &
-           *q_cl*(dlt_s0*D_hs**2                                  &
-             +dlt_s1c*D_hs*D_cl+dlt_c1*D_cl**2)                   &
-           *( th_s0*v_hs**2-th_s1c*v_cl(i,j,k)*v_hs(i,j,k)        &
-             +th_c1*v_cl(i,j,k)**2+sigma_hs**2+sigma_cl**2)**0.5
-
-      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hs(i,j,k)                 &
-           *n_cl*(dlt_s0*D_hs**2                                  &
-             +dlt_s0c*D_hs*D_cl+dlt_c0*D_cl**2)                   &
-           *( th_s0*v_hs(i,j,k)**2-th_s0c*v_cl(i,j,k)*v_hs(i,j,k) &
-             +th_c0*v_cl(i,j,k)**2+sigma_hs**2+sigma_cl**2)**0.5
-
-      ! basic limiting
-      ! limited by amount of water in droplets
-      dq_col_a = min(dq_col_a,q_cl/delt)
-      dq_col_a = min(dq_col_a,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp))
-      dn_col_b = max(dn_col_b,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp))
-      ! limited by number of droplets
-      ! then based on temperature
-
-      if(tmp0(i,jk).lt.T_3) then
-        ! riming only
-        dq_hs_rime = dq_col_a ! following ICON, 2017
-
-        ! = min(dq_hs_rime,svm(i,j,k,iq_cl)/delt)
-        dn_cl_rime_hs = dn_col_b ! min(dn_cl_rime_hs,-svm(i,j,k,in_cl)/delt)
-
-        ! record the change
-        ! o dq_hs_rime = dq_col_a
-        ! change in the amount of cloud ice
-        q_hsp = q_hsp + dq_hs_rime
-
-        ! change in the amount of cloud water
-        n_clp = n_clp + dn_cl_rime_hs
-        q_clp = q_clp - dq_hs_rime
-
-        ! change in q_t
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_rime
-
-        ! change in th_l - freezing and removal
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlvi/(cp*exnf(k)))*dq_hs_rime
-      elseif(tmp0(i,jk).gt.T_3) then ! BUG: should be plain else
-        ! not riming, but enhanced melting and scheding
-
-        ! enhanced melting
-        k_enhm  = c_water/rlme
-
-        ! calculating the melting
-        dq_hs_eme_sc = -k_enhm*(tmp0(i,j,k)-T_3)*dq_col_a
-        dq_hs_eme_sc = max(dq_hs_eme_sc, &
-                           min(0.0, &
-                               -svm(i,j,k,iq_hs)/delt-q_hsp))
-
-        ! calculating number of melted particles
-        ! - expected to be proportional to melted mass
-        dn_hs_eme_sc = dq_hs_eme_sc*n_hs(i,j,k)/(q_hs(i,j,k)+eps0) ! q_hs here is always some small positive number
-
-        ! - not more than number of interacting particles
-        ! dn_hs_eme_sc = max(dn_hs_eme_sc, max(dn_col_b,-n_cl/delt))
-        ! - and not more than total number of particles
-        dn_hs_eme_sc = max(dn_hs_eme_sc, &
-                           -min((svm(i,j,k,in_cl)/delt+n_clp), &
-                                (svm(i,j,k,in_hs)/delt+n_hsp(i,j,k))))
-
-        ! updating tendencies
-        ! updating rain
-        ! melted snow is turning into rain  RH84
-        q_hrp = q_hrp -  dq_hs_eme_sc + dq_col_a ! both mass of snow and droplets
-        n_hrp = n_hrp -  dn_hs_eme_sc
-
-        ! snow
-        q_hsp = q_hsp + dq_hs_eme_sc
-        n_hsp = n_hsp + dn_hs_eme_sc
-
-        ! updating cloud water
-        q_clp = q_clp - dq_col_a
-        n_clp = n_clp + dn_col_b
-
-        ! updating thermodynamic
-        ! qtp : increased by melted water
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_col_a ! -dq_hs_eme_sc
-
-        ! thlp : melting and adding liquid water
-        ! thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_hs_eme_sc
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+            &
-            (rlme/(cp*exnf(k)))*dq_hs_eme_sc        &
-            +(rlvi/(cp*exnf(k)))*dq_col_a
-      endif
-
-      if (l_sb_dbg) then
-        if((svm(i,j,k,iq_cl)-delt*dq_col_a).lt. 0.0) then
-          write(6,*) 'WARNING: coll_scs too high'
-          write(6,*) ' removing more cloud water than available'
-          ! count((svm(i,j,k,iq_cl)-delt*dq_hs_rime).lt. 0.0)
-          write(6,*) ' removing too much cloud water',
-          ! count(q_cl-delt*dq_hs_rime.lt. 0.0)
-          write(6,*) ' getting negative q_t'
-          ! count(qt0(i,j,k)+delt*q_clp).lt. 0.0)
-        endif
-
-        if(svm(i,j,k,in_cl)+delt*dn_col_b.lt. 0.0) then
-          write(6,*) 'WARNING: coll_scs too high'
-          write(6,*) ' removing more droplets then available'
-          ! count(svm(i,j,k,in_cl)+delt*dn_cl_rime_hs).lt. 0.0)
-          write(6,*) ' removing too many droplets'
-          ! count(n_cl+delt*dn_cl_rime_hs.lt. 0.0)
-        endif
-      endif
-    endif
-
-    ! riming of graupel by cloud droplets
-    ! -----------------------------------
-    if (q_hg_mask.and.q_cl_mask) then
-      ! collision efficiency
-      ! checking whether sufficient size
-      if( (D_cl.gt.D_c_a).and.(D_hg.gt.D_i0)) then
-        if( D_cl.gt.D_c_b ) then
-          E_ab = E_g_m
-        else
-          dif_D_10 = D_c_b-D_c_a
-          E_ab = (E_g_m/dif_D_10)* (D_cl- D_c_a)
-        endif
-      endif
-
-      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hg    &
-           *q_cl*(dlt_g0*D_hg**2                     &
-             +dlt_g1c*D_hg*D_cl+dlt_c1*D_cl**2) &
-           *( th_g0*v_hg**2-th_g1c*v_cl*v_hg    &
-             +th_c1*v_cl**2+sigma_hg**2+sigma_cl**2)**0.5
-
-      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hg   &
-           *n_cl*(dlt_g0*D_hg**2                     &
-             +dlt_g0c*D_hg*D_cl+dlt_c0*D_cl**2) &
-           *( th_g0*v_hg**2-th_g0c*v_cl*v_hg    &
-             +th_c0*v_cl**2+sigma_hg**2+sigma_cl**2)**0.5
-
-
-      ! initial correction based on amount of cloud water
-      rem_cf = (1.0-rem_n_cl_min)/delt
-      dq_col_a = min(dq_col_a,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp)) ! following ICON, 2017
-      dn_col_b = max(dn_col_b,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp))
-
-      ! then based on temeprature
-      if(tmp0(i,j,k).lt.T_3) then
-        dq_hg_rime = dq_col_a    ! = min(dq_hg_rime,svm(i,j,k,iq_cl)/delt)
-        dn_cl_rime_hg = dn_col_b ! = min(dn_cl_rime_hg,-svm(i,j,k,in_cl)/delt)
-
-        ! change in the amount of graupel
-        q_hgp = q_hgp + dq_hg_rime
-
-        ! change in the amount of rain
-        n_clp = n_clp + dn_cl_rime_hg
-        q_clp = q_clp - dq_hg_rime
-
-        ! no change in q_t
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hg_rime
-
-        ! change in th_l - heat release from freezing and removal
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlvi/(cp*exnf(k)))*dq_hg_rime
-      else
-        ! not riming,but enhanced melting and scheding
-
-        ! enhanced melting
-        k_enhm  = c_water/rlme
-
-        ! calculating the melting
-        dq_hg_eme_gc = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a,q_cl/delt)
-        dq_hg_eme_gc = max(dq_hg_eme_gc,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
-
-        ! calculating number of melted particles
-        ! - expected to be proportional to melted mass
-        dn_hg_eme_gc = dq_hg_eme_gc*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
-
-        ! - but not more than number of interacting particles
-        ! dn_hg_eme_gc = max(dn_hg_eme_gc, max(dn_col_b,-n_cl/delt))
-        ! - and not more than total number of particles
-        dn_hg_eme_gc = max(dn_hg_eme_gc, -min((svm(i,j,k,in_cl)/delt+n_clp),(svm(i,j,k,in_hg)/delt+n_hgp)))
-
-        ! updating tendencies
-        ! updating rain
-        ! based on RH84
-        q_hrp = q_hrp - dq_hg_eme_gc + dq_col_a
-        n_hrp = n_hrp - dn_col_b
-
-        ! cloud ice
-        q_hgp = q_hgp + dq_hg_eme_gc
-        n_hgp = n_hgp + dn_hg_eme_gc
-
-        ! updating cloud water
-        q_clp = q_clp - dq_col_a !   dq_hg_eme_gc
-        n_clp = n_clp + dn_col_b ! + dn_cl_rime_hg
-
-        ! updating thermodynamic
-        ! qtp : removal of droplets
-        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a ! dq_hg_eme_gc
-
-        ! thlp : melting and adding liquid water
-        ! thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_hg_eme_gc
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+                     &
-          (rlme/(cp*exnf(k)))*dq_hg_eme_gc+(rlvi/(cp*exnf(k)))*dq_col_a
-      endif
-
-      if (l_sb_dbg) then
-        if(svm(i,j,k,iq_cl)-delt*dq_hg_rime.lt. 0.0) then
-          write(6,*) 'WARNING: coll_gcg3 too high'
-          write(6,*) ' removing more cloud water then available'
-          ! count(svm(i,j,k,iq_cl)-delt*dq_hg_rime).lt. 0.0)
-          write(6,*) ' removing too much water'
-          ! count(q_cl-delt*dq_hg_rime.lt. 0.0)
-          write(6,*) ' getting negative q_t'
-          ! count(qt0(i,j,k)+delt*q_clp).lt. 0.0)
-        endif
-
-        if(svm(i,j,k,in_cl)+delt*dn_cl_rime_hg.lt. 0.0) then
-          write(6,*) 'WARNING: coll_gcg3 too high'
-          write(6,*) ' removing more droplets then available'
-          ! count(svm(i,j,k,in_cl)+delt*dn_cl_rime_hg.lt. 0.0)
-          write(6,*) ' removing too many droplets'
-          ! count(n_cl+delt*dn_cl_rime_hg.lt. 0.0)
-        endif
-      endif
-    endif
-
-    ! riming of graupel
-    ! -----------------
-    if (q_hg_mask.and.q_hr_mask) then
-      E_ab =  E_er_m
-
-      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hg    &
-            *q_hr*(dlt_g0*D_hg**2                     &
-              +dlt_g1r*D_hg*D_hr+dlt_r1*D_hr**2) &
-            *( th_g0*v_hg**2-th_g1r*v_hr*v_hg    &
-              +th_r1*v_hr**2+sigma_hg**2+sigma_hr**2)**0.5
-
-      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hg   &
-            *n_hr*(dlt_g0*D_hg**2                     &
-              +dlt_g0r*D_hg*D_hr+dlt_r0*D_hr**2) &
-            *( th_g0*v_hg**2-th_g0r*v_hr*v_hg    &
-              +th_r0*v_hr**2+sigma_hg**2+sigma_hr**2)**0.5
-
-      ! -- outputs -----------------------
-      ! dq_hghr_rime  = dq_col_a
-      ! dn_hr_rime_hg = dn_col_b
-
-      if (tmp0(i,j,k).lt.T_3) then
-        ! riming only
-        ! remaining number of particles
-        rem_cf = (1.0-rem_n_hr_min)/delt
-
-        dq_hghr_rime = min(dq_col_a,&
-                           max(0.0,&
-                           svm(i,j,k,iq_hr)/delt+q_hrp))   ! following ICON, 2017
-        ! = min(dq_hghr_rime,svm(i,j,k,iq_hr)/delt)
-
-        dn_hr_rime_hg = max(dn_col_b,&
-                            min(0.0,&
-                            -rem_cf*svm(i,j,k,in_hr)-n_hrp))
-        ! = min(dn_hr_rime_hg,-svm(i,j,k,in_hr)/delt)
-
-        ! change in the amount of graupel
-        q_hgp = q_hgp + dq_hghr_rime
-
-        ! change in the amount of rain
-        n_hrp = n_hrp + dn_hr_rime_hg
-        q_hrp = q_hrp - dq_hghr_rime
-
-        ! no change in q_t
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a
-
-        ! change in th_l - just heat release from freezing
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlme/(cp*exnf(k)))*dq_hghr_rime
-      else
-        ! not riming,but enhanced melting and scheding
-
-        ! enhanced melting
-        k_enhm  = c_water/rlme
-
-        ! calculating the melting
-        dq_hg_eme_gr = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a,q_hr/delt)
-        dq_hg_eme_gr = max(dq_hg_eme_gr,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
-
-        ! calculating number of melted particles
-        ! - expected to be proportional to melted mass
-        dn_hg_eme_gr = dq_hg_eme_gr*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
-
-        ! - but not more than number of interacting particles
-        ! dn_hg_eme_gr = max(dn_hg_eme_gr, max(dn_col_b,-n_hr/delt))
-        ! - and not more than total number of particles
-        dn_hg_eme_gr = max(dn_hg_eme_gr,&
-                           -min((svm(i,j,k,in_hr)/delt+n_hrp),&
-                                (svm(i,j,k,in_hg)/delt+n_hgp(i,j,k))))
-
-        ! updating tendencies
-        ! updating rain
-        q_hrp = q_hrp - dq_hg_eme_gr
-        ! n_hrp = n_hrp + dn_hr_rime_hg
-
-        ! graupel
-        q_hgp = q_hgp + dq_hg_eme_gr
-        n_hgp = n_hgp + dn_hg_eme_gr
-
-        ! updating cloud water
-        ! no change - all turned into rain
-        ! updating thermodynamic
-        ! qt : no change -  increased by melted water goes to rain
-        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) +0.0
-        ! thl : melting
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hg_eme_gr
-      endif
-
-      if (l_sb_dbg) then
-        if(svm(i,j,k,iq_hr)-delt*dq_col_a.lt. 0.0) then
-          write(6,*) 'WARNING: coll_grg3 too high'
-          write(6,*) ' removing more rain water than available'
-          ! count(svm(i,j,k,iq_hr)-delt*dq_hghr_rime.lt. 0.0)
-          write(6,*) ' removing too much rain water '
-          ! count(q_hr-delt*dq_hghr_rime.lt. 0.0)
-          write(6,*) ' getting negative q_t in  '
-          ! count(qt0(i,j,k)+delt*q_hrp).lt. 0.0)
-        endif
-        if(svm(i,j,k,in_hr)+delt*dn_col_b.lt. 0.0) then
-          write(6,*) 'WARNING: coll_grg too high'
-          write(6,*) ' removing more raindrops than available '
-          ! count(svm(i,j,k,in_hr)+delt*dn_hr_rime_hg.lt. 0.0)
-          write(6,*) ' removing too many raindrops'
-          ! count(n_hr+delt*dn_hr_rime_hg.lt. 0.0)
-        endif
-      endif
-    endif
   enddo
   enddo
   enddo
-endsubroutine coll3
+end subroutine coll_ici3
 
 
 ! riming of ice + rain to graupel
@@ -4557,6 +4462,414 @@ subroutine coll_rsg3
   enddo
 
 end subroutine coll_rsg3
+
+! ****************************************
+!  riming of snow
+! ****************************************
+subroutine coll_scs3
+  use modglobal, only : i1,j1,k1,cp,pi
+  use modfields, only : qt0,svm,tmp0,rhof,exnf
+
+  implicit none
+  integer :: i,j,k
+
+  real :: E_ab
+  real :: dif_D_10
+  real :: k_enhm
+  real :: rem_cf
+  real :: dn_col_b, dq_col_a
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hs_mask.and.q_cl_mask) then
+
+      ! checking whether sufficient size
+      if( (D_cl.gt.D_c_a).and.(D_hs.gt.D_i0)) then
+        if( D_cl.gt.D_c_b ) then
+          E_ab = E_s_m
+        else
+          ! denominator in calculationg collision efficiency
+          dif_D_10  = D_c_b-D_c_a
+          E_ab = (E_s_m/dif_D_10)* (D_cl - D_c_a)
+        endif
+      endif
+
+      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hs(i,j,k)                  &
+           *q_cl*(dlt_s0*D_hs**2                                  &
+             +dlt_s1c*D_hs*D_cl+dlt_c1*D_cl**2)                   &
+           *( th_s0*v_hs**2-th_s1c*v_cl(i,j,k)*v_hs(i,j,k)        &
+             +th_c1*v_cl(i,j,k)**2+sigma_hs**2+sigma_cl**2)**0.5
+
+      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hs(i,j,k)                 &
+           *n_cl*(dlt_s0*D_hs**2                                  &
+             +dlt_s0c*D_hs*D_cl+dlt_c0*D_cl**2)                   &
+           *( th_s0*v_hs(i,j,k)**2-th_s0c*v_cl(i,j,k)*v_hs(i,j,k) &
+             +th_c0*v_cl(i,j,k)**2+sigma_hs**2+sigma_cl**2)**0.5
+
+      ! basic limiting
+      ! limited by amount of water in droplets
+      dq_col_a = min(dq_col_a,q_cl/delt)
+      dq_col_a = min(dq_col_a,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp))
+      dn_col_b = max(dn_col_b,min(0.0,-svm(i,j,k,in_cl)/delt-n_clp))
+      ! limited by number of droplets
+      ! then based on temperature
+
+      if(tmp0(i,jk).lt.T_3) then
+        ! riming only
+        dq_hs_rime = dq_col_a ! following ICON, 2017
+
+        ! = min(dq_hs_rime,svm(i,j,k,iq_cl)/delt)
+        dn_cl_rime_hs = dn_col_b ! min(dn_cl_rime_hs,-svm(i,j,k,in_cl)/delt)
+
+        ! record the change
+        ! o dq_hs_rime = dq_col_a
+        ! change in the amount of cloud ice
+        q_hsp = q_hsp + dq_hs_rime
+
+        ! change in the amount of cloud water
+        n_clp = n_clp + dn_cl_rime_hs
+        q_clp = q_clp - dq_hs_rime
+
+        ! change in q_t
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hs_rime
+
+        ! change in th_l - freezing and removal
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlvi/(cp*exnf(k)))*dq_hs_rime
+      elseif(tmp0(i,jk).gt.T_3) then ! BUG: should be plain else
+        ! not riming, but enhanced melting and scheding
+
+        ! enhanced melting
+        k_enhm  = c_water/rlme
+
+        ! calculating the melting
+        dq_hs_eme_sc = -k_enhm*(tmp0(i,j,k)-T_3)*dq_col_a
+        dq_hs_eme_sc = max(dq_hs_eme_sc, &
+                           min(0.0, &
+                               -svm(i,j,k,iq_hs)/delt-q_hsp))
+
+        ! calculating number of melted particles
+        ! - expected to be proportional to melted mass
+        dn_hs_eme_sc = dq_hs_eme_sc*n_hs(i,j,k)/(q_hs(i,j,k)+eps0) ! q_hs here is always some small positive number
+
+        ! - not more than number of interacting particles
+        ! dn_hs_eme_sc = max(dn_hs_eme_sc, max(dn_col_b,-n_cl/delt))
+        ! - and not more than total number of particles
+        dn_hs_eme_sc = max(dn_hs_eme_sc, &
+                           -min((svm(i,j,k,in_cl)/delt+n_clp), &
+                                (svm(i,j,k,in_hs)/delt+n_hsp(i,j,k))))
+
+        ! updating tendencies
+        ! updating rain
+        ! melted snow is turning into rain  RH84
+        q_hrp = q_hrp -  dq_hs_eme_sc + dq_col_a ! both mass of snow and droplets
+        n_hrp = n_hrp -  dn_hs_eme_sc
+
+        ! snow
+        q_hsp = q_hsp + dq_hs_eme_sc
+        n_hsp = n_hsp + dn_hs_eme_sc
+
+        ! updating cloud water
+        q_clp = q_clp - dq_col_a
+        n_clp = n_clp + dn_col_b
+
+        ! updating thermodynamic
+        ! qtp : increased by melted water
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) -dq_col_a ! -dq_hs_eme_sc
+
+        ! thlp : melting and adding liquid water
+        ! thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_hs_eme_sc
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+            &
+            (rlme/(cp*exnf(k)))*dq_hs_eme_sc        &
+            +(rlvi/(cp*exnf(k)))*dq_col_a
+      endif
+
+      if (l_sb_dbg) then
+        if((svm(i,j,k,iq_cl)-delt*dq_col_a).lt. 0.0) then
+          write(6,*) 'WARNING: coll_scs too high'
+          write(6,*) ' removing more cloud water than available'
+          ! count((svm(i,j,k,iq_cl)-delt*dq_hs_rime).lt. 0.0)
+          write(6,*) ' removing too much cloud water',
+          ! count(q_cl-delt*dq_hs_rime.lt. 0.0)
+          write(6,*) ' getting negative q_t'
+          ! count(qt0(i,j,k)+delt*q_clp).lt. 0.0)
+        endif
+
+        if(svm(i,j,k,in_cl)+delt*dn_col_b.lt. 0.0) then
+          write(6,*) 'WARNING: coll_scs too high'
+          write(6,*) ' removing more droplets then available'
+          ! count(svm(i,j,k,in_cl)+delt*dn_cl_rime_hs).lt. 0.0)
+          write(6,*) ' removing too many droplets'
+          ! count(n_cl+delt*dn_cl_rime_hs.lt. 0.0)
+        endif
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine coll_scs3
+
+
+! ****************************************
+!  riming of graupel
+!
+!
+! ****************************************
+subroutine coll_grg3
+  use modglobal, only : i1,j1,k1,cp,pi
+  use modfields, only : qt0,svm,tmp0,rhof,exnf
+
+  implicit none
+  integer :: i,j,k
+
+  real :: E_ab
+  real :: dif_D_10
+  real :: k_enhm
+  real :: rem_cf
+  real :: dn_col_ici, dq_col_ici
+  real :: dn_col_b, dq_col_a
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hg_mask.and.q_hr_mask) then
+      E_ab =  E_er_m
+
+      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hg    &
+            *q_hr*(dlt_g0*D_hg**2                     &
+              +dlt_g1r*D_hg*D_hr+dlt_r1*D_hr**2) &
+            *( th_g0*v_hg**2-th_g1r*v_hr*v_hg    &
+              +th_r1*v_hr**2+sigma_hg**2+sigma_hr**2)**0.5
+
+      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hg   &
+            *n_hr*(dlt_g0*D_hg**2                     &
+              +dlt_g0r*D_hg*D_hr+dlt_r0*D_hr**2) &
+            *( th_g0*v_hg**2-th_g0r*v_hr*v_hg    &
+              +th_r0*v_hr**2+sigma_hg**2+sigma_hr**2)**0.5
+
+      if (tmp0(i,j,k).lt.T_3) then
+        ! riming only
+        ! remaining number of particles
+        rem_cf = (1.0-rem_n_hr_min)/delt
+
+        dq_hghr_rime = min(dq_col_a,&
+                           max(0.0,&
+                           svm(i,j,k,iq_hr)/delt+q_hrp))   ! following ICON, 2017
+        ! = min(dq_hghr_rime,svm(i,j,k,iq_hr)/delt)
+
+        dn_hr_rime_hg = max(dn_col_b,&
+                            min(0.0,&
+                            -rem_cf*svm(i,j,k,in_hr)-n_hrp))
+        ! = min(dn_hr_rime_hg,-svm(i,j,k,in_hr)/delt)
+
+        ! change in the amount of graupel
+        q_hgp = q_hgp + dq_hghr_rime
+
+        ! change in the amount of rain
+        n_hrp = n_hrp + dn_hr_rime_hg
+        q_hrp = q_hrp - dq_hghr_rime
+
+        ! no change in q_t
+        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a
+
+        ! change in th_l - just heat release from freezing
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlme/(cp*exnf(k)))*dq_hghr_rime
+      else
+        ! not riming,but enhanced melting and scheding
+
+        ! enhanced melting
+        k_enhm  = c_water/rlme
+
+        ! calculating the melting
+        dq_hg_eme_gr = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a,q_hr/delt)
+        dq_hg_eme_gr = max(dq_hg_eme_gr,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
+
+        ! calculating number of melted particles
+        ! - expected to be proportional to melted mass
+        dn_hg_eme_gr = dq_hg_eme_gr*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
+
+        ! - but not more than number of interacting particles
+        ! dn_hg_eme_gr = max(dn_hg_eme_gr, max(dn_col_b,-n_hr/delt))
+        ! - and not more than total number of particles
+        dn_hg_eme_gr = max(dn_hg_eme_gr,&
+                           -min((svm(i,j,k,in_hr)/delt+n_hrp),&
+                                (svm(i,j,k,in_hg)/delt+n_hgp(i,j,k))))
+
+        ! updating tendencies
+        ! updating rain
+        q_hrp = q_hrp - dq_hg_eme_gr
+        ! n_hrp = n_hrp + dn_hr_rime_hg
+
+        ! graupel
+        q_hgp = q_hgp + dq_hg_eme_gr
+        n_hgp = n_hgp + dn_hg_eme_gr
+
+        ! updating cloud water
+        ! no change - all turned into rain
+        ! updating thermodynamic
+        ! qt : no change -  increased by melted water goes to rain
+        ! qtpmcr(i,j,k) = qtpmcr(i,j,k) +0.0
+        ! thl : melting
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlme/(cp*exnf(k)))*dq_hg_eme_gr
+      endif
+
+      if (l_sb_dbg) then
+        if(svm(i,j,k,iq_hr)-delt*dq_col_a.lt. 0.0) then
+          write(6,*) 'WARNING: coll_grg3 too high'
+          write(6,*) ' removing more rain water than available'
+          ! count(svm(i,j,k,iq_hr)-delt*dq_hghr_rime.lt. 0.0)
+          write(6,*) ' removing too much rain water '
+          ! count(q_hr-delt*dq_hghr_rime.lt. 0.0)
+          write(6,*) ' getting negative q_t in  '
+          ! count(qt0(i,j,k)+delt*q_hrp).lt. 0.0)
+        endif
+        if(svm(i,j,k,in_hr)+delt*dn_col_b.lt. 0.0) then
+          write(6,*) 'WARNING: coll_grg too high'
+          write(6,*) ' removing more raindrops than available '
+          ! count(svm(i,j,k,in_hr)+delt*dn_hr_rime_hg.lt. 0.0)
+          write(6,*) ' removing too many raindrops'
+          ! count(n_hr+delt*dn_hr_rime_hg.lt. 0.0)
+        endif
+      endif
+    endif
+end subroutine coll_grg3
+
+
+! ****************************************
+!  riming of graupel by cloud droplets
+!
+!
+! ****************************************
+subroutine coll_gcg3
+  use modglobal, only : i1,j1,k1,cp,pi
+  use modfields, only : qt0,svm,tmp0,rhof,exnf
+
+  implicit none
+  integer :: i,j,k
+
+  real :: E_ab
+  real :: dif_D_10
+  real :: k_enhm
+  real :: rem_cf
+  real :: dn_col_b, dq_col_a
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    if (q_hg_mask.and.q_cl_mask) then
+      ! collision efficiency
+      ! checking whether sufficient size
+      if( (D_cl.gt.D_c_a).and.(D_hg.gt.D_i0)) then
+        if( D_cl.gt.D_c_b ) then
+          E_ab = E_g_m
+        else
+          dif_D_10 = D_c_b-D_c_a
+          E_ab = (E_g_m/dif_D_10)* (D_cl- D_c_a)
+        endif
+      endif
+
+      dq_col_a = (rhof(k)*pi/4)*E_ab*n_hg    &
+           *q_cl*(dlt_g0*D_hg**2                     &
+             +dlt_g1c*D_hg*D_cl+dlt_c1*D_cl**2) &
+           *( th_g0*v_hg**2-th_g1c*v_cl*v_hg    &
+             +th_c1*v_cl**2+sigma_hg**2+sigma_cl**2)**0.5
+
+      dn_col_b = -(rhof(k)*pi/4)*E_ab*n_hg   &
+           *n_cl*(dlt_g0*D_hg**2                     &
+             +dlt_g0c*D_hg*D_cl+dlt_c0*D_cl**2) &
+           *( th_g0*v_hg**2-th_g0c*v_cl*v_hg    &
+             +th_c0*v_cl**2+sigma_hg**2+sigma_cl**2)**0.5
+
+      ! initial correction based on amount of cloud water
+      rem_cf = (1.0-rem_n_cl_min)/delt
+      dq_col_a = min(dq_col_a,max(0.0,svm(i,j,k,iq_cl)/delt+q_clp)) ! following ICON, 2017
+      dn_col_b = max(dn_col_b,min(0.0,-rem_cf*svm(i,j,k,in_cl)-n_clp))
+
+      ! then based on temeprature
+      if(tmp0(i,j,k).lt.T_3) then
+        dq_hg_rime = dq_col_a    ! = min(dq_hg_rime,svm(i,j,k,iq_cl)/delt)
+        dn_cl_rime_hg = dn_col_b ! = min(dn_cl_rime_hg,-svm(i,j,k,in_cl)/delt)
+
+        ! change in the amount of graupel
+        q_hgp = q_hgp + dq_hg_rime
+
+        ! change in the amount of rain
+        n_clp = n_clp + dn_cl_rime_hg
+        q_clp = q_clp - dq_hg_rime
+
+        ! no change in q_t
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_hg_rime
+
+        ! change in th_l - heat release from freezing and removal
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+ (rlvi/(cp*exnf(k)))*dq_hg_rime
+      else
+        ! not riming,but enhanced melting and scheding
+
+        ! enhanced melting
+        k_enhm  = c_water/rlme
+
+        ! calculating the melting
+        dq_hg_eme_gc = -k_enhm*(tmp0(i,j,k)-T_3)*min(dq_col_a,q_cl/delt)
+        dq_hg_eme_gc = max(dq_hg_eme_gc,min(0.0,-svm(i,j,k,iq_hg)/delt-q_hgp))
+
+        ! calculating number of melted particles
+        ! - expected to be proportional to melted mass
+        dn_hg_eme_gc = dq_hg_eme_gc*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
+
+        ! - but not more than number of interacting particles
+        ! dn_hg_eme_gc = max(dn_hg_eme_gc, max(dn_col_b,-n_cl/delt))
+        ! - and not more than total number of particles
+        dn_hg_eme_gc = max(dn_hg_eme_gc, -min((svm(i,j,k,in_cl)/delt+n_clp),(svm(i,j,k,in_hg)/delt+n_hgp)))
+
+        ! updating tendencies
+        ! updating rain
+        ! based on RH84
+        q_hrp = q_hrp - dq_hg_eme_gc + dq_col_a
+        n_hrp = n_hrp - dn_col_b
+
+        ! cloud ice
+        q_hgp = q_hgp + dq_hg_eme_gc
+        n_hgp = n_hgp + dn_hg_eme_gc
+
+        ! updating cloud water
+        q_clp = q_clp - dq_col_a !   dq_hg_eme_gc
+        n_clp = n_clp + dn_col_b ! + dn_cl_rime_hg
+
+        ! updating thermodynamic
+        ! qtp : removal of droplets
+        qtpmcr(i,j,k) = qtpmcr(i,j,k) - dq_col_a ! dq_hg_eme_gc
+
+        ! thlp : melting and adding liquid water
+        ! thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlvi/(cp*exnf(k)))*dq_hg_eme_gc
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+                     &
+          (rlme/(cp*exnf(k)))*dq_hg_eme_gc+(rlvi/(cp*exnf(k)))*dq_col_a
+      endif
+
+      if (l_sb_dbg) then
+        if(svm(i,j,k,iq_cl)-delt*dq_hg_rime.lt. 0.0) then
+          write(6,*) 'WARNING: coll_gcg3 too high'
+          write(6,*) ' removing more cloud water then available'
+          ! count(svm(i,j,k,iq_cl)-delt*dq_hg_rime).lt. 0.0)
+          write(6,*) ' removing too much water'
+          ! count(q_cl-delt*dq_hg_rime.lt. 0.0)
+          write(6,*) ' getting negative q_t'
+          ! count(qt0(i,j,k)+delt*q_clp).lt. 0.0)
+        endif
+
+        if(svm(i,j,k,in_cl)+delt*dn_cl_rime_hg.lt. 0.0) then
+          write(6,*) 'WARNING: coll_gcg3 too high'
+          write(6,*) ' removing more droplets then available'
+          ! count(svm(i,j,k,in_cl)+delt*dn_cl_rime_hg.lt. 0.0)
+          write(6,*) ' removing too many droplets'
+          ! count(n_cl+delt*dn_cl_rime_hg.lt. 0.0)
+        endif
+      endif
+    endif
+  enddo
+  enddo
+  enddo
+end subroutine coll_gcg3
+
 
 ! ****************************************
 !  partial conversion to graupel
