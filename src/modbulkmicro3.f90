@@ -33,6 +33,14 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+! TODO:
+! subroutine check_sizes
+! subroutine check_updates
+!     compare updates to limit
+! subroutine check_ssat(flag_dbg)
+!     ssat(i,j,k) = (100.0/qvsl(i,j,k))*((qt0(i,j,k)-q_cl(i,j,k))-qvsl(i,j,k)) > max_sat
+!     ssice(i,j,k) =(100.0/qvsi(i,j,k))*((qt0(i,j,k)-q_cl(i,j,k))-qvsi(i,j,k)) > max_sat
+
 
 module modbulkmicro3
 !*********************************************************************
@@ -186,11 +194,6 @@ module modbulkmicro3
 
      allocate(thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1) &
              ,qtpmcr   (2-ih:i1+ih,2-jh:j1+jh,k1) &
-             ,qr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1) &
-             ,Nr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)
-
-
-
 
   gamma25=lacz_gamma(2.5)
   gamma3=2.
@@ -349,21 +352,17 @@ module modbulkmicro3
   !  both for
   wfallmax_hr = d_wfallmax_hr   ! use default value for rain
   wfallmax_cl = d_wfallmax_hr   ! wfallmax_cl =   max(c_v_c0*x_cl_bmax**be_cl, c_v_c1*x_cl_bmax**be_cl)
-  wfallmax_ci = d_wfallmax_hr   ! wfallmax_ci =   max( c_v_i0*x_ci_bmax**be_ci, c_v_i1*x_cl_bmax**be_ci)
-  wfallmax_hs = d_wfallmax_hr   ! wfallmax_hs =   max( c_v_s0*x_hs_bmax**be_hs, c_v_s1*x_hs_bmax**be_hs)
-  !#b2t3 wfallmax_hg = d_wfallmax_hg   ! wfallmax_hg =   max( c_v_g0*x_hg_bmax**be_hg, c_v_g1*x_hg_bmax**be_hg)
-  wfallmax_hg = max(c_v_g0, c_v_g1) ! #b2t4
+  wfallmax_ci = d_wfallmax_hr   ! wfallmax_ci =   max(c_v_i0*x_ci_bmax**be_ci, c_v_i1*x_cl_bmax**be_ci)
+  wfallmax_hs = d_wfallmax_hr   ! wfallmax_hs =   max(c_v_s0*x_hs_bmax**be_hs, c_v_s1*x_hs_bmax**be_hs)
+  wfallmax_hg = max(c_v_g0, c_v_g1)
 
   ! coefficient for lbdr calculation l_sb_classic
-   c_lbdr = calc_cons_lbd (mu_hr_cst, nu_hs_cst)
+  c_lbdr = calc_cons_lbd (mu_hr_cst, nu_hs_cst) ! TODO: Not used
 
   ! calculating eslt3 = esl(T_3)/T_3
   ! using thermodynamic routine
   eslt3 = esl_at_te(T_3)
 
-  ! #sb3 END
-
-  ! #sb3 START write settings
    if (myid .eq. 0) then
      write (6,*) ' === Settings of Mphys ===='
      write (6,*) 'imicro = ', imicro
@@ -416,577 +415,207 @@ module modbulkmicro3
      write (6,*)   ' --------------------------------------------------- '
 
      write (6,*)   ' ice and snow aggregation debug '
-     write (6,*)   '   dlt_i0 =',dlt_i0
+     write (6,*)   '   dlt_i0    =', dlt_i0
      write (6,*)   '   dlt_0aa   = 2*dlt_i0 + dlt_i0i = ',2*dlt_i0 + dlt_i0i
-      ! dlt_0b    = dlt_0a
      write (6,*)   '   dlt_1a    = dlt_i1 = ',dlt_i1
      write (6,*)   '   dlt_1aa   = dlt_i0 + dlt_i1i + dlt_i1 = ',dlt_i0 + dlt_i1i + dlt_i1
-      ! dlt_1b    = dlt_1a
      write (6,*)   '   th_0a     = th_i0 = ',th_i0
      write (6,*)   '   th_0aa    = 2*th_i0 - th_i0i = ', 2*th_i0 - th_i0i ! from Seifert, 2002
-      ! th_0b     = th_0a
-     write (6,*)   '  th_1a     = th_i1 = ', th_i1
-     write (6,*)   '  th_1aa    = th_i0 - th_i1i + th_i1 = ', th_i0 - th_i1i + th_i1  ! th_i0i - th_i1i + th_i1 ! th_1ab    = th_i1i
+     write (6,*)   '   th_1a     = th_i1 = ', th_i1
+     write (6,*)   '   th_1aa    = th_i0 - th_i1i + th_i1 = ', th_i0 - th_i1i + th_i1  ! th_i0i - th_i1i + th_i1 ! th_1ab    = th_i1i
       write (6,*)   ' --------------------------------------------------- '
-      ! th_1b     = th_1a
 
    endif
   end subroutine initbulkmicro3
 
+
 !> Cleaning up after the run
-  subroutine exitbulkmicro3
-  !*********************************************************************
-  ! subroutine exitbulkmicro
-  !*********************************************************************
-    implicit none
+! ---------------------------------------------------------------------------------
+subroutine exitbulkmicro3
+  implicit none
+end subroutine exitbulkmicro3
 
-
-    deallocate( &
-              ,qr_spl,Nr_spl)
-    deallocate(qltot,thlpmcr,qtpmcr)
-    deallocate(n_cc,n_ccp                                     &
-      ,n_cl,n_clp,n_ci,n_cip,n_hr,n_hrp,n_hs,n_hsp,n_hg,n_hgp &
-      ,q_cl,q_clp,q_ci,q_cip,q_hr,q_hrp,q_hs,q_hsp,q_hg,q_hgp &
-      ,x_cl, x_ci, x_hr, x_hs, x_hg                           &
-      )
-
-  end subroutine exitbulkmicro3
 
 !> Calculates the microphysical source term.
-  subroutine bulkmicro3
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,ih,jh
+! ---------------------------------------------------------------------------------
+subroutine bulkmicro3
+  use modglobal, only : i1,j1,k1,rdt,rk3step,timee,ih,jh
 
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,qvsl,qvsi,qt0
-    use modbulkmicrostat3, only : bulkmicrotend3,bulkmicrostat3 ! #sb3 #t7
-    use modmpi,    only : myid
-    implicit none
-    integer :: i,j,k
-    integer :: insv, iqsv ! #sb3 - species number
-    logical :: flag_warn_size,flag_do_dbg_up
-    real :: qrtest,nrtest
-    real, allocatable :: xtest (:,:,:)
+  use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,qvsl,qvsi,qt0
+  use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
+  use modmpi,    only : myid
+  implicit none
+  integer :: i,j,k
 
-    allocate(xtest(2-ih:i1+ih,2-jh:j1+jh,k1))  ! #d
-    xtest = 0.0
-
-    real ::   dn_cl_nu       &    !< droplet nucleation rate
-             ,dn_ci_inu      &    !< ice nucleation rate
-             ,dn_cl_au       &    !< change in number of cloud droplets due to autoconversion
-             ,dq_hr_au       &    !< change in mass of raindrops due to autoconversion
-             ,dn_hr_au       &    !< change in number of raindrops due to autoconversion
-             ,dq_hr_ac       &    !< change in mass of raindrops due to accretion
-             ,dn_cl_ac       &    !< change in number of cloud droplets due to accretion
-             ,dn_hr_br       &
-             ,dn_hr_sc       &
-             ,dq_hr_ev       &
-             ,dn_hr_ev       &
-             ,dq_ci_rime     &    !< riming growth of ice
-             ,dn_cl_rime_ci  &    !<  - and impact on n_cl
-             ,dq_hs_rime     &    !< riming growth of snow
-             ,dn_cl_rime_hs  &    !<  - and impact on n_cl
-             ,dq_hg_rime     &    !< riming growth for graupel
-             ,dn_cl_rime_hg  &    !<  - and impact on n_cl
-             ,dq_hghr_rime   &    !< riming growth for graupel with rain
-             ,dn_hr_rime_hg  &    !<  - and impact on n_hr
-             ,dq_hshr_rime   &    !< riming growth for snow with rain
-             ,dn_hr_rime_hs  &    !<  - and impact on n_hr
-             ,dq_hr_rime_ri  &    !< rain loss from riming of ice+rain->gr
-             ,dq_ci_rime_ri  &    !< ice loss from riming of ice+rain->gr
-             ,dn_ci_rime_ri  &    !< ice number loss from riming of ice+rain->gr
-             ,dn_hr_rime_ri  &    !< rain number loss from riming of ice+rain->gr
-             ,dq_hr_col_rs   &    !< rain loss from riming of ice+snow->gr
-             ,dq_hs_col_rs   &    !< rain number loss from riming of ice+snow->gr
-             ,dn_hr_col_rs   &    !< snow loss from riming of ice+snow->gr
-             ,dn_hs_col_rs   &    !< snow number loss from riming of ice+snow->gr
-             ,dq_hr_col_ri   &    !< rain loss from riming of ice+rain->gr
-             ,dq_ci_col_ri   &    !< ice loss from riming of ice+rain->gr
-             ,dn_ci_col_ri   &    !< ice number loss from riming of ice+rain->gr
-             ,dn_hr_col_ri   &    !< rain number loss from riming of ice+rain->gr
-             ,dq_cl_het      &    !< heterogeneou freezing of cloud water
-             ,dq_hr_het      &    !< heterogeneou freezing of raindrops
-             ,dn_hr_het      &    !< heterogeneou freezing of raindrops
-             ,dq_cl_hom      &    !< homogeneous freezing of cloud water
-             ,dq_ci_col_iis  &    !< self-collection of cloud ice
-             ,dn_ci_col_iis  &    !< self-collection of cloud ice
-             ,dn_hs_col_sss  &    !< self-collection of snow
-             ,dq_hsci_col    &    !< collection s+i - trend in q_hs
-             ,dn_ci_col_hs   &    !< collection s+i - trend in n_ci
-             ,dq_hghs_col    &    !< collection g+s - trend in q_hg
-             ,dn_hs_col_hg   &    !< collection g+s - trend in n_hs
-             ,dq_ci_cv       &    !< partial conversion ice -> graupel
-             ,dn_ci_cv       &
-             ,dq_hs_cv       &    !< partial conversion snow-> graupel
-             ,dn_hs_cv       &
-             ,dn_cl_sc       &    !< cloud self-collection
-             ,dn_ci_mul      &      !< ice multiplication
-             ,dq_ci_mul      &      !< ice multiplication
-             ,dn_ci_me       &      !< number tendency melting of cloud ice
-             ,dq_ci_me       &      !< mass tendency melting of cloud ice
-             ,dn_hs_me       &      !< number tendency melting of snow
-             ,dq_hs_me       &      !< mass tendency melting of snow
-             ,dn_hg_me       &      !< number tendency melting of graupel
-             ,dq_hg_me       &      !< mass tendency melting of graupel
-             ,dn_ci_ev       &      !< number tendency evaporation of cloud ice
-             ,dq_ci_ev       &      !< mass tendency evaporation of cloud ice
-             ,dn_hs_ev       &      !< number tendency evaporation of snow
-             ,dq_hs_ev       &      !< mass tendency evaporation of snow
-             ,dn_hg_ev       &      !< number tendency evaporation of graupel
-             ,dq_hg_ev       &      !< mass tendency evaporation of graupel
-             ,dn_ci_eme_ic   &      !< number tendency enhanced melting of cloud ice by cloud water
-             ,dq_ci_eme_ic   &      !< mass tendency enhanced melting of cloud ice by cloud water
-             ,dn_ci_eme_ri   &      !< number tendency enhanced melting of cloud ice by rain
-             ,dq_ci_eme_ri   &      !< mass tendency enhanced melting of cloud ice  by rain
-             ,dn_hs_eme_sc   &      !< number tendency enhanced melting of snow by cloud water
-             ,dq_hs_eme_sc   &      !< mass tendency enhanced melting of snow by cloud water
-             ,dn_hs_eme_rs   &      !< number tendency enhanced melting of snow by rain
-             ,dq_hs_eme_rs   &      !< mass tendency enhanced melting of snow by rain
-             ,dn_hg_eme_gc   &      !< number tendency enhanced melting of graupel
-             ,dq_hg_eme_gc   &      !< mass tendency enhanced melting of graupel
-             ,dn_hg_eme_gr   &      !< number tendency enhanced melting of graupel by rain
-             ,dq_hg_eme_gr   &      !< mass tendency enhanced melting of graupel by rain
-             ,dn_cl_se       &      !< sedimentation for clouds water - number
-             ,dq_cl_se       &      !<       -||-- mixing ration
-             ,dn_ci_se       &      !< sedimentation for cloud ice - number
-             ,dq_ci_se       &      !<       -||-- mixing ration
-             ,dn_hr_se       &      !< sedimentation for rain - number
-             ,dq_hr_se       &      !<       -||-- mixing ration
-             ,dn_hs_se       &      !< sedimentation for snow - number
-             ,dq_hs_se       &      !<       -||-- mixing ration
-             ,dn_hg_se       &      !< sedimentation for graupel - number
-             ,dq_hg_se              !<       -||-- mixing ration
-             ,dq_cl_sa       &      !< saturation adjustment
-             ,dn_cl_sa       &      !< change in n_cl due to saturation adjustment
-
-    allocate (precep_hr     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of raindrops
-             ,precep_ci     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of ice crystals
-             ,precep_hs     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of snow
-             ,precep_hg     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of graupel
-             ,ret_cc        (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< recovery of ccn
-            )
-
-    real ::  D_cl  ! \bar{D}_cl mean diameter for cloud water particle
-            ,D_ci  ! \bar{D}_ci mean diameter for cloud ice particle
-            ,D_hr  ! \bar{D}_hr mean diameter for raindrops
-            ,D_hs  ! \bar{D}_hs mean diameter for snow particle
-            ,D_hg  ! \bar{D}_hg mean diameter for graupel particle
-            ,v_cl  ! \bar{v}_cl mean velocity for cloud water droplets
-            ,v_ci  ! \bar{v}_ci mean velocity for cloud ice particle
-            ,v_hr  ! \bar{v}_hr mean velocity for raindrops
-            ,v_hs  ! \bar{v}_hs mean velocity for snow particle
-            ,v_hg  ! \bar{v}_hg mean velocity for graupel particle
-
-    ! check if cloud were already initialised
-    if (.not. l_ccn_init) then
-      call initccn3       ! initialise clouds
-      l_ccn_init = .true.
-      if(myid.eq.0) then
-        write(6,*) ' modbulkmicro3: ccn initialised by initccn3'
-      endif
+  ! check if ccn and clouds were already initialised
+  ! ------------------------------------------------
+  if (.not. l_ccn_init) then
+    call initccn3       ! initialise clouds
+    l_ccn_init = .true.
+    if(myid.eq.0) then
+      write(6,*) ' modbulkmicro3: ccn initialised by initccn3'
     endif
-    if (.not. l_clouds_init) then
-      call initclouds3       ! initialise clouds
-      l_clouds_init = .true.
-      if (myid.eq.0) then
-        write(6,*) ' modbulkmicro3: clouds initialised by initcloud3'
-      endif
+  endif
+  if (.not. l_clouds_init) then
+    call initclouds3       ! initialise clouds
+    l_clouds_init = .true.
+    if (myid.eq.0) then
+      write(6,*) ' modbulkmicro3: clouds initialised by initcloud3'
     endif
+  endif
 
-    ! loading cloud water number and cloud water densities
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! aerosols:
-      n_cc  (i,j,k) = sv0(i,j,k,in_cc)
+  delt = rdt / (4. - dble(rk3step))
 
-      ! reading number densities:
-      n_cl = sv0(i,j,k,in_cl)
-      n_ci = sv0(i,j,k,in_ci)
-      n_hr = sv0(i,j,k,in_hr)
-      n_hs = sv0(i,j,k,in_hs)
-      n_hg = sv0(i,j,k,in_hg)
+  ! TODO: remove output?
+  if (timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
+    write(*,*) 'l_lognormal',l_lognormal
+    write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
+    write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
+    write(*,*) 'nuc = param'
+  endif
 
-      ! reading mass densities
-      q_cl = sv0(i,j,k,iq_cl)
-      q_ci = sv0(i,j,k,iq_ci)
-      q_hr = sv0(i,j,k,iq_hr)
-      q_hs = sv0(i,j,k,iq_hs)
-      q_hg = sv0(i,j,k,iq_hg)
-    enddo
-    enddo
-    enddo
+  ! loop over all (i,j) columns
+  do i=1,i1
+  do j=1,j1
 
-    ! allocating fields for processes
-    thlpmcr = 0.0
-    qtpmcr  = 0.0
+  ! Column processes
+  ! ------------------------------------------------------------------
+    call column_nucleation
 
-    ! 0 to values of the update
-    n_ccp  = 0.0
-    n_clp  = 0.0
-    n_cip  = 0.0
-    n_hrp  = 0.0
-    n_hsp  = 0.0
-    n_hgp  = 0.0
-    q_hrp  = 0.0
-    q_clp  = 0.0
-    q_cip  = 0.0
-    q_hrp  = 0.0
-    q_hsp  = 0.0
-    q_hgp  = 0.0
-    x_ci   = 0.0
-    x_cl   = 0.0
-    x_hr   = 0.0
-    x_hs   = 0.0
-    x_hg   = 0.0
-    !
-    D_ci   = 0.0
-    D_cl   = 0.0
-    D_hr   = 0.0
-    D_hs   = 0.0
-    D_hg   = 0.0
-    v_ci   = 0.0
-    v_cl   = 0.0
-    v_hr   = 0.0
-    v_hs   = 0.0
-    v_hg   = 0.0
+  ! loop over all k-points in this (i,j) column
+    do k=1,kmax
 
-    ! 0 to values of the update
-    dn_cl_nu      = 0.0
-    dn_ci_inu     = 0.0
-    dn_cl_au      = 0.0
-    dq_hr_au      = 0.0
-    dn_hr_au      = 0.0
-    dq_hr_ac      = 0.0
-    dn_cl_ac      = 0.0
-    dn_hr_br      = 0.0
-    dn_hr_sc      = 0.0
-    dq_hr_ev      = 0.0
-    dn_hr_ev      = 0.0
-    dq_ci_dep     = 0.0
-    dq_hs_dep     = 0.0
-    dq_hg_dep     = 0.0
-    dq_ci_rime    = 0.0
-    dn_cl_rime_ci = 0.0
-    dq_hs_rime    = 0.0
-    dn_cl_rime_hs = 0.0
-    dq_hg_rime    = 0.0
-    dn_cl_rime_hg = 0.0
-    dq_hshr_rime  = 0.0
-    dn_hr_rime_hs = 0.0
-    dq_hr_col_rs  = 0.0
-    dq_hs_col_rs  = 0.0
-    dn_hr_col_rs  = 0.0
-    dn_hs_col_rs  = 0.0
-    dq_hr_col_ri  = 0.0
-    dq_ci_col_ri  = 0.0
-    dn_ci_col_ri  = 0.0
-    dn_hr_col_ri  = 0.0
-    dq_hghr_rime  = 0.0
-    dn_hr_rime_hg = 0.0
-    dq_cl_het     = 0.0
-    dq_hr_het     = 0.0
-    dn_hr_het     = 0.0
-    dq_cl_hom     = 0.0
-    dq_ci_col_iis = 0.0
-    dn_ci_col_iis = 0.0
-    dn_hs_col_sss = 0.0
-    dq_hsci_col   = 0.0
-    dn_ci_col_hs  = 0.0
-    dq_hghs_col   = 0.0
-    dn_hs_col_hg  = 0.0
-    dq_ci_cv      = 0.0
-    dn_ci_cv      = 0.0
-    dq_hs_cv      = 0.0
-    dn_hs_cv      = 0.0
-    dn_cl_sc      = 0.0
-    dn_ci_mul     = 0.0
-    dq_ci_mul     = 0.0
-    dn_ci_me      = 0.0
-    dq_ci_me      = 0.0
-    dn_hs_me      = 0.0
-    dq_hs_me      = 0.0
-    dn_hg_me      = 0.0
-    dq_hg_me      = 0.0
-    dn_ci_ev      = 0.0
-    dq_ci_ev      = 0.0
-    dn_hs_ev      = 0.0
-    dq_hs_ev      = 0.0
-    dn_hg_ev      = 0.0
-    dq_hg_ev      = 0.0
-    dn_ci_eme_ic  = 0.0
-    dq_ci_eme_ic  = 0.0
-    dn_ci_eme_ri  = 0.0
-    dq_ci_eme_ri  = 0.0
-    dn_hs_eme_sc  = 0.0
-    dq_hs_eme_sc  = 0.0
-    dn_hs_eme_rs  = 0.0
-    dq_hs_eme_rs  = 0.0
-    dn_hg_eme_gc  = 0.0
-    dq_hg_eme_gc  = 0.0
-    dn_hg_eme_gr  = 0.0
-    dq_hg_eme_gr  = 0.0
-    dn_cl_se      = 0.0
-    dq_cl_se      = 0.0
-    dn_ci_se      = 0.0
-    dq_ci_se      = 0.0
-    dn_hr_se      = 0.0
-    dq_hr_se      = 0.0
-    dn_hs_se      = 0.0
-    dq_hs_se      = 0.0
-    dn_hg_se      = 0.0
-    dq_hg_se      = 0.0
-    precep_hr     = 0.0
-    precep_ci     = 0.0
-    precep_hs     = 0.0
-    precep_hg     = 0.0
-    dq_cl_sa      = 0.0
-    dn_cl_sa      = 0.0
-    ret_cc        = 0.0
-
-    ! reset flags
-    flag_warn_size   = .true.
-    if (l_sb_dbg) then
-      flag_do_dbg_up  = .true.
-    endif
-
-    delt = rdt/ (4. - dble(rk3step))
-
-    if (timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
-      write(*,*) 'l_lognormal',l_lognormal
-      write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
-      write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
-      write(*,*) 'nuc = param'
-    endif
-
-  !*********************************************************************
-  ! remove negative values for hydrometereors and clouds
-  !*********************************************************************
-    if (l_rain) then
-       if ( sum(q_hr, q_hr<0.) > 0.000001*sum(q_hr) ) then
-         write(*,*)'amount of neg. q_hr thrown away is too high  ',timee,' sec'
-       end if
-       if ( sum(n_hr, n_hr<0.) > 0.000001*sum(n_hr) ) then
-         write(*,*)'amount of neg. n_hr thrown away is too high  ',timee,' sec'
-       end if
-       if ((sum(q_hs,q_hs<0.)+sum(q_hg,q_hg<0.))>0.000001*(sum(q_hs)+sum(q_hg))) then
-         write(*,*)'amount of neg. q_hs, q_hg thrown away is too high  ',timee,' sec'
-       end if
-       if ((sum(n_hs,n_hs<0.)+sum(n_hg,n_hg<0.))>0.000001*(sum(n_hs)+sum(n_hg))) then
-          write(*,*)'amount of neg. n_hs, n_hg and n_hg thrown away is too high ',timee,' sec'
-       end if
-       if ((sum(q_cl,q_cl<0.)+sum(q_ci,q_ci<0.))>0.000001*(sum(q_cl)+sum(q_ci))) then
-          write(*,*)'amount of neg. q_cl and q_ci thrown away is too high ',timee,' sec'
-       end if
-       if ((sum(n_cl,n_cl<0.)+sum(n_ci,n_ci<0.))>0.000001*(sum(n_cl)+sum(n_ci))) then
-          write(*,*)'amount of neg. n_cl and n_ci thrown away is too high ',timee,' sec'
-       end if
-       if ((sum(n_cc,n_cc<0.))>0.000001*(sum(n_cc))) then
-          write(*,*)'amount of neg. n_cc thrown away is too high ',timee,' sec'
-       end if
-
-       ! replacing negative values
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-          if (n_hr(i,j,k) < 0.)  then
-            n_hr(i,j,k) = 0.
-          endif
-          if (q_hr < 0.)  then
-            q_hr = 0.
-          endif
-          !#sb3 for other species
-          if (n_hs(i,j,k) < 0.)  then
-            n_hs(i,j,k) = 0.
-          endif
-          if (n_hg(i,j,k) < 0.)  then
-            n_hg(i,j,k) = 0.
-          endif
-          if (q_hs(i,j,k) < 0.)  then
-            q_hs(i,j,k) = 0.
-          endif
-          if (q_hg(i,j,k) < 0.)  then
-            q_hg(i,j,k) = 0.
-          endif
-          if (n_cl(i,j,k) < 0.)  then
-            n_cl(i,j,k) = 0.
-          endif
-          if (n_ci(i,j,k) < 0.)  then
-            n_ci(i,j,k) = 0.
-          endif
-          if (q_cl(i,j,k) < 0.)  then
-            q_cl(i,j,k) = 0.
-          endif
-          if (q_ci < 0.)  then
-            q_ci = 0.
-          endif
-          if (n_cc(i,j,k) < 0.)  then
-            n_cc(i,j,k) = 0.
-          endif
-       enddo
-       enddo
-       enddo
-
-    end if   ! l_rain
-
-    !testing for a noticable amount of graupel and snow
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! rain :
-      if ((q_hr .gt. q_hr_min).and.(n_hr(i,j,k).gt.0.0))  then
-         q_hr_mask = .true.
-      else
-         q_hr_mask = .false.
-      endif
-      ! snow :
-      if ((q_hs(i,j,k) .gt. q_hs_min).and.(n_hs(i,j,k).gt.0.0))  then
-         q_hs_mask = .true.
-      else
-         q_hs_mask = .false.
-      endif
-      ! graupel :
-      if ((q_hg(i,j,k) .gt. q_hg_min).and.(n_hg(i,j,k).gt.0.0))  then
-         q_hg_mask = .true.
-      else
-         q_hg_mask = .false.
-      endif
-    enddo
-    enddo
+  !  - Point processes at k-point
+  ! ------------------------------------------------------------------
+      call point_processes
     enddo
 
-    !******************************************************
-    ! calculate qltot and initialize cloud droplet number Nc
-    !******************************************************
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qltot = q_cl(i,j,k) + q_hr
-      ! instead of: ql0  (i,j,k) + q_hr
-      ! i.e - cloud water + rain areas
+  ! Column processes
+  ! ------------------------------------------------------------------
+    call column_processes
 
-      ! clouds- original definition
-      if (ql0(i,j,k) .ge. qcmin)  then
-         qcmask = .true.
-      else
-         qcmask = .false.
-      end if
-
-      ! liquid clouds
-      if ((q_cl(i,j,k).ge. qcliqmin).and.(n_cl(i,j,k).gt.0.0))  then
-         q_cl_mask = .true.
-      else
-         q_cl_mask = .false.
-      end if
-
-      ! ice clouds
-
-      ! calculating ice water content already existing
-      ! qicew = q_ci+q_hs(i,j,k)+q_hg(i,j,k)
-
-      if ((qci .ge. qicemin).and.(n_ci(i,j,k).gt.0.0))  then
-         q_ci_mask = .true.
-      else
-         q_ci_mask = .false.
-      endif
-    enddo
-    enddo
-    enddo
-
-    !*********************************************************************
-    ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr
-    !*********************************************************************
-    call integrals_bulk3
-    call nucleation3      ! cloud nucleation
-    call icenucle3        ! ice nucleation  ! #Bb ! #iceout
-
-    ! --------------------------------------------------------------
-    ! freezing of water droplets
-    ! --------------------------------------------------------------
-    call homfreez3        ! homogeneous freezing of cloud droplets
-    call hetfreez3        ! heterogeneous freezing
-
-    ! --------------------------------------------------------------
-    ! deposition processes
-    ! --------------------------------------------------------------
-    call deposit_ice3      ! deposition of vapour to cloud ice
-    call deposit_snow3     ! deposition of vapour to snow 
-    call deposit_graupel3  ! deposition of vapour to graupel 
-    call cor_deposit3      ! correction for deposition
-
-    ! --------------------------------------------------------------
-    ! snow aggregation and self-collection
-    ! collision processes for snow
-    ! --------------------------------------------------------------
-    call coll_sis3  ! snow selfcollection s+i -> s
-    call coll_gsg3  ! snow selfcollection g+s -> g
-
-    ! --------------------------------------------------------------
-    ! - rimings
-    ! --------------------------------------------------------------
-    call coll_ici3 ! riming i+c -> i
-    call coll_scs3 ! riming s+c -> s
-    call coll_gcg3 ! riming g+c -> g
-    call coll_grg3 ! riming g+r -> g
-
-    ! --------------------------------------------------------------
-    ! - raindrop freezing
-    ! --------------------------------------------------------------
-    call rainhetfreez3        ! heterogeneous freezing! #iceout
-
-    ! --------------------------------------------------------------
-    ! - collision with conversion
-    ! --------------------------------------------------------------
-    call coll_rig3 ! riming r+i -> g  !#t2 !#t4
-    call coll_rsg3 ! riming r+i -> g  !#t7
-
-    !--------------------------------------------------------------
-    ! conversions
-    !--------------------------------------------------------------
-    call ice_multi3 ! ice multiplication of Hallet and Mossop
-
-    if (l_sb_conv_par) then
-      call conv_partial3 ! partial conversion
-    endif
-
-    ! --------------------------------------------------------------
-    ! - melting and evaporation of ice particles
-    ! --------------------------------------------------------------
-    call evapmelting3 ! melting of ice particles
-
-    ! --------------------------------------------------------------
-    ! - basic warm processes
-    !  --------------------------------------------------------------
-    call autoconversion3
-    call cloud_self3
-    call accretion3
-    call evap_rain3 ! rain evaporation
-
-    ! =============================
-    ! saturation adjustment
-    ! =============================
-    call satadj3
-
-    !==================================
-    ! sedimentation part
-    !==================================
-    call sedim_rain3 !jja sed_qr sed_Nr
-    call sedim_cl3 !jja from routine local, sed_qip, sed_nip
-    call sedim_ice3 !jja from routine local, sed_qip, sed_nip
-    call sedim_snow3 !jja from routine local, sed_qip, sed_nip
-    call sedim_graupel3 !#b2t3 !jja from routine local, sed_qip, sed_nip
-
-    ! recovery of ccn aerosols
-    call recover_cc
-
-  !*********************************************************************
   ! remove negative values and non physical low values
-  ! JJA: uses
-  ! q_hrp, n_hrp, qtp, thlp,
-  ! q_hsp, n_hsp, qtp, thlp,
-  ! q_hgp, n_hgp, qtp, thlp,
-  ! q_cip, n_cip, qtp, thlp,
-  ! q_clp, n_clp
-  ! thlpmcr, qtpmcr
-  !*********************************************************************
+  ! ------------------------------------------------------------------
+    call correct_neg_qt
+
+  ! updating main prognostic variables by contribution from mphys processes
+  ! ------------------------------------------------------------------
+    thlp(i,j,:) = thlp(i,j,:) + thlpmcr(i,j,:)
+    qtp(i,j,:) = qtp(i,j,:) + qtpmcr(i,j,:)
+
+  ! microphysics statistics - just once per step
+  ! ------------------------------------------------------------------
+    ! call bulkmicrotend3 ! #t5
+    ! call bulkmicrostat3 ! #t5
+  enddo ! loop over i
+  enddo ! loop over j
+end subroutine bulkmicro3
+
+
+!  cloud initialisation
+! ===============================
+! initialises cloud water and cloud droplet number when called
+!  called from : bulkmicro3 if flag l_cloud_init==.false.
+! steps:
+!  - turns all water above saturation to clouds
+!  - sets reasonable cloud droplet number
+!     - based on proposed values Nc0 [ m^-3]
+!     - limit if below n_ccn
+!     - limit if mean x_cl smaller than xcmin
+! ----------------------------------------------------------------------------
+subroutine initclouds3
+  use modglobal, only : ih,i1,jh,j1,k1,kmax,zf
+  use modfields, only : rhof, qt0, svm, sv0, svp, qvsl, qsat
+  implicit none
+
+  integer :: i,j,k
+  real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+
+  x_min = xc0_min  ! minimal size of droplets
+  Nc_set =  Nc0    ! prescribed number of droplets
+
+  ! initialisation itself
+  if (l_c_ccn) then
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+      if (q_tocl>0.0) then
+        ! prepare number of droplet
+        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
+        ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN
+        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+        ! save values to arrays
+        sv0(i,j,k,in_cl) = n_prop
+        svm(i,j,k,in_cl) = n_prop
+        sv0(i,j,k,iq_cl) = q_tocl
+        svm(i,j,k,iq_cl) = q_tocl
+      endif
+    enddo
+    enddo
+    enddo
+  else
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
+      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+      if (q_tocl>0.0) then
+        ! prepare number of droplet
+        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
+        n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
+        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+
+        ! save values to arrays
+        sv0(i,j,k,in_cl) = n_prop
+        svm(i,j,k,in_cl) = n_prop
+        sv0(i,j,k,iq_cl) = q_tocl
+        svm(i,j,k,iq_cl) = q_tocl
+      endif
+    enddo
+    enddo
+    enddo
+  endif
+
+end subroutine initclouds3
+
+
+!  ccn initialisation
+! ===============================
+! initialises cloud water and cloud droplet number when called
+!  called from : bulkmicro3 if flag l_ccn_init==.false.
+! steps:
+!     - based on proposed values Nc0 [ m^-3]
+!     - set ccn fields
+! ------------------------------------------------------------------------------
+subroutine initccn3
+  use modglobal, only : ih,i1,jh,j1,k1,kmax
+  use modfields, only : rhof, svm, sv0, svp
+  implicit none
+
+  integer :: i,j,k
+  real ::   Nccn_set, n_prop            ! available water and proposed size
+
+  Nccn_set = Nccn0                      ! prescribed number of ccn
+
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    ! prepare number of CCNs
+    n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
+    ! save values to arrays
+    sv0(i,j,k,in_cc) = n_prop
+    svm(i,j,k,in_cc) = n_prop
+  enddo
+  enddo
+  enddo
+
+end subroutine initccn3
+
+
+
+subroutine correct_neg_qt
+  implicit none
+  integer :: insv, iqsv ! #sb3 - species number
   if (l_corr_neg_qt) then
     do k=1,k1
     do j=2,j1
@@ -1218,1133 +847,324 @@ module modbulkmicro3
     enddo
     enddo
   endif ! not l_c_ccn
-
-  ! == update =====
-  ! and updating main prognostic variables by contribution from mphys processes
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    thlp(i,j,k) = thlp(i,j,k)+thlpmcr(i,j,k)
-    qtp(i,j,k) = qtp(i,j,k)+qtpmcr(i,j,k)
-  enddo
-  enddo
-  enddo
-
-  if(l_sb_dbg_extra) then
-    ! estimating new xc
-    insv = in_cl
-    iqsv = iq_cl
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      nrtest=svm(i,j,k,insv)+delt*svp(i,j,k,insv) ! since n_clp already included
-      ! in clouds only
-      if (nrtest<0.0 ) then
-        xtest(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xtest(i,j,k) = (svm(i,j,k,iqsv) + delt*svp(i,j,k,iqsv)) / (svm(i,j,k,insv)+delt*svp(i,j,k,insv)+eps0)
-      endif
-    enddo
-    enddo
-    enddo
-
-    ! warning if droplets too large
-    if(any(xtest(2:i1,2:j1,1:k1) .gt. xc_bmax)) then
-      write(6,*) 'warning: cloud droplets at the end of the step too large'
-      write(6,*) '   in ', count(xtest(2:i1,2:j1,1:k1).gt.xc_bmax), ' gridpoints larger than ',xc_bmax
-      write(6,*) '   max value ', maxval(xtest), ' in ', maxloc(xtest)
-    endif
-  endif ! l_sb_dbg
+end subroutine
 
 
-  ! # statistics
-  ! call microphysics statistics - just once per step
-  call bulkmicrotend3 ! #t5
-  call bulkmicrostat3 ! #t5
-
-  if(l_sb_dbg_extra) call check_sizes(flag_warn_size,'all_ups')
-  call check_allupdates(flag_do_dbg_up)
-
-  ! ending line
-  if(l_sb_dbg_extra) then
-      write(6,*) ' =========================='
-  endif
-
-  ! deallocating process variables
-  deallocate( xtest)  ! #d
-  !
-  deallocate( dn_cl_nu,dn_ci_inu                                      &
-             ,dq_hr_au,dn_cl_au,dn_hr_au,dq_hr_ac,dn_cl_ac            &
-             ,dn_hr_br,dn_hr_sc                                       &
-             ,dq_hr_ev, dn_hr_ev                                      &
-             ,dq_ci_rime,dq_hs_rime,dq_hg_rime,dq_hghr_rime           &
-             ,dq_hshr_rime ,dn_hr_rime_hs                             &
-             ,dn_cl_rime_ci,dn_cl_rime_hs,dn_cl_rime_hg,dn_hr_rime_hg &
-             ,dq_hr_rime_ri,dq_ci_rime_ri                             &
-             ,dn_ci_rime_ri ,dn_hr_rime_ri                            &
-             ,dq_hr_col_rs,dq_hs_col_rs                               &
-             ,dn_hr_col_rs,dn_hs_col_rs                               &
-             ,dq_hr_col_ri,dq_ci_col_ri                               &
-             ,dn_ci_col_ri,dn_hr_col_ri                               &
-             ,dq_cl_het,dq_hr_het,dn_hr_het                           &
-             ,dq_cl_hom,                                              &
-             ,dq_ci_col_iis,dn_ci_col_iis                             &
-             ,dn_hs_col_sss,dq_hsci_col,dn_ci_col_hs                  &
-             ,dq_hghs_col, dn_hs_col_hg                               &
-             ,dq_ci_cv,dq_hs_cv, dn_ci_cv,dn_hs_cv                    &
-             ,dn_cl_sc                                                &
-             ,dn_ci_mul, dq_ci_mul                                    &
-             ,dq_ci_me,dq_hs_me, dq_hg_me                             &
-             ,dn_ci_me,dn_hs_me, dn_hg_me                             &
-             ,dq_ci_ev,dq_hs_ev, dq_hg_ev                             &
-             ,dn_ci_ev,dn_hs_ev, dn_hg_ev                             &
-             ,dn_ci_eme_ic,dq_ci_eme_ic,dn_ci_eme_ri,dq_ci_eme_ri     &
-             ,dn_hs_eme_sc,dq_hs_eme_sc,dn_hs_eme_rs,dq_hs_eme_rs     &
-             ,dn_hg_eme_gc,dq_hg_eme_gc,dn_hg_eme_gr,dq_hg_eme_gr     &
-             ,dq_cl_se,dq_ci_se,dq_hr_se,dq_hs_se,dq_hg_se            &
-             ,dn_cl_se,dn_ci_se,dn_hr_se,dn_hs_se,dn_hg_se            &
-             ,precep_hr, precep_ci, precep_hs,precep_hg               &
-             ,dq_cl_sa ,dn_cl_sa                                      &
-             ,ret_cc                                                  &
-            )
-   ! deallocate sizes
-   deallocate( D_cl,D_ci,D_hr,D_hs,D_hg                               &
-              ,v_cl,v_ci,v_hr,v_hs,v_hg                               &
-             )
-
- end subroutine bulkmicro3
-
-! ===============================
-!  cloud initialisation
-! ===============================
-! initialises cloud water and cloud droplet number when called
-!  called from : bulkmicro3 if flag l_cloud_init==.false.
-! steps:
-!  - turns all water above saturation to clouds
-!  - sets reasonable cloud droplet number
-!     - based on proposed values Nc0 [ m^-3]
-!     - limit if below n_ccn
-!     - limit if mean x_cl smaller than xcmin
+!*********************************************************************
+! Function to calculate coefficient \bar{a}_vent,n
+! for ventilation parameter
+! specified in Appendix B in S&B
 !
-subroutine initclouds3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax,zf
-  use modfields, only : rhof, qt0, svm, sv0, svp, qvsl, qsat
+!*********************************************************************
+real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+  real, intent(in) ::  mu_a, nu_a, a_a,b_a, av
+  integer, intent(in) :: nn
+  real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
+
+  ! calculation itself
+  arg11     = (nu_a+nn+b_a)/mu_a
+  arg21     = (nu_a+1.0)/mu_a
+  arg12     = (nu_a+1.0)/mu_a ! arg12     = (nu_a+nn+1.0)/mu_a
+  arg22     = (nu_a+2.0)/mu_a
+  expon02   = b_a+nn-1.0
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+
+  ! putting it together
+  calc_avent = avf*(mtt11/mtt21)*(mtt12/mtt22)**expon02
+
+end function calc_avent
+
+
+!*********************************************************************
+! Function to calculate coefficient \bar{a}_vent,n
+! for ventilation parameter
+! specified in Appendix B in S&B
+!*********************************************************************
+real function calc_bvent (nn, mu_a, nu_a, a_a,b_a, beta_a, bv )
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+  real, intent(in) ::  mu_a, nu_a, a_a,b_a, beta_a, bv
+  integer, intent(in) :: nn
+  real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
+
+  ! calculation itself
+  arg11     = (nu_a+nn+(3.0/2.0)*b_a+0.5*beta_a)/mu_a
+  arg21     = (nu_a+1.0)/mu_a
+  arg12     = (nu_a+1.0)/mu_a
+  arg22     = (nu_a+2.0)/mu_a
+  expon02   = (3.0/2.0)*b_a+0.5*beta_a+nn-1.0
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+
+  ! putting it together
+  calc_bvent = bv*(mtt11/mtt21)*(mtt12/mtt22)**expon02
+end function calc_bvent
+
+
+!*********************************************************************
+! Function to calculate coefficient \delta^k_b
+!  for collision/collection
+! specified in Appendix C in S&B
+!*********************************************************************
+real function calc_delta_b (kk, mu_b, nu_b, b_b)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+  real, intent(in) ::  mu_b, nu_b, b_b
+  integer, intent(in) :: kk
+  real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
+
+  ! calculation itself
+  arg11     = (2.0*b_b+nu_b+1+kk)/mu_b
+  arg21     = (nu_b+1)/mu_b
+  arg12     = (nu_b+1)/mu_b
+  arg22     = (nu_b+2)/mu_b
+  expon02   = 2.0*b_b+kk
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+
+  ! putting it together
+  calc_delta_b = (mtt11/mtt21)*(mtt12/mtt22)**expon02
+end function calc_delta_b
+
+
+!*********************************************************************
+! Function to calculate coefficient \delta^k_a,b
+! for collision/collection
+! specified in Appendix C in S&B
+!
+!*********************************************************************
+real function calc_delta_ab (kk, mu_a, nu_a, b_a, mu_b, nu_b, b_b)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+  real, intent(in) ::  mu_a, nu_a, b_a, mu_b, nu_b, b_b
+  integer, intent(in) :: kk
+  real :: arg11, arg12, arg21, arg22     &
+         ,arg13, arg14, arg23, arg24     &
+         ,mtt11, mtt12, mtt21,mtt22      &
+         ,mtt13, mtt14, mtt23,mtt24      &
+         ,exp03,exp04
+
+  ! calculation itself
+  arg11     = (b_a+nu_a+1+kk)/mu_a
+  arg21     = (nu_a+1)/mu_a
+  arg12     = (b_b+nu_b+1)/mu_b
+  arg22     = (nu_b+1)/mu_b
+  arg13     = arg21
+  arg23     = (nu_a+2)/mu_a
+  arg14     = arg22
+  arg24     = (nu_b+2)/mu_b
+  exp03     = b_a+kk
+  exp04     = b_b
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+  mtt13 = mtt21
+  mtt23 = lacz_gamma(arg23)
+  mtt14 = mtt22
+  mtt24 = lacz_gamma(arg24)
+
+  ! putting it together
+  calc_delta_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
+
+end function calc_delta_ab
+
+
+!*********************************************************************
+! Function to calculate coefficient \vartheta^k_a,b
+! for collision/collection
+! specified in Appendix C in S&B
+!
+!*********************************************************************
+real function calc_th_b (kk, mu_b, nu_b, b_b, beta_b)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
-  integer :: i,j,k
-  real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+  real, intent(in) ::  mu_b, nu_b, b_b, beta_b
+  integer, intent(in) :: kk
+  real :: arg11, arg12, arg21, arg22     &
+         ,mtt11, mtt12, mtt21,mtt22      &
+         ,exp02
 
-  x_min = xc0_min  ! minimal size of droplets
-  Nc_set =  Nc0    ! prescribed number of droplets
+  ! calculation itself
+  arg11     = (2.0*beta_b+2.0*b_b+nu_b+1.0+kk)/mu_b
+  arg21     = (2.0*b_b+nu_b+1.0+kk )/mu_b
+  arg12     = (nu_b+1.0)/mu_b
+  arg22     = (nu_b+2.0)/mu_b
+  exp02     = 2.0*beta_b
 
-  ! initialisation itself
-  if (l_c_ccn) then
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
-      if (q_tocl>0.0) then
-        ! prepare number of droplet
-        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
-        ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN
-        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
-        ! save values to arrays
-        sv0(i,j,k,in_cl) = n_prop
-        svm(i,j,k,in_cl) = n_prop
-        sv0(i,j,k,iq_cl) = q_tocl
-        svm(i,j,k,iq_cl) = q_tocl
-      endif
-    enddo
-    enddo
-    enddo
-  else
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
-      if (q_tocl>0.0) then
-        ! prepare number of droplet
-        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
-        n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
-        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
 
-        ! save values to arrays
-        sv0(i,j,k,in_cl) = n_prop
-        svm(i,j,k,in_cl) = n_prop
-        sv0(i,j,k,iq_cl) = q_tocl
-        svm(i,j,k,iq_cl) = q_tocl
-      endif
-    enddo
-    enddo
-    enddo
-  endif
+  ! putting it together
+  calc_th_b = (mtt11/mtt21)*(mtt12/mtt22)**exp02
 
-end subroutine initclouds3
+end function calc_th_b
 
-! ===============================
-!  ccn initialisation
-! ===============================
-! initialises cloud water and cloud droplet number when called
-!  called from : bulkmicro3 if flag l_ccn_init==.false.
-! steps:
-!     - based on proposed values Nc0 [ m^-3]
-!     - set ccn fields
+
+!*********************************************************************
+! Function to calculate coefficient \vartheta^k_a,b
+! for collision/collection
+! specified in Appendix C in S&B
 !
-subroutine initccn3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax
-  use modfields, only : rhof, svm, sv0, svp
+!*********************************************************************
+real function calc_th_ab (kk, mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
-  integer :: i,j,k
-  real ::   Nccn_set, n_prop            ! available water and proposed size
+  real, intent(in) ::  mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b
+  integer, intent(in) :: kk
 
-  Nccn_set = Nccn0                      ! prescribed number of ccn
+  real :: arg11, arg12, arg21, arg22     &
+         ,arg13, arg14, arg23, arg24     &
+         ,mtt11, mtt12, mtt21,mtt22      &
+         ,mtt13, mtt14, mtt23,mtt24      &
+         ,exp03,exp04
 
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    ! prepare number of CCNs
-    n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
-    ! save values to arrays
-    sv0(i,j,k,in_cc) = n_prop
-    svm(i,j,k,in_cc) = n_prop
-  enddo
-  enddo
-  enddo
+  ! calculation itself
+  arg11     = (beta_a+b_a+nu_a+1+kk)/mu_a
+  arg21     = (b_a+nu_a+1+kk)/mu_a
+  arg12     = (beta_b+b_b+nu_b+1)/mu_b
+  arg22     = (b_b+nu_b+1)/mu_b
+  arg13     = (nu_a+1)/mu_a
+  arg23     = (nu_a+2)/mu_a
+  arg14     = (nu_b+1)/mu_b
+  arg24     = (nu_b+2)/mu_b
+  exp03     = beta_a
+  exp04     = beta_b
 
-end subroutine initccn3
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+  mtt13 = lacz_gamma(arg13)
+  mtt23 = lacz_gamma(arg23)
+  mtt14 = lacz_gamma(arg14)
+  mtt24 = lacz_gamma(arg24)
+
+  ! putting it together
+  calc_th_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
+
+end function calc_th_ab
 
 
-! ****************************************
-!  Debugging subroutines
+!*********************************************************************
+! Function to calculate the constatnt part of the momement
+! used in some constants
+! specified in Appendix C in S&B
 !
-! ****************************************
-
-   ! checking for strange of incorrect resuls
-
-    ! checking for strange of incorrect resuls
-   subroutine check_sizes(flag,proc_name)
-     use modglobal, only : ih,i1,jh,j1,k1
-     use modfields, only : sv0,svm,ql0,qvsl,qvsi,qt0, thl0, tmp0, thlp, qtp, rhof
-   implicit none
-    logical, intent (inout) ::flag
-    character (len=7), intent (in) :: proc_name
-    real :: lim_x_c, lim_x_h , ssat, ssat_ice, uncond, nrtest, facmax
-    real ,allocatable ,dimension(:,:,:) :: xt_cl, xt_ci, xt_hr, xt_hs, xt_hg  ! size testing
-    logical ,allocatable ,dimension(:,:,:) :: ma_cl, ma_ci, ma_hr, ma_hs, ma_hg ! size testing
-    integer:: i,j,k
-
-   ! inner setting
-    ! -- limit for the change of the size
-    lim_x_c = 2.0e-7
-    lim_x_h = 1.0e-5
-
-    facmax = 100.0 ! how many times exceed standard max size
-
-
-    if(.true.) then
-     allocate(  xt_cl   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-               ,xt_ci   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-               ,xt_hr   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-               ,xt_hs   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-               ,xt_hg   (2-ih:i1+ih,2-jh:j1+jh,k1)     &
-             )
-
-      allocate(  ma_cl(2-ih:i1+ih,2-jh:j1+jh,k1)       &
-                ,ma_ci(2-ih:i1+ih,2-jh:j1+jh,k1)       &
-                ,ma_hr(2-ih:i1+ih,2-jh:j1+jh,k1)       &
-                ,ma_hs(2-ih:i1+ih,2-jh:j1+jh,k1)       &
-                ,ma_hg(2-ih:i1+ih,2-jh:j1+jh,k1)       &
-              )
-
-     xt_cl = 0.0
-     xt_ci = 0.0
-     xt_hr = 0.0
-     xt_hs = 0.0
-     xt_hg = 0.0
-
-     ma_cl = .false.
-     ma_ci = .false.
-     ma_hr = .false.
-     ma_hs = .false.
-     ma_hg = .false.
-
-    ! calculate sizes after update
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      !
-      ! cl
-      nrtest=svm(i,j,k,in_cl)+delt*n_clp(i,j,k) ! considering n_clp only
-      if (nrtest.le.0.0) then
-        xt_cl(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xt_cl(i,j,k) =  (svm(i,j,k,iq_cl) +    &
-                delt*q_clp(i,j,k)) / (svm(i,j,k,in_cl)+delt*n_clp(i,j,k)+eps0)
-                ! o: rhof(k) * (svm(i,j,k,iqsv) +  delt*q_clp(i,j,k)) / (svm(i,j,k,insv)+delt*n_clp(i,j,k))
-      endif
-      !
-      ! ci
-      nrtest=svm(i,j,k,in_cl)+delt*n_cip(i,j,k) ! considering n_clp only
-      if (nrtest.le.0.0) then
-        xt_ci(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xt_ci(i,j,k) =  (svm(i,j,k,iq_ci) +    &
-                delt*q_cip(i,j,k)) / (svm(i,j,k,in_ci)+delt*n_cip(i,j,k)+eps0)
-      endif
-      !
-      ! hr
-      nrtest=svm(i,j,k,in_hr)+delt*n_hrp(i,j,k) ! considering n_clp only
-      if (nrtest.le.0.0) then
-        xt_hr(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xt_hr(i,j,k) =  (svm(i,j,k,iq_hr) +    &
-                delt*q_hrp(i,j,k)) / (svm(i,j,k,in_hr)+delt*n_hrp(i,j,k)+eps0)
-      endif
-      !
-      ! hs
-      nrtest=svm(i,j,k,in_hs)+delt*n_hsp(i,j,k) ! considering n_clp only
-      if (nrtest.le.0.0) then
-        xt_hs(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xt_hs(i,j,k) =  (svm(i,j,k,iq_hs) +    &
-                delt*q_hsp(i,j,k)) / (svm(i,j,k,in_hs)+delt*n_hsp(i,j,k)+eps0)
-      endif
-      !
-      ! hg
-      nrtest=svm(i,j,k,in_hg)+delt*n_hgp(i,j,k) ! considering n_clp only
-      if (nrtest.le.0.0) then
-        xt_hg(i,j,k) =0.0
-      else
-        !  calculating new droplet size
-        xt_hg(i,j,k) =  (svm(i,j,k,iq_hg) +    &
-                delt*q_hgp(i,j,k)) / (svm(i,j,k,in_hg)+delt*n_hgp(i,j,k)+eps0)
-      endif
-      !
-    enddo
-    enddo
-    enddo
-
-    ! masks
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      ! clouds
-      if ((xt_cl(i,j,k).gt.(facmax*x_cl_bmax)).or.((xt_cl(i,j,k)-x_cl(i,j,k)).gt. lim_x_c)) then
-         ma_cl(i,j,k) = .true.
-      endif
-      if ((xt_cl(i,j,k).gt.(facmax*x_ci_bmax)).or.((xt_ci(i,j,k)-x_ci(i,j,k)).gt. lim_x_c)) then
-         ma_ci(i,j,k) = .true.
-      endif
-      !
-      ! and hydrometeors
-      if ((xt_hr(i,j,k).gt.(facmax*x_hr_bmax)).or.((xt_hr(i,j,k)-x_hr(i,j,k)).gt. lim_x_h)) then
-         ma_hr(i,j,k) = .true.
-      endif
-      if ((xt_hs(i,j,k).gt.(facmax*x_hs_bmax)).or.((xt_hs(i,j,k)-x_hs(i,j,k)).gt. lim_x_h)) then
-         ma_hs(i,j,k) = .true.
-      endif
-      if ((xt_hg(i,j,k).gt.(facmax*x_hg_bmax)).or.((xt_hg(i,j,k)-x_hg(i,j,k)).gt. lim_x_h)) then
-         ma_hg(i,j,k) = .true.
-      endif
-      !
-    enddo
-    enddo
-    enddo
-
-
-
-     if (any(ma_cl.or.ma_ci.or.ma_hr.or.ma_hs.or.ma_hg)) then ! problem detected
-       write(6,*) 'WARNING: issue_sizes in: ',proc_name
-       write(6,*) ' issue with size in no. of (cl, ci, hr, hs, hg): ',count(ma_cl), count(ma_ci), count(ma_hr),count(ma_hs), count(ma_hg)
-      if (flag) then
-       write(6,*)  ' most of them already listed '
-      else ! flag
-       flag = .true.
-       do k=1,k1
-       do j=2,j1
-       do i=2,i1
-        if (ma_cl(i,j,k).or.ma_ci(i,j,k).or.ma_hr(i,j,k).or.ma_hs(i,j,k).or.ma_hg(i,j,k)) then
-          ! calculate
-          uncond=ql0(i,j,k)-q_cl(i,j,k)
-          ssat     = 100.0*((qt0(i,j,k)-q_cl(i,j,k))/qvsl(i,j,k)-1.0)
-          ssat_ice = 100.0*((qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k)-1.0)
-          !#iceout uncond=ql0(i,j,k)-q_cl(i,j,k)-q_ci
-          !#iceout ssat     = 100.0*((qt0(i,j,k)-q_cl-q_ci)/qvsl(i,j,k)-1.0)
-          !#iceout ssat_ice = 100.0*((qt0(i,j,k)-q_cl-q_ci)/qvsi(i,j,k)-1.0)
-          ! outputs
-          write(6,*) ' (i,j,k) = ',i,j,k
-          write(6,*) '   thlpmcr=', thlpmcr(i,j,k),'qtpmcr=', qtpmcr(i,j,k)
-          write(6,*) '   thlp=',thlp(i,j,k),'qtp=', qtp(i,j,k)
-          write(6,*) '   uncondensed = ', uncond,'  ssat = ',ssat,'% ','  ssat_i = ',ssat_ice,'% '
-          write(6,*) '   qt = ',qt0(i,j,k),'thl = ', thl0(i,j,k), 'tmp0 = ', tmp0(i,j,k)
-          write(6,*) '   rhof=',rhof(k),' n_ccn = ', n_cc(i,j,k)
-          write(6,*) '   x_cl =', x_cl(i,j,k), ' xt_cl =', xt_cl(i,j,k)
-          write(6,*) '   x_ci =', x_ci(i,j,k), ' xt_ci =', xt_ci(i,j,k)
-          write(6,*) '   x_hr =', x_hr(i,j,k), ' xt_hr =', xt_hr(i,j,k)
-          write(6,*) '   x_hs =', x_hs(i,j,k), ' xt_hs =', xt_hs(i,j,k)
-          write(6,*) '   x_hg =', x_hg(i,j,k),' xt_hg =', xt_hg (i,j,k)
-          write(6,*) '   n_cl =', n_cl(i,j,k),' q_cl =', q_cl
-          write(6,*) '   n_ci =', n_ci(i,j,k),' q_ci =', q_ci
-          write(6,*) '   n_hr =', n_hr(i,j,k),' q_hr =', q_hr
-          write(6,*) '   n_hs =', n_hs(i,j,k),' q_hs =', q_hs
-          write(6,*) '   n_hg =', n_hg(i,j,k),' q_hg =', q_hg
-          ! updates  and past values
-          write(6,*) '   q_clp =',q_clp(i,j,k),' n_clp =', n_clp(i,j,k),' n_cl_m =', svm(i,j,k,in_cl),' q_cl_m =',svm(i,j,k,iq_cl)
-          write(6,*) '   q_cip =',q_cip(i,j,k),' n_cip =', n_cip(i,j,k),' n_ci_m =', svm(i,j,k,in_ci),' q_ci_m =',svm(i,j,k,iq_ci)
-          write(6,*) '   q_hrp =',q_hrp(i,j,k),' n_hrp =', n_hrp(i,j,k),' n_hr_m =', svm(i,j,k,in_hr),' q_hr_m =',svm(i,j,k,iq_hr)
-          write(6,*) '   q_hsp =',q_hsp(i,j,k),' n_hsp =', n_hsp(i,j,k),' n_hs_m =', svm(i,j,k,in_hs),' q_hs_m =',svm(i,j,k,iq_hs)
-          write(6,*) '   q_hgp =',q_hgp(i,j,k),' n_hgp =', n_hgp(i,j,k),' n_hg_m =', svm(i,j,k,in_hg),' q_hg_m =',svm(i,j,k,iq_hg)
-          ! and processes
-          write(6,*) '   dn_cl_nu=',dn_cl_nu(i,j,k),' dn_ci_inu=',dn_ci_inu(i,j,k)
-          write(6,*) '   dq_hr_au=',dq_hr_au(i,j,k), 'dq_hr_ac=', dq_hr_ac(i,j,k),'dq_hr_ev=' ,dq_hr_ev(i,j,k)
-          write(6,*) '   dn_cl|au=',(2.0/x_s)*dq_hr_au(i,j,k), 'dn_cl|ac=', dq_hr_ac(i,j,k)/(x_cl(i,j,k)+eps0),'dn_hr_ev=' ,dn_hr_ev(i,j,k)
-          write(6,*) '   dq_ci_dep=',dq_ci_dep(i,j,k),'dq_hs_dep=',dq_hs_dep(i,j,k),'dq_hg_dep=',dq_hg_dep    (i,j,k)
-          write(6,*) '   dq_ci_rime=',dq_ci_rime (i,j,k),'dq_hs_rime =',dq_hs_rime (i,j,k),'dq_hg_rime =',dq_hg_rime   (i,j,k)
-          write(6,*) '   dn_cl_rime_ci=',dn_cl_rime_ci(i,j,k),'dn_cl_rime_hs=',dn_cl_rime_hs(i,j,k),'dn_cl_rime_h=',dn_cl_rime_hg(i,j,k)
-          write(6,*) '   dq_hshr_rime=',dq_hshr_rime (i,j,k),'dq_hghr_rime=',dq_hghr_rime (i,j,k)
-          write(6,*) '   dn_hr_rime_hs=',dn_hr_rime_hs(i,j,k),'dn_hr_rime_hg=',dn_hr_rime_hg(i,j,k)
-          write(6,*) '   dq_cl_het=' ,dq_cl_het    (i,j,k),'dq_hr_het=',dq_hr_het    (i,j,k), 'dq_cl_hom=',dq_cl_hom    (i,j,k)
-          write(6,*) '   dn_cl_het=',dn_cl_het    (i,j,k),'dn_hr_het=',dn_hr_het    (i,j,k), 'dn_cl_hom=',dn_cl_hom    (i,j,k)
-          write(6,*) '   dq_ci_col_iis=',dq_ci_col_iis    (i,j,k),'dq_hsci_col=',dq_hsci_col  (i,j,k)
-          write(6,*) '   dn_ci_col_iis=',dn_ci_col_iis    (i,j,k), 'dn_hs_col_sss=' ,dn_hs_col_sss  (i,j,k), 'dn_ci_col_iis='  ,dn_ci_col_iis (i,j,k)
-          write(6,*) '   dq_ci_cv=',dq_ci_cv (i,j,k), 'dq_hs_cv=' ,dq_hs_cv     (i,j,k)
-          write(6,*) '   dn_ci_cv=',dn_ci_cv     (i,j,k), 'dn_hs_cv=' ,dn_hs_cv     (i,j,k)
-          write(6,*) '   dq_cl_se=',dq_cl_se     (i,j,k),'dq_ci_se=',dq_ci_se     (i,j,k)
-          write(6,*) '   dn_cl_sc=',dn_cl_sc     (i,j,k),'dn_cl_se=',dn_cl_se     (i,j,k),'dn_ci_se=',dn_ci_se (i,j,k)
-          write(6,*) '   dq_hr_se=',dq_hr_se     (i,j,k), 'dq_hs_se=',dq_hs_se     (i,j,k),'dq_hg_se=',dq_hg_se     (i,j,k)
-          write(6,*) '   dn_hr_se=',dn_hr_se     (i,j,k),'dn_hs_se=',dn_hs_se     (i,j,k) ,'dn_hg_se=',dn_hg_se     (i,j,k)
-          write(6,*) '   precep_hs=',precep_hs    (i,j,k),'precep_hg=',precep_hg    (i,j,k)
-          write(6,*) '   dq_cl_sa=',dq_cl_sa     (i,j,k) ,'ret_cc=',ret_cc       (i,j,k)
-        endif
-       enddo
-       enddo
-       enddo
-      endif ! flag
-    ! else ! no problem detected
-    ! ! reset flag
-    !  ! flag = .false.
-    endif ! problem detected
-
-    deallocate( xt_cl,xt_ci,xt_hr,xt_hs,xt_hg )
-
-    deallocate(  ma_cl,ma_ci,ma_hr,ma_hs,ma_hg)
-   endif
-
-   end subroutine check_sizes
-
-   subroutine check_allupdates(flag)
-     use modglobal, only : ih,i1,jh,j1,k1
-     use modfields, only : sv0,svm,svp,ql0,qvsl,qvsi,qt0   &
-                           ,thl0,tmp0, qtp,qtm,thlp,rhof
-   implicit none
-    logical, intent (inout) ::flag
-    logical     :: prob_thl, prob_qt
-    ! character (len=7), intent (in) :: proc_name
-    real :: lim_thlp, lim_qtp, ssat, ssat_ice, uncond
-    integer:: i,j,k
-
-   ! inner setting
-    lim_thlp = 7.0
-    lim_qtp = 0.0009
-    prob_thl =  .false.
-    prob_qt = .false.
-
-   ! checking for large updates
-   if(any(thlpmcr(2:i1,2:j1,1:k1).gt.lim_thlp).or.any(thlpmcr(2:i1,2:j1,1:k1).lt.(-lim_thlp))) then
-    write(6,*) 'WARNING: thlpmcr problem'
-    prob_thl = .true.
-   endif
-   if(any(thlp(2:i1,2:j1,1:k1).gt.lim_thlp).or.any(thlp(2:i1,2:j1,1:k1).lt.(-lim_thlp))) then
-    write(6,*) 'WARNING: thlp problem'
-    prob_thl = .true.
-   endif
-   if(any(qtpmcr(2:i1,2:j1,1:k1).gt.lim_qtp).or.any(qtpmcr(2:i1,2:j1,1:k1).lt.(-lim_qtp))) then
-     write(6,*) 'WARNING: qtpmcr problem'
-     prob_qt = .true.
-   endif
-   if(any(qtp(2:i1,2:j1,1:k1).gt.lim_qtp).or.any(qtp(2:i1,2:j1,1:k1).lt.(-lim_qtp))) then
-     write(6,*) 'WARNING: qtp problem'
-     prob_qt = .true.
-   endif
-   ! checking for update into negative numbers
-   if(any((qtm(2:i1,2:j1,1:k1)+delt*qtpmcr(2:i1,2:j1,1:k1)).lt.0.0)) then
-    write(6,*) 'WARNING: negative_qt problem after mphys'
-    prob_qt = .true.
-   endif
-   if(any((qtm(2:i1,2:j1,1:k1)+delt*qtp(2:i1,2:j1,1:k1)).lt.0.0)) then
-    write(6,*) 'WARNING: negative_qt problem'
-    prob_qt= .true.
-   endif
-    if(any(n_hgp(2:i1,2:j1,1:k1).gt.100.0)) then
-    write(6,*) 'WARNING: high n_hgp problem'
-    prob_qt= .true.
-   endif
-
-
-   if (prob_thl .or. prob_qt)then
-    if (flag) then
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        if ((thlpmcr(i,j,k).gt.lim_thlp).or.(thlpmcr(i,j,k).lt.(                   &
-          -lim_thlp)).or.(qtpmcr(i,j,k).gt.lim_qtp).or.(qtpmcr(i,j,k).lt.(         &
-          -lim_qtp)).or.(qtp(i,j,k).gt.lim_qtp).or.(qtp(i,j,k).lt.(                &
-          -lim_qtp)).or.(thlp(i,j,k).gt.lim_thlp).or.(thlp(i,j,k).lt.(             &
-          -lim_thlp)).or.((qtm(i,j,k)+delt*qtp(i,j,k)).lt.0.0).or.(n_hgp(i,j,k).gt.100))then
-          ! calculate
-          uncond   = ql0(i,j,k)-q_cl(i,j,k)
-          ssat     = 100.0*((qt0(i,j,k)-q_cl(i,j,k))/qvsl(i,j,k)-1.0)
-          ssat_ice = 100.0*((qt0(i,j,k)-q_cl(i,j,k))/qvsi(i,j,k)-1.0)
-          !#iceout uncond   = ql0(i,j,k)-q_cl(i,j,k)-q_ci
-          !#iceout ssat     = 100.0*((qt0(i,j,k)-q_cl(i,j,k)-q_ci)/qvsl(i,j,k)-1.0)
-          !#iceout ssat_ice = 100.0*((qt0(i,j,k)-q_cl(i,j,k)-q_ci)/qvsi(i,j,k)-1.0)
-          ! outputs
-          write(6,*) ' (i,j,k) = ',i,j,k
-          write(6,*) '   thlpmcr=', thlpmcr(i,j,k),'qtpmcr=', qtpmcr(i,j,k)
-          write(6,*) '   thlp=',thlp(i,j,k),'qtp=', qtp(i,j,k)
-          write(6,*) '   uncondensed = ', uncond,'  ssat = ',ssat,'% ','  ssat_i = ',ssat_ice,'% '
-          write(6,*) '   qt = ',qt0(i,j,k),'thl = ', thl0(i,j,k), 'tmp0 = ', tmp0(i,j,k)
-          write(6,*) '   rhof=',rhof(k),' n_ccn = ', n_cc(i,j,k)
-          write(6,*) '   x_cl =', x_cl(i,j,k)
-          write(6,*) '   x_ci =', x_ci(i,j,k)
-          write(6,*) '   x_hr =', x_hr(i,j,k)
-          write(6,*) '   x_hs =', x_hs(i,j,k)
-          write(6,*) '   x_hg =', x_hg(i,j,k)
-          ! outputs
-          write(6,*) '   n_cl=', n_cl(i,j,k),'n_cl_m=', svm(i,j,k,in_cl),'n_cl_1=',svm(i,j,k,in_cl)+delt*svp(i,j,k,in_cl)
-          write(6,*) '   n_ci=', n_ci(i,j,k),'n_ci_m=', svm(i,j,k,in_ci),'n_ci_1=',svm(i,j,k,in_ci)+delt*svp(i,j,k,in_ci)
-          write(6,*) '   n_hr=', n_hr(i,j,k),'n_hr_m=', svm(i,j,k,in_hr),'n_hr_1=',svm(i,j,k,in_hr)+delt*svp(i,j,k,in_hr)
-          write(6,*) '   n_hs=', n_hs(i,j,k),'n_hs_m=', svm(i,j,k,in_hs),'n_hs_1=',svm(i,j,k,in_hs)+delt*svp(i,j,k,in_hs)
-          write(6,*) '   n_hg=', n_hs(i,j,k),'n_hg_m=', svm(i,j,k,in_hg),'n_hg_1=',svm(i,j,k,in_hg)+delt*svp(i,j,k,in_hg)
-
-          write(6,*) '   q_cl=', q_cl, 'q_cl_m=',svm(i,j,k,iq_cl),'q_cl_1=',svm(i,j,k,iq_cl)+delt*svp(i,j,k,iq_cl)
-          write(6,*) '   q_ci=', q_ci, 'q_ci_m=',svm(i,j,k,iq_ci),'q_ci_1=',svm(i,j,k,iq_ci)+delt*svp(i,j,k,iq_ci)
-          write(6,*) '   q_hr=', q_hr, 'q_hr_m=',svm(i,j,k,iq_hr),'q_hr_1=',svm(i,j,k,iq_hr)+delt*svp(i,j,k,iq_hr)
-          write(6,*) '   q_hs=', q_hs, 'q_hs_m=',svm(i,j,k,iq_hs),'q_hs_1=',svm(i,j,k,iq_hs)+delt*svp(i,j,k,iq_hs)
-          write(6,*) '   q_hg=', q_hs, 'q_hg_m=',svm(i,j,k,iq_hg),'q_hg_1=',svm(i,j,k,iq_hg)+delt*svp(i,j,k,iq_hg)
-          write(6,*) '   '
-          ! updates  and past values
-          write(6,*) '   n_clp =', n_clp(i,j,k),' svp n_cl=', svp(i,j,k,in_cl)
-          write(6,*) '   n_cip =', n_cip(i,j,k),' svp n_ci=', svp(i,j,k,in_ci)
-          write(6,*) '   n_hrp =', n_hrp(i,j,k),' svp n_hr=', svp(i,j,k,in_hr)
-          write(6,*) '   n_hsp =', n_hsp(i,j,k),' svp n_hs=', svp(i,j,k,in_hs)
-          write(6,*) '   n_hgp =', n_hgp(i,j,k),' svp n_hg=', svp(i,j,k,in_hg)
-          write(6,*) '   q_clp =', q_clp(i,j,k),' svp q_cl=', svp(i,j,k,iq_cl)
-          write(6,*) '   q_cip =', q_cip(i,j,k),' svp q_ci=', svp(i,j,k,iq_ci)
-          write(6,*) '   q_hrp =', q_hrp(i,j,k),' svp q_hr=', svp(i,j,k,iq_hr)
-          write(6,*) '   q_hsp =', q_hsp(i,j,k),' svp q_hs=', svp(i,j,k,iq_hs)
-          write(6,*) '   q_hgp =', q_hgp(i,j,k),' svp q_hg=', svp(i,j,k,iq_hg)
-          write(6,*) '   '
-         ! and processes
-          write(6,*) '   dn_cl_nu=',dn_cl_nu(i,j,k)
-          write(6,*) '   dn_ci_inu=',dn_ci_inu(i,j,k)
-          write(6,*) '   dq_hr_ev=' ,dq_hr_ev(i,j,k)
-          write(6,*) '   dn_hr_ev=' ,dn_hr_ev(i,j,k)
-          write(6,*) '   dq_hr_au=',dq_hr_au(i,j,k)
-          write(6,*) '   dn_cl|au=',dn_cl_au(i,j,k)
-          write(6,*) '   dq_hr_ac=', dq_hr_ac(i,j,k)
-          write(6,*) '   dn_cl|ac=', dn_cl_ac(i,j,k)
-          write(6,*) '   dn_hr_sc=',dn_hr_sc(i,j,k)
-          write(6,*) '   dn_hr_br=',dn_hr_br(i,j,k)
-          write(6,*) '   dq_ci_dep=',dq_ci_dep(i,j,k)
-          write(6,*) '   dq_hs_dep=',dq_hs_dep(i,j,k)
-          write(6,*) '   dq_hg_dep=',dq_hg_dep    (i,j,k)
-          write(6,*) '   dq_ci_rime=',dq_ci_rime (i,j,k)
-          write(6,*) '   dq_hs_rime =',dq_hs_rime (i,j,k)
-          write(6,*) '   dq_hg_rime =',dq_hg_rime   (i,j,k)
-          write(6,*) '   dn_cl_rime_ci=',dn_cl_rime_ci(i,j,k)
-          write(6,*) '   dn_cl_rime_hs=',dn_cl_rime_hs(i,j,k)
-          write(6,*) '   dn_cl_rime_hg=',dn_cl_rime_hg(i,j,k)
-          write(6,*) '   dq_hshr_rime=',dq_hshr_rime (i,j,k)
-          write(6,*) '   dq_hghr_rime=',dq_hghr_rime (i,j,k)
-          write(6,*) '   dn_hr_rime_hs=',dn_hr_rime_hs(i,j,k)
-          write(6,*) '   dn_hr_rime_hg=',dn_hr_rime_hg(i,j,k)
-          write(6,*) '   dq_cl_hom=',dq_cl_hom    (i,j,k)
-          write(6,*) '   dq_cl_het=' ,dq_cl_het    (i,j,k)
-          write(6,*) '   dq_hr_het=',dq_hr_het    (i,j,k)
-          write(6,*) '   dn_cl_hom=',dn_cl_hom    (i,j,k)
-          write(6,*) '   dn_cl_het=',dn_cl_het    (i,j,k)
-          write(6,*) '   dn_hr_het=',dn_hr_het    (i,j,k)
-          write(6,*) '    '
-          write(6,*) '   dq_ci_col_iis=',dq_ci_col_iis    (i,j,k)
-          write(6,*) '   dq_hsci_col=',dq_hsci_col  (i,j,k)
-          write(6,*) '   dn_hr_col_rs=', dn_hr_col_rs  (i,j,k)
-          write(6,*) '   dn_hs_col_rs=', dn_hs_col_rs  (i,j,k)
-          write(6,*) '   dn_ci_col_ri=', dn_ci_col_ri  (i,j,k)
-          write(6,*) '   dn_hr_col_ri=', dn_hr_col_ri  (i,j,k)
-          write(6,*) '   dn_hs_col_hg=', dn_hs_col_hg  (i,j,k)
-          write(6,*) '   dn_ci_col_iis=',dn_ci_col_iis    (i,j,k)
-          write(6,*) '   dn_hs_col_sss=' ,dn_hs_col_sss  (i,j,k)
-          write(6,*) '   dn_ci_col_hs='  ,dn_ci_col_hs (i,j,k)
-          write(6,*) '   dq_ci_cv=',dq_ci_cv (i,j,k)
-          write(6,*) '   dq_hs_cv=' ,dq_hs_cv     (i,j,k)
-          write(6,*) '   dn_ci_cv=',dn_ci_cv     (i,j,k)
-          write(6,*) '   dn_hs_cv=' ,dn_hs_cv     (i,j,k)
-          write(6,*) '    '
-          write(6,*) '   dq_ci_me      ', dq_ci_me    (i,j,k)
-          write(6,*) '   dq_hs_me      ', dq_hs_me    (i,j,k)
-          write(6,*) '   dq_hg_me      ', dq_hg_me    (i,j,k)
-          write(6,*) '   dq_ci_ev      ', dq_ci_ev   (i,j,k)
-          write(6,*) '   dq_hs_ev     ', dq_hs_ev   (i,j,k)
-          write(6,*) '   dq_hg_ev     ', dq_hg_ev   (i,j,k)
-          write(6,*) '   dn_ci_me      ', dn_ci_me    (i,j,k)
-          write(6,*) '   dn_hs_me      ', dn_hs_me    (i,j,k)
-          write(6,*) '   dn_hg_me      ', dn_hg_me    (i,j,k)
-          write(6,*) '   dn_ci_ev     ', dn_ci_ev   (i,j,k)
-          write(6,*) '   dn_hs_ev     ', dn_hs_ev   (i,j,k)
-          write(6,*) '   dn_hg_ev     ', dn_hg_ev   (i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hg_eme_gc  ', dq_hg_eme_gc(i,j,k)
-          write(6,*) '   dq_hg_eme_gr  ', dq_hg_eme_gr(i,j,k)
-          write(6,*) '   dn_hs_eme_rs  ', dn_hs_eme_rs(i,j,k)
-          write(6,*) '   dn_hs_eme_sc  ', dn_hs_eme_sc(i,j,k)
-          write(6,*) '   dn_hg_eme_gc  ', dn_hg_eme_gc(i,j,k)
-          write(6,*) '   dn_hg_eme_gr  ', dn_hg_eme_gr(i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_cl_se=',dq_cl_se     (i,j,k)
-          write(6,*) '   dq_ci_se=',dq_ci_se     (i,j,k)
-          write(6,*) '   dn_cl_sc=',dn_cl_sc     (i,j,k)
-          write(6,*) '   dn_cl_se=',dn_cl_se     (i,j,k)
-          write(6,*) '   dn_ci_se=',dn_ci_se (i,j,k)
-          write(6,*) '   dq_hr_se=',dq_hr_se     (i,j,k)
-          write(6,*) '   dq_hs_se=',dq_hs_se     (i,j,k)
-          write(6,*) '   dq_hg_se=',dq_hg_se     (i,j,k)
-          write(6,*) '   dn_hr_se=',dn_hr_se     (i,j,k)
-          write(6,*) '   dn_hs_se=',dn_hs_se     (i,j,k)
-          write(6,*) '   dn_hg_se=',dn_hg_se     (i,j,k)
-          write(6,*) '    '
-          write(6,*) '   precep_hs=',precep_hs    (i,j,k)
-          write(6,*) '   precep_hg=',precep_hg    (i,j,k)
-          write(6,*) '   dq_cl_sa=',dq_cl_sa     (i,j,k)
-          write(6,*) '   ret_cc=',ret_cc       (i,j,k)
-        endif
-    enddo
-    enddo
-    enddo
-    else ! flag
-      write(6,*) 'mphys problems in: ',count(thlpmcr(2:i1,2:j1,1:k1).gt.lim_thlp),'and',count(thlpmcr(2:i1,2:j1,1:k1).lt.(-lim_thlp))
-      write(6,*) 'mphys problems in: ',count(qtpmcr(2:i1,2:j1,1:k1).lt.(-lim_qtp)),'and',count(qtpmcr(2:i1,2:j1,1:k1).gt.lim_qtp)
-    endif ! flag
-   endif
-
-   end subroutine check_allupdates
-
-  subroutine check_ssat(flag_dbg)
-
-    use modglobal, only : dzf,i1,j1,ih,jh,k1,kmax,rlv, cp  ! dzf,pi
-    use modfields, only : w0, rhof,exnf, qvsl,svm,sv0,svp, qvsi, qt0,ql0,thl0,tmp0,thlp,qtp,rhof   ! ,exnf,ql0
-    use modmpi,    only : myid
-    ! -> add other needed variables
-    implicit none
-     ! character (len=10), intent (in) :: proc_name
-     logical, intent (inout) ::flag_dbg ! ,flag
-     integer :: i,j,k
-     ! allocatable varibles - supersaturation, derivation of supersaturation
-     real, allocatable :: ssat(:,:,:), ssice(:,:,:)
-     real :: max_sat, uncond
-
-    ! setting
-    max_sat = 3.0 ! 9.0
-
-    if (flag_dbg) then
-    ! ------
-    ! allocate
-     allocate( ssat  (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-              ,ssice (2-ih:i1+ih,2-jh:j1+jh,k1)      &
-             )
-     ! allocate( dn_cl_nu (2-ih:i1+ih,2-jh:j1+jh,k1) )
-      ssat = 0.0
-      ssice = 0.0
-
-
-    ! -----
-
-
-    ! loops to determine supersaturation
-     do k=1,k1
-     do j=2,j1
-     do i=2,i1
-       ! calculating supersaturation
-       ! q_4condense = (qt0 - q_condensed) -q_saturated(T)
-       ssat(i,j,k) = (100./qvsl(i,j,k))* ((qt0(i,j,k)-q_cl(i,j,k))-qvsl(i,j,k))
-       ssice(i,j,k) =(100.0/qvsi(i,j,k))*((qt0(i,j,k)-q_cl(i,j,k))-qvsi(i,j,k))
-       !#iceout ssat(i,j,k) = (100./qvsl(i,j,k))*max( (qt0(i,j,k)-q_cl(i,j,k)-q_ci  )-qvsl(i,j,k),0.0)
-       !#iceout ssice(i,j,k) =(100.0/qvsi(i,j,k))*max( (qt0(i,j,k)-q_cl(i,j,k)-q_ci  )-qvsi(i,j,k),0.0)
-       ! ssat(i,j,k) = (100./qvsl(i,j,k))*max( qt0(i,j,k)-qvsl(i,j,k),0.0)
-     enddo
-     enddo
-     enddo
-
-     ! now check
-    if(any(ssat(2:i1,2:j1,1:k1).gt.max_sat)) then
-    ! if(any(ssat(2:i1,2:j1,1:k1).gt.max_sat).or.any(ssice(2:i1,2:j1,1:k1).gt.max_sat) ) then
-    write(6,*) 'WARNING: saturation too high: '
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-        if ( ssat(i,j,k).gt.max_sat) then
-          ! calculate
-         ! calculate
-          uncond=qt0(i,j,k)-q_cl(i,j,k)-qvsl(i,j,k)
-          !#iceout uncond=ql0(i,j,k)-q_cl(i,j,k)-q_ci
-          ! ssat     = 100.0*((qt0(i,j,k)-q_cl(i,j,k)-q_ci)/qvsl(i,j,k)-1.0)
-          ! ssat_ice = 100.0*((qt0(i,j,k)-q_cl(i,j,k)-q_ci)/qvsi(i,j,k)-1.0)
-          ! outputs
-          write(6,*) ' (i,j,k) = ',i,j,k
-          write(6,*) '   thlpmcr=', thlpmcr(i,j,k),'qtpmcr=', qtpmcr(i,j,k)
-          write(6,*) '   thlp=',thlp(i,j,k),'qtp=', qtp(i,j,k)
-          write(6,*) '   uncondensed = ', uncond,'  ssat = ',ssat(i,j,k),'% ','  ssat_i = ',ssice(i,j,k),'% '
-          write(6,*) '   qt = ',qt0(i,j,k),'thl = ', thl0(i,j,k), 'tmp0 = ', tmp0(i,j,k)
-          write(6,*) '   rhof=',rhof(k),' n_ccn = ', n_cc(i,j,k)
-          write(6,*) '   x_cl =', x_cl(i,j,k)
-          write(6,*) '   x_ci =', x_ci(i,j,k)
-          write(6,*) '   x_hr =', x_hr(i,j,k)
-          write(6,*) '   x_hs =', x_hs(i,j,k)
-          write(6,*) '   x_hg =', x_hg(i,j,k)
-          ! outputs
-          write(6,*) '   n_cl=', n_cl(i,j,k),'n_cl_m=', svm(i,j,k,in_cl),'n_cl_1=',svm(i,j,k,in_cl)+delt*svp(i,j,k,in_cl)
-          write(6,*) '   n_ci=', n_ci(i,j,k),'n_ci_m=', svm(i,j,k,in_ci),'n_ci_1=',svm(i,j,k,in_ci)+delt*svp(i,j,k,in_ci)
-          write(6,*) '   n_hr=', n_hr(i,j,k),'n_hr_m=', svm(i,j,k,in_hr),'n_hr_1=',svm(i,j,k,in_hr)+delt*svp(i,j,k,in_hr)
-          write(6,*) '   n_hs=', n_hs(i,j,k),'n_hs_m=', svm(i,j,k,in_hs),'n_hs_1=',svm(i,j,k,in_hs)+delt*svp(i,j,k,in_hs)
-          write(6,*) '   n_hg=', n_hs(i,j,k),'n_hg_m=', svm(i,j,k,in_hg),'n_hg_1=',svm(i,j,k,in_hg)+delt*svp(i,j,k,in_hg)
-
-          write(6,*) '   q_cl=', q_cl, 'q_cl_m=',svm(i,j,k,iq_cl),'q_cl_1=',svm(i,j,k,iq_cl)+delt*svp(i,j,k,iq_cl)
-          write(6,*) '   q_ci=', q_ci, 'q_ci_m=',svm(i,j,k,iq_ci),'q_ci_1=',svm(i,j,k,iq_ci)+delt*svp(i,j,k,iq_ci)
-          write(6,*) '   q_hr=', q_hr, 'q_hr_m=',svm(i,j,k,iq_hr),'q_hr_1=',svm(i,j,k,iq_hr)+delt*svp(i,j,k,iq_hr)
-          write(6,*) '   q_hs=', q_hs, 'q_hs_m=',svm(i,j,k,iq_hs),'q_hs_1=',svm(i,j,k,iq_hs)+delt*svp(i,j,k,iq_hs)
-          write(6,*) '   q_hg=', q_hs, 'q_hg_m=',svm(i,j,k,iq_hg),'q_hg_1=',svm(i,j,k,iq_hg)+delt*svp(i,j,k,iq_hg)
-          ! updates  and past values
-          write(6,*) '   n_clp =', n_clp(i,j,k),' svp q_cl=', svp(i,j,k,in_cl)
-          write(6,*) '   n_cip =', n_cip(i,j,k),' svp q_ci=', svp(i,j,k,in_ci)
-          write(6,*) '   n_hrp =', n_hrp(i,j,k),' svp q_hr=', svp(i,j,k,in_hr)
-          write(6,*) '   n_hsp =', n_hsp(i,j,k),' svp q_hs=', svp(i,j,k,in_hs)
-          write(6,*) '   n_hgp =', n_hgp(i,j,k),' svp q_hg=', svp(i,j,k,in_hg)
-          write(6,*) '   q_clp =', q_clp(i,j,k),' svp q_cl=', svp(i,j,k,iq_cl)
-          write(6,*) '   q_cip =', q_cip(i,j,k),' svp q_ci=', svp(i,j,k,iq_ci)
-          write(6,*) '   q_hrp =', q_hrp(i,j,k),' svp q_hr=', svp(i,j,k,iq_hr)
-          write(6,*) '   q_hsp =', q_hsp(i,j,k),' svp q_hs=', svp(i,j,k,iq_hs)
-          write(6,*) '   q_hgp =', q_hgp(i,j,k),' svp q_hg=', svp(i,j,k,iq_hg)
-         ! and processes
-          write(6,*) '   dn_cl_nu=',dn_cl_nu(i,j,k)
-          write(6,*) '   dn_ci_inu=',dn_ci_inu(i,j,k)
-          write(6,*) '   dq_hr_ev=' ,dq_hr_ev(i,j,k)
-          write(6,*) '   dn_hr_ev=' ,dn_hr_ev(i,j,k)
-          write(6,*) '   dq_hr_au=',dq_hr_au(i,j,k)
-          write(6,*) '   dn_cl|au=',(2.0/x_s)*dq_hr_au(i,j,k)
-          write(6,*) '   dq_hr_ac=', dq_hr_ac(i,j,k)
-          write(6,*) '   dn_cl|ac=', dq_hr_ac(i,j,k)/(x_cl(i,j,k)+eps0)
-          write(6,*) '   dn_hr_sc=',dn_hr_sc(i,j,k)
-          write(6,*) '   dn_hr_br=',dn_hr_br(i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_ci_dep=    ',dq_ci_dep(i,j,k)
-          write(6,*) '   dq_hs_dep=    ',dq_hs_dep(i,j,k)
-          write(6,*) '   dq_hg_dep=    ',dq_hg_dep    (i,j,k)
-          write(6,*) '   dq_ci_rime=   ',dq_ci_rime (i,j,k)
-          write(6,*) '   dq_hs_rime =  ',dq_hs_rime (i,j,k)
-          write(6,*) '   dq_hg_rime =  ',dq_hg_rime   (i,j,k)
-          write(6,*) '   dn_cl_rime_ci=',dn_cl_rime_ci(i,j,k)
-          write(6,*) '   dn_cl_rime_hs=',dn_cl_rime_hs(i,j,k)
-          write(6,*) '   dn_cl_rime_h= ',dn_cl_rime_hg(i,j,k)
-          write(6,*) '   dq_hshr_rime= ',dq_hshr_rime (i,j,k)
-          write(6,*) '   dq_hghr_rime= ',dq_hghr_rime (i,j,k)
-          write(6,*) '   dn_hr_rime_hs=',dn_hr_rime_hs(i,j,k)
-          write(6,*) '   dn_hr_rime_hg=',dn_hr_rime_hg(i,j,k)
-          write(6,*) '   dq_hr_het=    ' ,dq_hr_het    (i,j,k)
-          write(6,*) '   dq_cl_het=    ',dq_cl_het    (i,j,k)
-          write(6,*) '   dq_cl_hom=    ',dq_cl_hom    (i,j,k)
-          write(6,*) '   dn_hr_het=    ',dn_hr_het    (i,j,k)
-          write(6,*) '   dn_cl_het=    ',dn_cl_het    (i,j,k)
-          write(6,*) '   dn_cl_hom=    ',dn_cl_hom    (i,j,k)
-          write(6,*) '   dq_ci_col_iis=    ',dq_ci_col_iis    (i,j,k)
-          write(6,*) '   dq_hsci_col=  ',dq_hsci_col  (i,j,k)
-          write(6,*) '   dn_ci_col_iis=    ',dn_ci_col_iis    (i,j,k)
-          write(6,*) '   dn_hs_col_sss=    ',dn_hs_col_sss  (i,j,k)
-          write(6,*) '   dn_ci_col_hs= ',dn_ci_col_hs (i,j,k)
-          write(6,*) '   dq_ci_cv=     ',dq_ci_cv (i,j,k)
-          write(6,*) '   dq_hs_cv=     ',dq_hs_cv     (i,j,k)
-          write(6,*) '   dn_ci_cv=     ',dn_ci_cv     (i,j,k)
-          write(6,*) '   dn_hs_cv=     ',dn_hs_cv     (i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_ci_me      ', dq_ci_me    (i,j,k)
-          write(6,*) '   dq_hs_me      ', dq_hs_me    (i,j,k)
-          write(6,*) '   dq_hg_me      ', dq_hg_me    (i,j,k)
-          write(6,*) '   dq_ci_ev     ', dq_ci_ev   (i,j,k)
-          write(6,*) '   dq_hs_ev     ', dq_hs_ev   (i,j,k)
-          write(6,*) '   dq_hg_ev     ', dq_hg_ev   (i,j,k)
-          write(6,*) '   dn_ci_me      ', dn_ci_me    (i,j,k)
-          write(6,*) '   dn_hs_me      ', dn_hs_me    (i,j,k)
-          write(6,*) '   dn_hg_me      ', dn_hg_me    (i,j,k)
-          write(6,*) '   dn_ci_ev     ', dn_ci_ev   (i,j,k)
-          write(6,*) '   dn_hs_ev     ', dn_hs_ev   (i,j,k)
-          write(6,*) '   dn_hg_ev     ', dn_hg_ev   (i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hg_eme_gc  ', dq_hg_eme_gc(i,j,k)
-          write(6,*) '   dq_hg_eme_gr  ', dq_hg_eme_gr(i,j,k)
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hs_eme_rs  ', dq_hs_eme_rs(i,j,k)
-          write(6,*) '   dq_hg_eme_gc  ', dq_hg_eme_gc(i,j,k)
-          write(6,*) '   dq_hg_eme_gr  ', dq_hg_eme_gr(i,j,k)
-          write(6,*) '   '
-          write(6,*) '   dq_cl_se=     ',dq_cl_se     (i,j,k)
-          write(6,*) '   dq_ci_se=     ',dq_ci_se     (i,j,k)
-          write(6,*) '   dq_hr_se=     ',dq_hr_se     (i,j,k)
-          write(6,*) '   dq_hs_se=     ',dq_hs_se     (i,j,k)
-          write(6,*) '   dq_hg_se=     ',dq_hg_se     (i,j,k)
-          write(6,*) '   dn_cl_se=     ',dn_cl_se     (i,j,k)
-          write(6,*) '   dn_ci_se=     ',dn_ci_se     (i,j,k)
-          write(6,*) '   dn_hr_se=     ',dn_hr_se     (i,j,k)
-          write(6,*) '   dn_hs_se=     ',dn_hs_se     (i,j,k)
-          write(6,*) '   dn_hg_se=     ',dn_hg_se     (i,j,k)
-          write(6,*) '   '
-          write(6,*) '   precep_hs=    ',precep_hs    (i,j,k)
-          write(6,*) '   precep_hg=    ',precep_hg    (i,j,k)
-          write(6,*) '   dq_cl_sa=     ',dq_cl_sa     (i,j,k)
-          write(6,*) '   ret_cc=       ',ret_cc       (i,j,k)
-
-          !
-        endif
-    enddo
-    enddo
-    enddo
-   endif
-   endif ! flag_dbg
-
-   end subroutine check_ssat
-
-  ! #sb3 START
-  real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
-
-  !*********************************************************************
-  ! Function to calculate coefficient \bar{a}_vent,n
-  ! for ventilation parameter
-  ! specified in Appendix B in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_a, nu_a, a_a,b_a, av
-    integer, intent(in) :: nn
-    real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
-
-    ! calculation itself
-    arg11     = (nu_a+nn+b_a)/mu_a
-    arg21     = (nu_a+1.0)/mu_a
-    arg12     = (nu_a+1.0)/mu_a ! arg12     = (nu_a+nn+1.0)/mu_a
-    arg22     = (nu_a+2.0)/mu_a
-    expon02   = b_a+nn-1.0
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_avent = avf*(mtt11/mtt21)*(mtt12/mtt22)**expon02
-
-  end function calc_avent
-
-  real function calc_bvent (nn, mu_a, nu_a, a_a,b_a, beta_a, bv )
-
-  !*********************************************************************
-  ! Function to calculate coefficient \bar{a}_vent,n
-  ! for ventilation parameter
-  ! specified in Appendix B in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_a, nu_a, a_a,b_a, beta_a, bv
-    integer, intent(in) :: nn
-    real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
-
-    ! calculation itself
-    arg11     = (nu_a+nn+(3.0/2.0)*b_a+0.5*beta_a)/mu_a
-    arg21     = (nu_a+1.0)/mu_a
-    arg12     = (nu_a+1.0)/mu_a
-    arg22     = (nu_a+2.0)/mu_a
-    expon02   = (3.0/2.0)*b_a+0.5*beta_a+nn-1.0
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_bvent = bv*(mtt11/mtt21)*(mtt12/mtt22)**expon02
-
-  end function calc_bvent
-  ! #sb3 END
-
-
-  ! #sb3 START
-  real function calc_delta_b (kk, mu_b, nu_b, b_b)
-
-  !*********************************************************************
-  ! Function to calculate coefficient \delta^k_b
-  !  for collision/collection
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_b, nu_b, b_b
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22, mtt11, mtt12, mtt21,mtt22, expon02
-
-    ! calculation itself
-    arg11     = (2.0*b_b+nu_b+1+kk)/mu_b
-    arg21     = (nu_b+1)/mu_b
-    arg12     = (nu_b+1)/mu_b
-    arg22     = (nu_b+2)/mu_b
-    expon02   = 2.0*b_b+kk
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_delta_b = (mtt11/mtt21)*(mtt12/mtt22)**expon02
-
-  end function calc_delta_b
-
-  real function calc_delta_ab (kk, mu_a, nu_a, b_a, mu_b, nu_b, b_b)
-
-  !*********************************************************************
-  ! Function to calculate coefficient \delta^k_a,b
-  ! for collision/collection
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_a, nu_a, b_a, mu_b, nu_b, b_b
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22     &
-           ,arg13, arg14, arg23, arg24     &
-           ,mtt11, mtt12, mtt21,mtt22      &
-           ,mtt13, mtt14, mtt23,mtt24      &
-           ,exp03,exp04
-
-    ! calculation itself
-    arg11     = (b_a+nu_a+1+kk)/mu_a
-    arg21     = (nu_a+1)/mu_a
-    arg12     = (b_b+nu_b+1)/mu_b
-    arg22     = (nu_b+1)/mu_b
-    arg13     = arg21
-    arg23     = (nu_a+2)/mu_a
-    arg14     = arg22
-    arg24     = (nu_b+2)/mu_b
-    exp03     = b_a+kk
-    exp04     = b_b
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-    mtt13 = mtt21
-    mtt23 = lacz_gamma(arg23)
-    mtt14 = mtt22
-    mtt24 = lacz_gamma(arg24)
-
-    ! putting it together
-    calc_delta_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
-
-  end function calc_delta_ab
-
-
-  real function calc_th_b (kk, mu_b, nu_b, b_b, beta_b)
-
-  !*********************************************************************
-  ! Function to calculate coefficient \vartheta^k_a,b
-  ! for collision/collection
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_b, nu_b, b_b, beta_b
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22     &
-           ,mtt11, mtt12, mtt21,mtt22      &
-           ,exp02
-
-    ! calculation itself
-    arg11     = (2.0*beta_b+2.0*b_b+nu_b+1.0+kk)/mu_b
-    arg21     = (2.0*b_b+nu_b+1.0+kk )/mu_b
-    arg12     = (nu_b+1.0)/mu_b
-    arg22     = (nu_b+2.0)/mu_b
-    exp02     = 2.0*beta_b
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_th_b = (mtt11/mtt21)*(mtt12/mtt22)**exp02
-
-  end function calc_th_b
-
-  real function calc_th_ab (kk, mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b)
-
-  !*********************************************************************
-  ! Function to calculate coefficient \vartheta^k_a,b
-  ! for collision/collection
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::  mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22     &
-           ,arg13, arg14, arg23, arg24     &
-           ,mtt11, mtt12, mtt21,mtt22      &
-           ,mtt13, mtt14, mtt23,mtt24      &
-           ,exp03,exp04
-
-    ! calculation itself
-    arg11     = (beta_a+b_a+nu_a+1+kk)/mu_a
-    arg21     = (b_a+nu_a+1+kk)/mu_a
-    arg12     = (beta_b+b_b+nu_b+1)/mu_b
-    arg22     = (b_b+nu_b+1)/mu_b
-    arg13     = (nu_a+1)/mu_a
-    arg23     = (nu_a+2)/mu_a
-    arg14     = (nu_b+1)/mu_b
-    arg24     = (nu_b+2)/mu_b
-    exp03     = beta_a
-    exp04     = beta_b
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-    mtt13 = lacz_gamma(arg13)
-    mtt23 = lacz_gamma(arg23)
-    mtt14 = lacz_gamma(arg14)
-    mtt24 = lacz_gamma(arg24)
-
-    ! putting it together
-    calc_th_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
-
-  end function calc_th_ab
-
-  real function calc_cons_mmt (kk, mu_a, nu_a)
-
-  !*********************************************************************
-  ! Function to calculate the constatnt part of the momement
-  ! used in some constants
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::    mu_a, nu_a
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22     &
-           ,mtt11, mtt12, mtt21,mtt22      &
-           ,exp02
-
-    ! calculation itself
-    arg11     = (nu_a+1+kk)/mu_a
-    arg21     = (nu_a+1)/mu_a
-    arg12     = (nu_a+1)/mu_a
-    arg22     = (nu_a+2)/mu_a
-    exp02     =  kk
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_cons_mmt = (mtt11/mtt21)*(mtt12/mtt22)**exp02
-
-  end function calc_cons_mmt
-
-  real function calc_cons_v (kk, mu_a, nu_a, al_a, be_a)
-
-  !*********************************************************************
-  ! Function to calculate the constatnt part of the momement
-  ! used in some constants
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::    mu_a, nu_a, al_a, be_a
-    integer, intent(in) :: kk
-    real :: arg11, arg12, arg21, arg22     &
-           ,mtt11, mtt12, mtt21,mtt22      &
-           ,exp02
-
-    ! calculation itself
-    arg11     = (nu_a+be_a+1+kk)/mu_a
-    arg21     = (nu_a+1+kk)/mu_a
-    arg12     = (nu_a+1)/mu_a
-    arg22     = (nu_a+2)/mu_a
-    exp02     =  be_a
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-    mtt12 = lacz_gamma(arg12)
-    mtt22 = lacz_gamma(arg22)
-
-    ! putting it together
-    calc_cons_v = al_a*(mtt11/mtt21)*(mtt12/mtt22)**exp02
-
-  end function calc_cons_v
-
-
-  !*********************************************************************
-  ! Function to calculate the constatnt part of the momement
-  ! used in some constants
-  ! specified in Appendix C in S&B
-  !
-  !*********************************************************************
-  real function calc_cons_lbd (mu_a, nu_a)
-
-
-    use modglobal, only : lacz_gamma ! LACZ_GAMMA
-    implicit none
-    real, intent(in) ::    mu_a, nu_a
-    ! integer, intent(in) :: kk
-    real :: arg11, arg21                   &
-           ,mtt11, mtt21                   &
-           ,exp01
-
-    ! calculation itself
-    arg11     = (nu_a+1.0)/mu_a
-    arg21     = (nu_a+2.0)/mu_a
-    exp01     =  -mu_a
-
-    mtt11 = lacz_gamma(arg11)
-    mtt21 = lacz_gamma(arg21)
-
-    ! putting it together
-    calc_cons_lbd = (mtt11/mtt21)**exp01
-
-  end function calc_cons_lbd
-
-
-  !*********************************************************************
-  ! Function to calculate the saturation pressure at a specific temperature
-  !
-  ! copied from subroutine initglobal in modglobal
-  !
-  !*********************************************************************
-  real function  esl_at_te(te_a)
+!*********************************************************************
+real function calc_cons_mmt (kk, mu_a, nu_a)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+
+  real, intent(in) ::    mu_a, nu_a
+  integer, intent(in) :: kk
+  real :: arg11, arg12, arg21, arg22     &
+         ,mtt11, mtt12, mtt21,mtt22      &
+         ,exp02
+
+  ! calculation itself
+  arg11     = (nu_a+1+kk)/mu_a
+  arg21     = (nu_a+1)/mu_a
+  arg12     = (nu_a+1)/mu_a
+  arg22     = (nu_a+2)/mu_a
+  exp02     =  kk
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+
+  ! putting it together
+  calc_cons_mmt = (mtt11/mtt21)*(mtt12/mtt22)**exp02
+end function calc_cons_mmt
+
+
+!*********************************************************************
+! Function to calculate the constatnt part of the momement
+! used in some constants
+! specified in Appendix C in S&B
+!
+!*********************************************************************
+real function calc_cons_v (kk, mu_a, nu_a, al_a, be_a)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+
+  real, intent(in) ::    mu_a, nu_a, al_a, be_a
+  integer, intent(in) :: kk
+  real :: arg11, arg12, arg21, arg22     &
+         ,mtt11, mtt12, mtt21,mtt22      &
+         ,exp02
+
+  ! calculation itself
+  arg11     = (nu_a+be_a+1+kk)/mu_a
+  arg21     = (nu_a+1+kk)/mu_a
+  arg12     = (nu_a+1)/mu_a
+  arg22     = (nu_a+2)/mu_a
+  exp02     =  be_a
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+  mtt12 = lacz_gamma(arg12)
+  mtt22 = lacz_gamma(arg22)
+
+  ! putting it together
+  calc_cons_v = al_a*(mtt11/mtt21)*(mtt12/mtt22)**exp02
+end function calc_cons_v
+
+
+!*********************************************************************
+! Function to calculate the constatnt part of the momement
+! used in some constants
+! specified in Appendix C in S&B
+!
+!*********************************************************************
+real function calc_cons_lbd (mu_a, nu_a)
+  use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  implicit none
+
+  real, intent(in) ::    mu_a, nu_a
+  ! integer, intent(in) :: kk
+  real :: arg11, arg21                   &
+         ,mtt11, mtt21                   &
+         ,exp01
+
+  ! calculation itself
+  arg11     = (nu_a+1.0)/mu_a
+  arg21     = (nu_a+2.0)/mu_a
+  exp01     =  -mu_a
+
+  mtt11 = lacz_gamma(arg11)
+  mtt21 = lacz_gamma(arg21)
+
+  ! putting it together
+  calc_cons_lbd = (mtt11/mtt21)**exp01
+end function calc_cons_lbd
+
+
+!*********************************************************************
+! Function to calculate the saturation pressure at a specific temperature
+!
+! copied from subroutine initglobal in modglobal
+!
+!*********************************************************************
+real function  esl_at_te(te_a)
   real, intent(in) ::    te_a
   real             :: esl_try
 
@@ -2354,6 +1174,6 @@ end subroutine initccn3
 
    esl_at_te = max(0.0,esl_try)
 
-  end function esl_at_te
+end function esl_at_te
 
 end module modbulkmicro3

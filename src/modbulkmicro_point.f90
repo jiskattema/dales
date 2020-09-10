@@ -363,7 +363,6 @@ contains
     ! calculate Rain DSD integral properties & parameters lbdr
     ! -----------------------------------------------------------------
     call integrals_bulk3
-    !call nucleation3      ! cloud nucleation  BUG: uses k+1 fields..
     call icenucle3        ! ice nucleation
 
 
