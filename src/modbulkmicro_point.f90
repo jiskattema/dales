@@ -1,30 +1,26 @@
 module modbulkmicro_point
-  use modmicrodata3, only : in_hr,iq_hr,in_cl,in_tr1,iq_cl,in_cc, &
-                            in_ci,iq_ci,in_hs,iq_hs,in_hg,iq_hg
-
   implicit none
 
   logical :: q_hr_mask,q_hs_mask,q_hg_mask
 
   real    :: delt,thlpmcr,qtpmcr
 
-  real ::  qltot    &
-          ,tmp0     &
+  real ::  tmp0     &
           ,qt0      &
           ,esl      &
           ,qvsl     &
 
-          ,n_cc, n_ccp,  n_ccm  & ! N_{ccn} nr content [ kg^{-1}] of cloud condensation nuclei
-          ,n_cl, n_clp,  n_clm  & ! N_{c,l} nr content [ kg^{-1}] for liquid cloud droplets,
-          ,n_ci, n_cip,  n_cim  & ! N_{c,i} nr content [ kg^{-1}] for ice cloud droplets,
-          ,n_hr, n_hrp,  n_hrm  & ! N_{h,r} nr content [ kg^{-1}] for rain
-          ,n_hs, n_hsp,  n_hsm  & ! N_{h,s} nr content [ kg^{-1}] for snow
-          ,n_hg, n_hgp,  n_hgm  & ! N_{h,g} nr content [ kg^{-1}] for graupel
-          ,q_cl, q_clp,  q_clm  & ! q_{c,l} water content [kg/kg] for liquid cloud droplets,
-          ,q_ci, q_cip,  q_cim  & ! q_{c,i} water content [kg/kg] for ice cloud droplets,
-          ,q_hr, q_hrp,  q_hrm  & ! q_{h,r} water content [kg/kg] for rain
-          ,q_hs, q_hsp,  q_hsm  & ! q_{h,s} water content [kg/kg] for snow
-          ,q_hg, q_hgp,  q_hgm  & ! q_{h,g} water content [kg/kg] for graupel
+          ,n_cc, n_ccp, n_ccm  & ! N_{ccn} nr content [ kg^{-1}] of cloud condensation nuclei
+          ,n_cl, n_clp, n_clm  & ! N_{c,l} nr content [ kg^{-1}] for liquid cloud droplets,
+          ,n_ci, n_cip, n_cim  & ! N_{c,i} nr content [ kg^{-1}] for ice cloud droplets,
+          ,n_hr, n_hrp, n_hrm  & ! N_{h,r} nr content [ kg^{-1}] for rain
+          ,n_hs, n_hsp, n_hsm  & ! N_{h,s} nr content [ kg^{-1}] for snow
+          ,n_hg, n_hgp, n_hgm  & ! N_{h,g} nr content [ kg^{-1}] for graupel
+          ,q_cl, q_clp, q_clm  & ! q_{c,l} water content [kg/kg] for liquid cloud droplets,
+          ,q_ci, q_cip, q_cim  & ! q_{c,i} water content [kg/kg] for ice cloud droplets,
+          ,q_hr, q_hrp, q_hrm  & ! q_{h,r} water content [kg/kg] for rain
+          ,q_hs, q_hsp, q_hsm  & ! q_{h,s} water content [kg/kg] for snow
+          ,q_hg, q_hgp, q_hgm  & ! q_{h,g} water content [kg/kg] for graupel
 
           ,x_ci     & ! mean cloud ice size
           ,x_cl     & ! mean cloud water size
@@ -55,6 +51,9 @@ module modbulkmicro_point
              ,dn_hr_sc       &
              ,dq_hr_ev       &
              ,dn_hr_ev       &
+             ,dq_ci_dep      &    !< deposition rate for clouds
+             ,dq_hs_dep      &    !< deposition rate for snow
+             ,dq_hg_dep      &    !< deposition rate for graupel
              ,dq_ci_rime     &    !< riming growth of ice
              ,dn_cl_rime_ci  &    !<  - and impact on n_cl
              ,dq_hs_rime     &    !< riming growth of snow
@@ -63,12 +62,12 @@ module modbulkmicro_point
              ,dn_cl_rime_hg  &    !<  - and impact on n_cl
              ,dq_hghr_rime   &    !< riming growth for graupel with rain
              ,dn_hr_rime_hg  &    !<  - and impact on n_hr
-             ,dq_hshr_rime   &    !< riming growth for snow with rain
-             ,dn_hr_rime_hs  &    !<  - and impact on n_hr
-             ,dq_hr_rime_ri  &    !< rain loss from riming of ice+rain->gr
-             ,dq_ci_rime_ri  &    !< ice loss from riming of ice+rain->gr
-             ,dn_ci_rime_ri  &    !< ice number loss from riming of ice+rain->gr
-             ,dn_hr_rime_ri  &    !< rain number loss from riming of ice+rain->gr
+             ,dq_hshr_rime   &    !U< riming growth for snow with rain
+             ,dn_hr_rime_hs  &    !U<  - and impact on n_hr
+             ,dq_hr_rime_ri  &    !U< rain loss from riming of ice+rain->gr
+             ,dq_ci_rime_ri  &    !U< ice loss from riming of ice+rain->gr
+             ,dn_ci_rime_ri  &    !U< ice number loss from riming of ice+rain->gr
+             ,dn_hr_rime_ri  &    !U< rain number loss from riming of ice+rain->gr
              ,dq_hr_col_rs   &    !< rain loss from riming of ice+snow->gr
              ,dq_hs_col_rs   &    !< rain number loss from riming of ice+snow->gr
              ,dn_hr_col_rs   &    !< snow loss from riming of ice+snow->gr
@@ -119,14 +118,37 @@ module modbulkmicro_point
              ,dq_hg_eme_gc   &    !< mass tendency enhanced melting of graupel
              ,dn_hg_eme_gr   &    !< number tendency enhanced melting of graupel by rain
              ,dq_hg_eme_gr   &    !< mass tendency enhanced melting of graupel by rain
+             ,dn_cl_se       &    !< sedimentation for clouds water - number
+             ,dq_cl_se       &    !<       -||-- mixing ration
+             ,dn_ci_se       &    !< sedimentation for cloud ice - number
+             ,dq_ci_se       &    !<       -||-- mixing ration
+             ,dn_hr_se       &    !< sedimentation for rain - number
+             ,dq_hr_se       &    !<       -||-- mixing ration
+             ,dn_hs_se       &    !< sedimentation for snow - number
+             ,dq_hs_se       &    !<       -||-- mixing ration
+             ,dn_hg_se       &    !< sedimentation for graupel - number
+             ,dq_hg_se       &    !<       -||-- mixing ration
              ,dq_cl_sa       &    !< saturation adjustment
              ,dn_cl_sa            !< change in n_cl due to saturation adjustment
 
 contains
-! TOOD: removed warnings when throwing away too much negative
-! moisture
+! TODO:  * removed warnings when throwing away too much negative moisture
+!        * use constants to index the tendencies
+!        * possible -1 for don't save the tendency
+!        * debug / NaN output
+!        * make all variables local, to we can use OpenMP if needed.
+!        * have a look if all constants are parameters (pre-calculate if not?)
+  subroutine point_processes( &
+      i,j,k, &
+      n_ccp_out, &
+      n_clp_out, n_cip_out, n_hrp_out, n_hsp_out, n_hgp_out, &
+      q_clp_out, q_cip_out, q_hrp_out, q_hsp_out, q_hgp_out, &
+      thlpmcr_out, qtpmcr_out, &
+      tendencies)
 
-  subroutine point_processes(i,j,k)
+    use modmicrodata3, only : in_hr,iq_hr,in_cl,in_tr1,iq_cl,in_cc, &
+                              in_ci,iq_ci,in_hs,iq_hs,in_hg,iq_hg
+
     use modfields, only : sv0, svm, svp
     use modfields, tmp0_3d => tmp0
     use modfields, qt0_3d => qt0
@@ -138,15 +160,20 @@ contains
 
     implicit none
     integer, intent(in) :: i,j,k
+    real, intent(inout) :: tendencies(90)
+    real, intent(out)   :: thlpmcr_out, qtpmcr_out
+    real, intent(out)   :: n_ccp_out, &
+                           n_clp_out, n_cip_out, n_hrp_out, n_hsp_out, n_hgp_out, &
+                           q_clp_out, q_cip_out, q_hrp_out, q_hsp_out, q_hgp_out
 
-    ! BUG: why is svp used? to get tendencies from outside to microphysics?
+    ! BUG: why is svp used? to get tendencies from outside of microphysics?
     !      can we not just initialize n_clp = svp(i,j,k,in_clp) ?
     svp_incl = svp(i,j,k,in_cl)
 
     ! base variables
     tmp0 = tmp0_3d(i,j,k)
     qt0  = qt0_3d (i,j,k)
-    ql0  = ql0    (i,j,k)
+    ql0  = ql0_3d (i,j,k)
     esl  = esl_3d (i,j,k)
     qvsl = qvsl_3d(i,j,k)
     qvsi = qvsi_3d(i,j,k)
@@ -183,23 +210,9 @@ contains
     ! Reset all values
     ! ----------------
 
-    ! 0 bulk integrals
+    ! 0 bulk integrals and parameters
     Dvr = 0.
     lbdr = 0.
-
-    ! 0 to values of the update
-    n_ccp  = 0.0
-    n_clp  = 0.0
-    n_cip  = 0.0
-    n_hrp  = 0.0
-    n_hsp  = 0.0
-    n_hgp  = 0.0
-
-    q_clp  = 0.0
-    q_cip  = 0.0
-    q_hrp  = 0.0
-    q_hsp  = 0.0
-    q_hgp  = 0.0
 
     x_ci   = 0.0
     x_cl   = 0.0
@@ -220,92 +233,110 @@ contains
     v_hg   = 0.0
 
     ! 0 to values of the update
-    dn_cl_nu      = 0.0
-    dn_ci_inu     = 0.0
-    dn_cl_au      = 0.0
-    dq_hr_au      = 0.0
-    dn_hr_au      = 0.0
-    dq_hr_ac      = 0.0
-    dn_cl_ac      = 0.0
-    dn_hr_br      = 0.0
-    dn_hr_sc      = 0.0
-    dq_hr_ev      = 0.0
-    dn_hr_ev      = 0.0
-    dq_ci_dep     = 0.0
-    dq_hs_dep     = 0.0
-    dq_hg_dep     = 0.0
-    dq_ci_rime    = 0.0
-    dn_cl_rime_ci = 0.0
-    dq_hs_rime    = 0.0
-    dn_cl_rime_hs = 0.0
-    dq_hg_rime    = 0.0
-    dn_cl_rime_hg = 0.0
-    dq_hshr_rime  = 0.0
-    dn_hr_rime_hs = 0.0
-    dq_hr_col_rs  = 0.0
-    dq_hs_col_rs  = 0.0
-    dn_hr_col_rs  = 0.0
-    dn_hs_col_rs  = 0.0
-    dq_hr_col_ri  = 0.0
-    dq_ci_col_ri  = 0.0
-    dn_ci_col_ri  = 0.0
-    dn_hr_col_ri  = 0.0
-    dq_hghr_rime  = 0.0
-    dn_hr_rime_hg = 0.0
-    dq_cl_het     = 0.0
-    dq_hr_het     = 0.0
-    dn_hr_het     = 0.0
-    dq_cl_hom     = 0.0
-    dq_ci_col_iis = 0.0
-    dn_ci_col_iis = 0.0
-    dn_hs_col_sss = 0.0
-    dq_hsci_col   = 0.0
-    dn_ci_col_hs  = 0.0
-    dq_hghs_col   = 0.0
-    dn_hs_col_hg  = 0.0
-    dq_ci_cv      = 0.0
-    dn_ci_cv      = 0.0
-    dq_hs_cv      = 0.0
-    dn_hs_cv      = 0.0
-    dn_cl_sc      = 0.0
-    dn_ci_mul     = 0.0
-    dq_ci_mul     = 0.0
-    dn_ci_me      = 0.0
-    dq_ci_me      = 0.0
-    dn_hs_me      = 0.0
-    dq_hs_me      = 0.0
-    dn_hg_me      = 0.0
-    dq_hg_me      = 0.0
-    dn_ci_ev      = 0.0
-    dq_ci_ev      = 0.0
-    dn_hs_ev      = 0.0
-    dq_hs_ev      = 0.0
-    dn_hg_ev      = 0.0
-    dq_hg_ev      = 0.0
-    dn_ci_eme_ic  = 0.0
-    dq_ci_eme_ic  = 0.0
-    dn_ci_eme_ri  = 0.0
-    dq_ci_eme_ri  = 0.0
-    dn_hs_eme_sc  = 0.0
-    dq_hs_eme_sc  = 0.0
-    dn_hs_eme_rs  = 0.0
-    dq_hs_eme_rs  = 0.0
-    dn_hg_eme_gc  = 0.0
-    dq_hg_eme_gc  = 0.0
-    dn_hg_eme_gr  = 0.0
-    dq_hg_eme_gr  = 0.0
-    dn_cl_se      = 0.0
-    dq_cl_se      = 0.0
-    dn_ci_se      = 0.0
-    dq_ci_se      = 0.0
-    dn_hr_se      = 0.0
-    dq_hr_se      = 0.0
-    dn_hs_se      = 0.0
-    dq_hs_se      = 0.0
-    dn_hg_se      = 0.0
-    dq_hg_se      = 0.0
-    dq_cl_sa      = 0.0
-    dn_cl_sa      = 0.0
+    n_ccp  = 0.0
+    n_clp  = 0.0
+    n_cip  = 0.0
+    n_hrp  = 0.0
+    n_hsp  = 0.0
+    n_hgp  = 0.0
+
+    q_clp  = 0.0
+    q_cip  = 0.0
+    q_hrp  = 0.0
+    q_hsp  = 0.0
+    q_hgp  = 0.0
+
+    ! 0 to values of the update
+    dn_cl_nu      = 0.
+    dn_ci_inu     = 0.
+    dn_cl_au      = 0.
+    dq_hr_au      = 0.
+    dn_hr_au      = 0.
+    dq_hr_ac      = 0.
+    dn_cl_ac      = 0.
+    dn_hr_br      = 0.
+    dn_hr_sc      = 0.
+    dq_hr_ev      = 0.
+    dn_hr_ev      = 0.
+    dq_ci_dep     = 0.
+    dq_hs_dep     = 0.
+    dq_hg_dep     = 0.
+    dq_ci_rime    = 0.
+    dn_cl_rime_ci = 0.
+    dq_hs_rime    = 0.
+    dn_cl_rime_hs = 0.
+    dq_hg_rime    = 0.
+    dn_cl_rime_hg = 0.
+    dq_hghr_rime  = 0.
+    dn_hr_rime_hg = 0.
+    dq_hshr_rime  = 0.
+    dn_hr_rime_hs = 0.
+    dq_hr_rime_ri = 0.
+    dq_ci_rime_ri = 0.
+    dn_ci_rime_ri = 0.
+    dn_hr_rime_ri = 0.
+    dq_hr_col_rs  = 0.
+    dq_hs_col_rs  = 0.
+    dn_hr_col_rs  = 0.
+    dn_hs_col_rs  = 0.
+    dq_hr_col_ri  = 0.
+    dq_ci_col_ri  = 0.
+    dn_ci_col_ri  = 0.
+    dn_hr_col_ri  = 0.
+    dq_cl_het     = 0.
+    dq_hr_het     = 0.
+    dn_hr_het     = 0.
+    dq_cl_hom     = 0.
+    dq_ci_col_iis = 0.
+    dn_ci_col_iis = 0.
+    dn_hs_col_sss = 0.
+    dq_hsci_col   = 0.
+    dn_ci_col_hs  = 0.
+    dq_hghs_col   = 0.
+    dn_hs_col_hg  = 0.
+    dq_ci_cv      = 0.
+    dn_ci_cv      = 0.
+    dq_hs_cv      = 0.
+    dn_hs_cv      = 0.
+    dn_cl_sc      = 0.
+    dn_ci_mul     = 0.
+    dq_ci_mul     = 0.
+    dn_ci_me      = 0.
+    dq_ci_me      = 0.
+    dn_hs_me      = 0.
+    dq_hs_me      = 0.
+    dn_hg_me      = 0.
+    dq_hg_me      = 0.
+    dn_ci_ev      = 0.
+    dq_ci_ev      = 0.
+    dn_hs_ev      = 0.
+    dq_hs_ev      = 0.
+    dn_hg_ev      = 0.
+    dq_hg_ev      = 0.
+    dn_ci_eme_ic  = 0.
+    dq_ci_eme_ic  = 0.
+    dn_ci_eme_ri  = 0.
+    dq_ci_eme_ri  = 0.
+    dn_hs_eme_sc  = 0.
+    dq_hs_eme_sc  = 0.
+    dn_hs_eme_rs  = 0.
+    dq_hs_eme_rs  = 0.
+    dn_hg_eme_gc  = 0.
+    dq_hg_eme_gc  = 0.
+    dn_hg_eme_gr  = 0.
+    dq_hg_eme_gr  = 0.
+    dn_cl_se      = 0.
+    dq_cl_se      = 0.
+    dn_ci_se      = 0.
+    dq_ci_se      = 0.
+    dn_hr_se      = 0.
+    dq_hr_se      = 0.
+    dn_hs_se      = 0.
+    dq_hs_se      = 0.
+    dn_hg_se      = 0.
+    dq_hg_se      = 0.
+    dq_cl_sa      = 0.
+    dn_cl_sa      = 0.
 
     delt = rdt / (4. - dble(rk3step))  ! TODO: get from modbulkmicro3
 
@@ -321,16 +352,6 @@ contains
 
     ! graupel :
     q_hg_mask = (q_hg.gt.q_hg_min).and.(n_hg.gt.0.0)
-
-
-    ! calculate qltot and initialize cloud droplet number Nc
-    ! ------------------------------------------------------
-    ! instead of: ql0 + q_hr
-    ! i.e - cloud water + rain areas
-    qltot = q_cl + q_hr
-
-    ! clouds- original definition
-    qcmask = (ql0.gt.qcmin)
 
     ! liquid clouds
     q_cl_mask = (q_cl.ge.qcliqmin).and.(n_cl.gt.0.0)
@@ -412,8 +433,42 @@ contains
     ! -----------------------------------------------------------------
     call satadj3
 
-end subroutine point_processes
+    ! Save the results
+    ! -----------------------------------------------------------------
 
+    n_ccp_out = n_ccp
+    n_clp_out = n_clp
+    n_cip_out = n_cip
+    n_hrp_out = n_hrp
+    n_hsp_out = n_hsp
+    n_hgp_out = n_hgp
+    q_clp_out = q_clp
+    q_cip_out = q_cip
+    q_hrp_out = q_hrp
+    q_hsp_out = q_hsp
+    q_hgp_out = q_hgp
+
+    thlpmcr_out = thlpmcr
+    qtpmcr_out = qtpmcr
+
+    tendencies = (/
+      dn_cl_nu, dn_ci_inu, dn_cl_au, dq_hr_au, dn_hr_au, dq_hr_ac, dn_cl_ac, dn_hr_br,     &
+      dn_hr_sc, dq_hr_ev, dn_hr_ev, dq_ci_dep, dq_hs_dep, dq_hg_dep, dq_ci_rime,           &
+      dn_cl_rime_ci, dq_hs_rime, dn_cl_rime_hs, dq_hg_rime, dn_cl_rime_hg, dq_hghr_rime,   &
+      dn_hr_rime_hg, dq_hshr_rime, dn_hr_rime_hs, dq_hr_rime_ri, dq_ci_rime_ri,            &
+      dn_ci_rime_ri, dn_hr_rime_ri, dq_hr_col_rs, dq_hs_col_rs, dn_hr_col_rs,              &
+      dn_hs_col_rs, dq_hr_col_ri, dq_ci_col_ri, dn_ci_col_ri, dn_hr_col_ri, dq_cl_het,     &
+      dq_hr_het, dn_hr_het, dq_cl_hom, dq_ci_col_iis, dn_ci_col_iis, dn_hs_col_sss,        &
+      dq_hsci_col, dn_ci_col_hs, dq_hghs_col, dn_hs_col_hg, dq_ci_cv, dn_ci_cv, dq_hs_cv,  &
+      dn_hs_cv, dn_cl_sc, dn_ci_mul, dq_ci_mul, dn_ci_me, dq_ci_me, dn_hs_me, dq_hs_me,    &
+      dn_hg_me, dq_hg_me, dn_ci_ev, dq_ci_ev, dn_hs_ev, dq_hs_ev, dn_hg_ev, dq_hg_ev,      &
+      dn_ci_eme_ic, dq_ci_eme_ic, dn_ci_eme_ri, dq_ci_eme_ri, dn_hs_eme_sc, dq_hs_eme_sc,  &
+      dn_hs_eme_rs, dq_hs_eme_rs, dn_hg_eme_gc, dq_hg_eme_gc, dn_hg_eme_gr, dq_hg_eme_gr,  &
+      dn_cl_se, dq_cl_se, dn_ci_se, dq_ci_se, dn_hr_se, dq_hr_se, dn_hs_se, dq_hs_se,      &
+      dn_hg_se, dq_hg_se, dq_cl_sa, dn_cl_sa                                               &
+    /)
+
+end subroutine point_processes
 
 
 ! calculating rain and other integrals
@@ -466,7 +521,7 @@ subroutine integrals_bulk3
           x_hr = q_hr/(n_hr+eps0)
           ! TODO: limit x_hr?
           Dvr = (x_hr/pirhow)**(1./3.)
-       
+
           D_hr = a_hr *x_hr**b_hr
           v_hr = al_hr*x_hr**be_hr*(rho0s/rhof(k))**ga_hr
         endif
@@ -530,7 +585,7 @@ subroutine icenucle3
 
   dn_ci_inu = 0.0
 
-  ! NOTE: not using qcmask condition, since air can be saturated with respect to ice
+  ! NOTE: not using cloud mask condition, since air can be saturated with respect to ice
   if (tmp0.lt.tmp_inuc) then
 
     ! calculate supersaturation with respect to ice
@@ -604,8 +659,8 @@ end subroutine icenucle3
 ! ****************************************
 ! Homogeneous freezing
 ! of cloud droplets
-! 
-! ****************************************     
+!
+! ****************************************
 subroutine homfreez3
   use modglobal, only : rlv,cp
   use modfields, only : exnf
@@ -660,12 +715,12 @@ subroutine homfreez3
     ! change in th_l due to freezing
     thlpmcr = thlpmcr-((rlv+rlme)/(cp*exnf(k)))*dq_cl_hom
   endif ! cl_mask
- end subroutine homfreez3      
+ end subroutine homfreez3
 
 
 ! ****************************************
 ! Heterogeneous freezing of cloud droplets
-! ****************************************     
+! ****************************************
 subroutine hetfreez3
   use modglobal, only : rlv,cp
   use modfields, only : tmp0,exnf
@@ -701,16 +756,16 @@ subroutine hetfreez3
     ! change in th_l due to freezing
     thlpmcr = thlpmcr-((rlv+rlme)/(cp*exnf(k)))*(dq_cl_het)
   endif ! cl_mask
-end subroutine hetfreez3   
+end subroutine hetfreez3
 
 
 ! ****************************************
 ! Depositional growth of cloud ice particles
-!  later tunr into: 
-!  
+!  later tunr into:
+!
 ! Depositional growth of various ice particles
 ! Inner subroutine - takes input from a wrapper
-!  following S&B 
+!  following S&B
 ! ****************************************
 subroutine deposit_ice3
   use modglobal, only : rv,rd,cp,pi
@@ -780,12 +835,12 @@ end subroutine deposit_ice3
 
 ! ****************************************
 ! Depositional growth of snow particles
-!  later turn into: 
-!  
+!  later turn into:
+!
 ! Depositional growth of various ice particles
 ! Inner subroutine - takes input from a wrapper
-!  following S&B 
-! ****************************************  
+!  following S&B
+! ****************************************
 subroutine deposit_snow3
   use modglobal, only : rv,rd,cp,pi
   use modfields, only : exnf,rhof,presf
@@ -856,12 +911,12 @@ end subroutine deposit_snow3
 ! ****************************************
 ! Depositional growth of graupel particles
 ! as well as sublimation
-!  later turn into: 
-!  
+!  later turn into:
+!
 ! Depositional growth of various ice particles
 ! Inner subroutine - takes input from a wrapper
-!  following S&B 
-! ****************************************  
+!  following S&B
+! ****************************************
 subroutine deposit_graupel3
   use modglobal, only : rv,rd,cp,pi
   use modfields, only : exnf,rhof,presf
@@ -928,18 +983,18 @@ subroutine deposit_graupel3
       endif
     endif
   endif
-end subroutine deposit_graupel3   
+end subroutine deposit_graupel3
 
 
 !! ****************************************************************
 !!  Limiting condensation and deposition
 !!  - to prevent negative values
-!! 
+!!
 !!  - call should be located:
 !!      - after depositions
 !!      - after nucleation correction
-!!      - before heterogeneous freezing 
-!! 
+!!      - before heterogeneous freezing
+!!
 !!  ************************************************************
 subroutine cor_deposit3
   use modglobal, only : rv,rd,cp,pi
@@ -971,16 +1026,14 @@ subroutine cor_deposit3
     q_hgp = q_hgp + cor_dqhg_dep
 
     ! - correction for total water
-    qtpmcr = qtpmcr &
-                    -cor_dqhs_dep &
+    qtpmcr = qtpmcr -cor_dqhs_dep &
                     -cor_dqhg_dep &
                     -cor_dqci_dep
 
     ! - and correcting for heat
-    thlpmcr = thlpmcr                     &
-          +(rlvi/(cp*exnf(k)))*cor_dqci_dep             &
-          +(rlvi/(cp*exnf(k)))*cor_dqhs_dep             &
-          +(rlvi/(cp*exnf(k)))*cor_dqhg_dep
+    thlpmcr = thlpmcr + (rlvi/(cp*exnf(k)))*cor_dqci_dep  &
+                      + (rlvi/(cp*exnf(k)))*cor_dqhs_dep  &
+                      + (rlvi/(cp*exnf(k)))*cor_dqhg_dep
 
     ! corrector for process values
     dq_ci_dep = dq_ci_dep + cor_dqci_dep
@@ -992,10 +1045,10 @@ end subroutine cor_deposit3
 
 ! ****************************************
 ! ice selfcollection and aggregation to snow
-!  - all collection of ice by ice treated as snow 
-! 
+!  - all collection of ice by ice treated as snow
+!
 ! follows Seifert, 2002
-! ****************************************     
+! ****************************************
 subroutine ice_aggr3
   use modglobal, only : k1,rv,pi
   use modfields, only : rhof
@@ -1095,7 +1148,7 @@ end subroutine ice_aggr3
 
 ! *************************************************
 ! snow selfcollection
-! 
+!
 ! *************************************************
 subroutine snow_self3
   use modglobal, only : rv,pi
@@ -1145,9 +1198,9 @@ end subroutine snow_self3
 
 ! ****************************************
 ! snow collecting cloud ice
-! 
+!
 ! s + i -> s
-! ****************************************     
+! ****************************************
 subroutine coll_sis3
   use modglobal, only : rv,pi
   use modfields, only : rhof
@@ -1205,14 +1258,14 @@ subroutine coll_sis3
       ! count((n_ci+delt*dn_ci_col_hs).lt. 0.0)
     endif
   endif
-end subroutine coll_sis3    
+end subroutine coll_sis3
 
 
 ! ****************************************
 ! snow collecting cloud ice
-! 
-! g+s -> g 
-! ****************************************     
+!
+! g+s -> g
+! ****************************************
 subroutine coll_gsg3
   use modglobal, only : rv,pi
   use modfields, only : rhof
@@ -1274,16 +1327,16 @@ subroutine coll_gsg3
       ! count(n_hs+delt*dn_hs_col_hg.lt. 0.0)
     endif
   endif
-end subroutine coll_gsg3    
+end subroutine coll_gsg3
 
 
 !****************************************
 ! Collection of clpoud droplets by ice
-! 
+!
 ! - based on Seifert & Beheng (2004)
 ! - resulting process is:
 !    - ice riming by cloud ice
-!    - enhanced melting 
+!    - enhanced melting
 !
 !****************************************
 subroutine coll_ici3
@@ -1378,12 +1431,12 @@ subroutine coll_ici3
       ! count(n_cl+delt*dn_cl_rime_ci.lt. 0.0)
     endif
   endif
-end subroutine coll_ici3  
+end subroutine coll_ici3
 
 
 ! ****************************************
 !  riming of snow
-! ****************************************     
+! ****************************************
 subroutine coll_scs3
   use modglobal, only : cp,pi
   use modfields, only : rhof,exnf
@@ -1518,14 +1571,14 @@ subroutine coll_scs3
       endif
     endif
   endif
-end subroutine coll_scs3  
+end subroutine coll_scs3
 
 
 ! ****************************************
 !  riming of graupel by cloud droplets
-! 
-! 
-! ****************************************     
+!
+!
+! ****************************************
 subroutine coll_gcg3
   use modglobal, only : cp,pi
   use modfields, only : rhof,exnf
@@ -1647,14 +1700,14 @@ subroutine coll_gcg3
       endif
     endif
   endif
-end subroutine coll_gcg3    
+end subroutine coll_gcg3
 
 
 ! ****************************************
 !  riming of graupel
-! 
-! 
-! ****************************************     
+!
+!
+! ****************************************
 subroutine coll_grg3
   use modglobal, only : cp,pi
   use modfields, only : rhof,exnf
@@ -2138,8 +2191,8 @@ subroutine conv_partial3
         dn_ci_cv = dq_ci_cv/max(x_ci,x_ci_cvmin)
         ! = dq_ci_cv/max(x_ci,x_ci_cvmin)
 
-        dn_ci_cv = max(dn_ci_cv,&
-                       min(0.0,        &
+        dn_ci_cv = max(dn_ci_cv,  &
+                       min(0.0,   &
                        -rem_ci_cf*n_cim-n_cip))
         ! = max(dn_hs_cv, -n_cim/delt)
 
@@ -2327,7 +2380,7 @@ subroutine autoconversion3
 
         dq_hr_au = k_au * ( nu_cl_cst+2.) * ( nu_cl_cst +4.) / ( nu_cl_cst +1.)**2.    &
                 * (q_cl * x_cl)**2. * rho0s ! *rho**2/rho/rho (= 1)
-        tau = 1.0 - q_cl / qltot
+        tau = 1.0 - q_cl / (q_cl + q_hr) ! NOTE: was qltot
 
         ! phi_au computation
         phi = k_1 * tau**k_2 * (1.0 -tau**k_2)**3
@@ -2357,7 +2410,7 @@ subroutine autoconversion3
         nuc = k1nuc*(rhof(k)*q_cl*1000.) +k2nuc-1. ! #sb3 G09a
         dq_hr_au = k_au * (nuc+2.) * (nuc+4.) / (nuc+1.)**2.    &
                 * (q_cl * x_cl)**2. * rho0s ! *rho**2/rho/rho (= 1)
-        tau            = 1.0 - q_cl / qltot ! #sb3
+        tau            = 1.0 - q_cl / (q_cl + q_hr) ! NOTE: was qltot
         phi = k_1 * tau**k_2 * (1.0 -tau**k_2)**3   ! phi_au computation
         dq_hr_au = dq_hr_au * (1.0 + phi/(1.0 -tau)**2)
 
@@ -2450,31 +2503,31 @@ subroutine accretion3
 
         if (cl_mask) then
           ! since it is forming only where rain
-          tau = 1.0 - q_cl/qltot
+          tau = 1.0 - q_cl/(q_cl + q_hr) ! NOTE: was qltot
           phi = (tau/(tau + k_l))**4.
           dq_hr_ac = k_cr *rhof(k)*q_cl*q_hr * phi * &
                            (rho0s/rhof(k))**0.5  ! rho*rho / rho  = rho
-       
+
           ! basic ac correction
           dq_hr_ac = min(dq_hr_ac,q_cl/delt) ! min(dq_hr_ac,q_clm/delt)
-       
+
           ! number of cloud droplets
           ! remain coefficient for clouds #sb3
           rem_cf = (1.0-rem_n_cl_min)/delt
-       
+
           dn_cl_ac = -dq_hr_ac/x_cl
           dn_cl_ac = max(dn_cl_ac,&
                          min(0.0, &
                          -rem_cf*n_clm-n_clp))
-       
+
           ! update
           q_hrp = q_hrp + dq_hr_ac
-       
+
           ! no change n_hrp
           ! and changes in water number for clouds
           q_clp = q_clp - dq_hr_ac
           n_clp = n_clp + dn_cl_ac !o: n_clp - rhof(k)*ac/x_cl
-       
+
           qtpmcr = qtpmcr - dq_hr_ac
           thlpmcr = thlpmcr + (rlv/(cp*exnf(k)))*dq_hr_ac
         endif
@@ -2505,7 +2558,7 @@ subroutine accretion3
       ! determine accr. rate and adjust qrp and Nrp
       ! accordingly. Break-up : Seifert (2007), a
       !*********************************************************************
-      tau = 1.0 - ql0/qltot
+      tau = 1.0 - ql0/(q_cl + q_hr) ! NOTE: was qltot
       phi = (tau/(tau + k_l))**4.
 
       dq_hr_ac = k_r *rhof(k)*ql0 * q_hr * phi * (1.225/rhof(k))**0.5
@@ -2624,7 +2677,7 @@ subroutine evap_rain3
 
     q_hrp = q_hrp + dq_hr_ev
     n_hrp = n_hrp + dn_hr_ev
-    qtpmcr  = qtpmcr -dq_hr_ev
+    qtpmcr  = qtpmcr - dq_hr_ev
     thlpmcr = thlpmcr + (rlv/(cp*exnf(k)))*dq_hr_ev
 
     ! recovery of aerosols ?
