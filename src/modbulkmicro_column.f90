@@ -1,23 +1,9 @@
 module modbulkmicro_column
+  use modmicrodata
+  use modmicrodata3
   use modglobal, only : k1
   implicit none
-  real ::  
-          ,qt0(k1)  &
-          ,qvsl(k1) &
-          ,w0(k1)
-
-          ,n_cc(k1), n_ccp(k1) &     ! N_{ccn} nr content [ kg^{-1}] of cloud condensation nuclei
-          ,n_cl(k1), n_clp(k1) &     ! N_{c,l} nr content [ kg^{-1}] for liquid cloud droplets,
-          ,n_ci(k1), n_cip(k1) &     ! N_{c,i} nr content [ kg^{-1}] for ice cloud droplets,
-          ,n_hr(k1), n_hrp(k1) &     ! N_{h,r} nr content [ kg^{-1}] for rain
-          ,n_hs(k1), n_hsp(k1) &     ! N_{h,s} nr content [ kg^{-1}] for snow
-          ,n_hg(k1), n_hgp(k1) &     ! N_{h,g} nr content [ kg^{-1}] for graupel
-          ,q_cl(k1), q_clp(k1) &     ! q_{c,l} water content [kg/kg] for liquid cloud droplets,
-          ,q_ci(k1), q_cip(k1) &     ! q_{c,i} water content [kg/kg] for ice cloud droplets,
-          ,q_hr(k1), q_hrp(k1) &     ! q_{h,r} water content [kg/kg] for rain
-          ,q_hs(k1), q_hsp(k1) &     ! q_{h,s} water content [kg/kg] for snow
-          ,q_hg(k1), q_hgp(k1)       ! q_{h,g} water content [kg/kg] for graupel
-
+!
 ! TODO: who uses these?
 ! (precep_hr     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of raindrops
 ! ,precep_ci     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of ice crystals
@@ -28,40 +14,44 @@ module modbulkmicro_column
 
 contains
 
-subroutine column_processes(i,j)
+subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, tend)
   implicit none
-  integer, intent(in) :: i,j
+  real, intent(in),    dimension(k1,12)     :: sv0
+  real, intent(inout), dimension(k1,12)     :: svp
+  real, intent(inout), dimension(k1)        :: thlpmcr, qtpmcr
+  real, intent(inout), dimension(ntends,k1) :: tend
 
   ! sedimentation
   ! -----------------------------------------------------------------
-  call sedim_rain3
-  call sedim_cl3
-  call sedim_ice3
-  call sedim_snow3
-  call sedim_graupel3
+  call sedim_rain3(sv0(iq_hr,:), sv0(in_hr,:) &
+                  ,svp(iq_hr,:), svp(in_hr,:) &
+                  ,tend)
+  call sedim_cl3(sv0(iq_cl,:), sv0(in_cl,:) &
+                ,svp(iq_cl,:), svp(in_cl,:) &
+                ,svp(in_cc,:)               &
+                ,qtpmcr,thlpmcr,tend)
+  call sedim_ice3(sv0(iq_ci,:), sv0(in_ci,:) &
+                 ,svp(iq_ci,:), svp(in_ci,:) &
+                 ,tend)
+  call sedim_snow3(sv0(iq_hs,:), sv0(in_hs,:) &
+                  ,svp(iq_hs,:), svp(in_hs,:) &
+                  ,tend)
+  call sedim_graupel3(sv0(iq_hg,:), sv0(in_hg,:) &
+                     ,svp(iq_hg,:), svp(in_hg,:) &
+                     ,tend)
 
-  ! recovery of ccn
-  !   - to be later replaced based on advance literature
-  ! -----------------------------------------------------------------
-  call recover_cc
-
-  ! -----------------------------------------------------------------
-  ! NEXT:
-  ! remove negative values and non physical low values svp
-  ! integrate svp = svp + ..._p
-  ! prognostic variables
-  ! thlp(i,j,k) = thlp(i,j,k)+thlpmcr(i,j,k)
-  ! qtp(i,j,k) = qtp(i,j,k)+qtpmcr(i,j,k)
-  ! -----------------------------------------------------------------
 end subroutine column_processes
 
 
 !> Cloud nucleation
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
-subroutine nucleation3
+subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, dn_cl_nu)
   use modglobal, only : dzf,k1
   implicit none
+  real, intent(in)    :: qt0(k1), qvsl(k1), w0(k1)
+  real, intent(in)    :: q_cl(k1), n_cl(k1), n_cc(k1)
+  real, intent(inout) :: q_clp(k1), n_clp(k1), dn_cl_nu(k1)
 
   integer :: k
   real  :: coef_ccn, n_act
@@ -69,12 +59,10 @@ subroutine nucleation3
   ! note that supersaturation is
   ! not always how supersaturated is water vapour,
   ! depending on a flag, it can also include water already in droplets
-  real :: ssat_u    ! supersaturation at (...,k+1)
-         ,ssat(k1)  !                 at (...,k)
-         ,ssat_d    !                 at (...,k-1)
-         ,wdssatdz  ! derivation of supersaturation
-
-  real :: ssat(k1)
+  real :: ssat_u      & ! supersaturation at (...,k+1)
+         ,ssat(k1)    & !                 at (...,k)
+         ,ssat_d      & !                 at (...,k-1)
+         ,wdssatdz(k1)  ! derivation of supersaturation
 
   dn_cl_nu = 0.0
 
@@ -106,10 +94,10 @@ subroutine nucleation3
   do k=1,k1
     ! BUG: original code went out of bounds for k=1 and k=k1
     !      for now, take d ssat / dz = 0 at boundaries
-    if (k.eq.1) then
-      ssat_d = ssat(1)
-    else
+    if (k.gt.1) then
       ssat_d = ssat(k-1)
+    else
+      ssat_d = ssat(1)
     endif
     if (k.eq.k1) then
       ssat_u = ssat(k1)
@@ -225,11 +213,11 @@ subroutine nucleation3
 
     else ! l_sb_nuc_expl
 
-      if(ssat.gt.0.0) then
+      if(ssat(k).gt.0.0) then
 
         ! calculate number of activated n_ccn
         n_act = coef_ccn*n_cc(k)*min(sat_max,ssat(k))**kappa_ccn
-        n_act = max(n_cc(k),n_act(k))
+        n_act = max(n_cc(k),n_act)
 
         if (n_act.gt.n_cl(k)) then
           dn_cl_nu(k) = (n_act-n_cl(k))/delt
@@ -271,70 +259,68 @@ end subroutine  nucleation3
 !! - l_lognormal =T : lognormal DSD is assumed with D_g and N known and
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
-subroutine sedim_rain3
+subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, tend)
   use modglobal, only : k1,kmax,eps1,dzf
   use modfields, only : rhof
   implicit none
+  real, intent(in)     :: q_hr(k1), n_hr(k1)
+  real, intent(inout)  :: q_hrp(k1), n_hrp(k1)
+  real, intent(out)    :: tend(ntends, k1)
 
   integer :: k,jn,n_spl
 
   real :: wvar        &!< work variable
-         ,wvar0       &!< extra test
          ,dt_spl      &!<
-         ,wfallmax    &!<
          ,xr_spl      &!< for time splitting
-         ,xr_try      &!<
          ,Dvr_spl     &!<     -
          ,mur_spl     &!<     -
          ,lbdr_spl    &!<     -
          ,Dgr         &!< lognormal geometric diameter
          ,N_r0        &!< rain integral stuff
-         ,N_r0_try    &!<
          ,lbdr_try    &!< rain integral stuff
          ,pwcont       !<
 
-  real, allocatable :: sed_qr(:), sed_Nr(:)
-  allocate(sed_qr(1:k1), sed_Nr(1:k1))
+  real :: sed_qr(k1), sed_Nr(k1), qr_spl(k1), Nr_spl(k1)
+  real :: wfall
 
-  ! wfallmax = 9.9
-  wfallmax = wfallmax_hr
-  n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
+  n_spl = ceiling(split_factor*wfallmax_hr*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
-  qr_spl(1:k1) = q_hr(1:k1)
-  Nr_spl(1:k1) = n_hr(1:k1)
+  qr_spl = q_hr
+  Nr_spl = n_hr
 
   do jn = 1 , n_spl ! time splitting loop
 
-    sed_qr(1:k1) = 0.
-    sed_Nr(1:k1) = 0.
+    sed_qr = 0.
+    sed_Nr = 0.
 
     if (l_sb) then
       if (l_sb_classic) then
         do k=1,k1
           if (qr_spl(k) > qrmin) then
             ! limiting procedure (as per S&B)
-            xr_spl     = qr_spl(k)/(Nr_spl(k)+eps0)
-            xr_try     = max(xrmin,min(xrmax,x_hr(k))) ! BUG: x_hr should be xr_spl?
-            Dvr_spl    = (xr_try/pirhow)**(1./3.)
-            N_r0_try   = n_hr(k)/Dvr(k) ! rhof(k)*n_hr(k)/Dvr(k)
-            N_r0       = max(N_0min/rhof(k),min(N_0max/rhof(k),N_r0_try))
+            xr_spl   = qr_spl(k)/(Nr_spl(k)+eps0)
+            xr_spl   = max(xrmin,min(xrmax,xr_spl)) ! BUG: x_hr should be xr_spl?
+            Dvr_spl  = (xr_spl/pirhow)**(1./3.)
+            N_r0     = n_hr(k)/Dvr_spl ! rhof(k)*n_hr(k)/Dvr(k) ! BUG Dvr should be Dvr_spl?
+            N_r0     = max(N_0min/rhof(k),min(N_0max/rhof(k),N_r0))
 
-            lbdr_try  = (pirhow*N_r0/(rhof(k)*qr_spl(k)))**0.25
-            lbdr_spl  = max(lbdr_min, min(lbdr_max,lbdr_try))
+            lbdr_spl = (pirhow*N_r0/(rhof(k)*qr_spl(k)))**0.25
+            lbdr_spl = max(lbdr_min, min(lbdr_max,lbdr_spl))
 
             ! calculation of velocities
-            wfall_qr        = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc  &
+            wfall = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc  &
                       -b_tvsbc*(1.+c_tvsbc/lbdr_spl)**(-4.0))) ! k=1
-            wfall_Nr        = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc  &
+            sed_qr(k) = wfall*qr_spl(k)*rhof(k)
+
+            wfall = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc  &
                       -b_tvsbc*(1.+c_tvsbc/lbdr_spl)**(-1.0))) ! k=0
-            sed_qr  (k) = wfall_qr       *qr_spl(k)*rhof(k)
-            sed_Nr  (k) = wfall_Nr       *Nr_spl(k)*rhof(k)
+            sed_Nr(k) = wfall*Nr_spl(k)*rhof(k)
           endif
         enddo
       else  ! l_sb_classic
         if (l_lognormal) then
-          do k=1, kmax ! BUG: kmax should be k1?
+          do k=1,k1 ! BUG: kmax should be k1?
             if (qr_spl(k) > qrmin) then
               ! correction for width of DSD
               ! BUG: Dvr_spl unset!
@@ -371,10 +357,11 @@ subroutine sedim_rain3
 
             if (qr_spl(k) > qrmin) then
               lbdr_spl  = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl ! BUG: Dvr_spl is unset
-              wfall_qr  = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
-              wfall_Nr  = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
-              sed_qr(k) = wfall_qr * qr_spl(k) * rhof(k)
-              sed_Nr(k) = wfall_Nr * Nr_spl(k) * rhof(k)
+              wfall = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
+              sed_qr(k) = wfall * qr_spl(k) * rhof(k)
+
+              wfall = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
+              sed_Nr(k) = wfall * Nr_spl(k) * rhof(k)
             endif
           enddo
         endif ! l_lognormal
@@ -399,82 +386,58 @@ subroutine sedim_rain3
     end if ! l_sb
 
     do k = 1,kmax ! second k loop
-      wvar  = qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k))
-      wvar0 = Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k))
+      wvar = qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
         write(6,*)'  rain sedim of q_r too large'
       end if
-      if (wvar0.lt.0.) then
+      qr_spl(k) = max(0.0, wvar)
+
+      wvar = Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k))
+      if (wvar.lt.0.) then
         write(6,*)'  rain sedim of N_r too large'
       end if
+      Nr_spl(k) = max(0.0, wvar)
 
-      Nr_spl(k) = Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k))
-      qr_spl(k) = qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k))
-
-      if (jn == 1.) then
-        precep_hr(k) = sed_qr(k)/rhof(k) ! kg kg-1 m s-1
+      if (jn == 1) then
+        ! TODO
+        ! precep_hr(k) = sed_qr(k)/rhof(k) ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  do k=1,k1
-    ! tendencies
-    dn_hr_se(k) = (Nr_spl(k) - n_hr(k))/delt
-    dq_hr_se(k) = (qr_spl(k) - q_hr(k))/delt
+  ! tendencies
+  tend(idn_hr_se,:) = (Nr_spl - n_hr)/delt
+  tend(idq_hr_se,:) = (qr_spl - q_hr)/delt
 
-    ! updates
-    n_hrp(k) = n_hrp(k) + dn_hr_se(k)
-    q_hrp(k) = q_hrp(k) + dq_hr_se(k)
-  enddo
+  ! updates
+  n_hrp = n_hrp + tend(idn_hr_se,:)
+  q_hrp = q_hrp + tend(idq_hr_se,:)
 end subroutine sedim_rain3
-  
+
 
 ! sedimentation of snow
 ! ---------------------
-subroutine sedim_snow3
+subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
+  real, intent(in)    :: q_hs(k1), n_hs(k1)
+  real, intent(inout) :: q_hsp(k1), n_hsp(k1)
+  real, intent(out)   :: tend(ntends, k1)
 
   integer :: k,jn
   integer :: n_spl      !<  sedimentation time splitting loop
-  real    :: pwcont, xpmin, xpmax, qip_min                       &
-            ,c_v_0, c_v_1, be_ip, aip, bip
 
-  real, allocatable,dimension(:)  :: qip_spl, nip_spl
-  real, allocatable,dimension(:)  :: sed_qip, sed_nip
+  real  :: qip_spl(k1), nip_spl(k1)
+  real  :: sed_qip(k1), sed_nip(k1)
 
-  real :: wfall_qip, wfall_nip, xip_spl, wvar
-  real :: dt_spl,wfallmax
+  real :: wfall, xip_spl, wvar
+  real :: dt_spl
 
-  ! set constants 
-  xpmin = x_hs_bmin
-  xpmax = x_hs_bmax
-  qip_min = qsnowmin
-  c_v_0 = c_v_s0
-  c_v_1 = c_v_s1
-  be_ip = be_hs
-  aip   = a_hs
-  bip   = b_hs
+  qip_spl = q_hs
+  nip_spl = n_hs
 
-  ! wfallmax = 9.9   ! <- replace with a highest terminal velocity for particles
-  wfallmax = wfallmax_hs
-
-  ! allocate 
-  allocate( sed_qip(k1)    &
-           ,sed_nip(k1)    &
-           ,qip_spl(k1)    &
-           ,nip_spl(k1)    )             
-     
-  sed_qip = 0.0
-  sed_nip = 0.0  
-  wfall_qip = 0.0
-  wfall_nip = 0.0
-
-  qip_spl(1:k1)  = q_hs(1:k1)
-  nip_spl(1:k1)  = n_hs(1:k1)
-
-  n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
+  n_spl = ceiling(split_factor*wfallmax_hs*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
   do jn = 1 , n_spl ! time splitting loop
@@ -483,101 +446,75 @@ subroutine sedim_snow3
 
     do k=1,k1
       ! terminal fall velocity
-      if ((qip_spl(k) > qip_min).and.(nip_spl(k) > 0.0)) then
+      if ((qip_spl(k) > qsnowmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
-        xip_spl = min(max(xip_spl,xpmin),xpmax) ! to ensure xr is within borders
-        ! Dvp_spl = aip*xip_spl**bip          
-        wfall_qip = max(0.0, c_v_1 * xip_spl**be_ip)
-        wfall_nip = max(0.0, c_v_0 * xip_spl**be_ip)
-        sed_qip(k) = wfall_qip*qip_spl(k)*rhof(k)
-        sed_nip(k) = wfall_nip*nip_spl(k)*rhof(k)
+        xip_spl = min(max(xip_spl,x_hs_bmin),x_hs_bmin) ! to ensure xr is within borders
+        ! Dvp_spl = a_hs*xip_spl**b_hs
+
+        wfall = max(0.0, c_v_s1 * xip_spl**be_hs)
+        sed_qip(k) = wfall*qip_spl(k)*rhof(k)
+
+        sed_nip(k) = wfall*nip_spl(k)*rhof(k)
+        wfall = max(0.0, c_v_s0 * xip_spl**be_hs)
       endif
     enddo
 
     ! segmentation over levels
     do k = 1,kmax
-
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
         write(6,*)'  snow sedim too large'
       end if
+      qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
         write(6,*)'  snow sedim too large'
-      end if    
-
-      nip_spl(k) = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      qip_spl(k) = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      end if
+      nip_spl(k) = max(0.0, wvar)
 
       ! -> check this part properly later
-      if ( jn == 1. ) then
-        precep_hs(k) = sed_qip(k)/rhof(k)       ! kg kg-1 m s-1
-        precep_i(k) = precep_i(k)+ precep_hs(k) ! kg kg-1 m s-1       
+      if (jn == 1) then
+        ! TODO
+        ! precep_hs(k) = sed_qip(k)/rhof(k)       ! kg kg-1 m s-1
+        ! precep_i(k) = precep_i(k)+ precep_hs(k) ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  do k=1,k1      
-    ! tendencies
-    dn_hs_se(k) = (nip_spl(k) - n_hs(k))/delt
-    dq_hs_se(k) = (qip_spl(k) - q_hs(k))/delt
+  ! tendencies
+  tend(idn_hs_se,:) = (nip_spl - n_hs)/delt
+  tend(idq_hs_se,:) = (qip_spl - q_hs)/delt
 
-    ! updates 
-    n_hsp(k)= n_hsp(k) + dn_hs_se(k) 
-    q_hsp(k)= q_hsp(k) + dq_hs_se(k)
-  enddo       
-
-  deallocate (nip_spl, qip_spl,sed_nip, sed_qip)
+  ! updates
+  n_hsp = n_hsp + tend(idn_hs_se,:)
+  q_hsp = q_hsp + tend(idq_hs_se,:)
 end subroutine sedim_snow3
-  
-  
+
+
 ! sedimentation of graupel
 ! ------------------------
-subroutine sedim_graupel3
+subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
+  real, intent(in)    :: q_hg(k1), n_hg(k1)
+  real, intent(inout) :: q_hgp(k1), n_hgp(k1)
+  real, intent(out)   :: tend(ntends, k1)
 
   integer :: k,jn
   integer :: n_spl      !<  sedimentation time splitting loop
-  real    :: pwcont, xpmin, xpmax, c_v_0, c_v_1, be_ip, aip, bip
-  real    :: qip_min
 
-  real, allocatable,dimension(:)  :: qip_spl, nip_spl
-  real, allocatable,dimension(:)  :: sed_qip, sed_nip
+  real  :: qip_spl(k1), nip_spl(k1)
+  real  :: sed_qip(k1), sed_nip(k1)
 
-  real :: wvar,xip_spl,Dvp_spl,mur_spl
+  real :: wvar,xip_spl
+  real :: dt_spl,wfall
 
-  real :: dt_spl,wfallmax, wfall_nip, wfall_qip
+  qip_spl = q_hg
+  nip_spl = n_hg
 
-  allocate( sed_qip(k1) &
-           ,sed_nip(k1) &
-           ,qip_spl(k1) &
-           ,nip_spl(k1) )
-
-  sed_qip = 0.0
-  sed_nip = 0.0  
-  wfall_qip = 0.0
-  wfall_nip = 0.0
-
-  qip_spl(1:k1)  = q_hg(1:k1)
-  nip_spl(1:k1)  = n_hg(1:k1)
-
-  ! set constants 
-  xpmin = x_hg_bmin
-  xpmax = x_hg_bmax
-  c_v_0 = c_v_g0
-  c_v_1 = c_v_g1
-  be_ip = be_hs ! be_hg
-  aip   = a_hg
-  bip   = b_hg
-  qip_min= qgrmin
-
-  ! wfallmax = 15.9 ! 9.9   ! <- replace with a highest terminal velocity for particles
-  wfallmax = wfallmax_hg
-
-  n_spl = ceiling(split_factor*wfallmax*delt/(minval(dzf)))
+  n_spl = ceiling(split_factor*wfallmax_hg*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
   do jn = 1 , n_spl ! time splitting loop
@@ -585,99 +522,91 @@ subroutine sedim_graupel3
     sed_nip = 0.
 
     do k=1,k1
-      if ((qip_spl(k) > qip_min).and.(nip_spl(k) > 0.0) ) then
+      if ((qip_spl(k) > qgrmin).and.(nip_spl(k) > 0.0) ) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
-        xip_spl = min(max(xip_spl,xpmin),xpmax) ! to ensure xr is within borders
-        ! Dvp_spl = aip*xip_spl**bip          
+        xip_spl = min(max(xip_spl,x_hg_bmin),x_hg_bmax) ! to ensure xr is within borders
+        ! Dvp_spl = a_hg*xip_spl**b_gh
 
-        wfall_qip(k) = max(0.0,c_v_1 * xip_spl**be_ip)
-        wfall_nip(k) = max(0.0,c_v_0 * xip_spl**be_ip)
-        sed_qip(k)   = wfall_qip(k)*qip_spl(k)*rhof(k)
-        sed_nip(k)   = wfall_nip(k)*nip_spl(k)*rhof(k)
+        wfall = max(0.0,c_v_g1 * xip_spl**be_hs) ! BUG: should be be_hg?
+        sed_qip(k) = wfall*qip_spl(k)*rhof(k)
+
+        wfall = max(0.0,c_v_g0 * xip_spl**be_hs)
+        sed_nip(k) = wfall*nip_spl(k)*rhof(k)
       endif
-    enddo
-    enddo
     enddo
 
     ! segmentation over levels
     do k = 1,kmax
-      wvar = qip_spl(k) +  (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      wvar       = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      if (wvar.lt.0.) then
+        write(6,*)'  graupel sedim too large'
+        qip_spl(k) = 0.0
+      end if
+      qip_spl(k) = max(0.0, wvar)
+
+      wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
         write(6,*)'  graupel sedim too large'
       end if
-
-      wvar(k) = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      if (wvar.lt.0.) then
-        write(6,*)'  graupel sedim too large'
-      end if
-
-      nip_spl(k) = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      qip_spl(k) = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      nip_spl(k) = max(0.0, wvar)
 
       ! -> check this part properly later
-      if ( jn == 1. ) then
-        precep_hg(k) = precep_hg(k) + sed_qip(k) /rhof(k) ! kg kg-1 m s-1
-        precep_i(k) = precep_i(k) + precep_hg(k) ! kg kg-1 m s-1
+      if (jn == 1) then
+        ! TODO BUG
+        !precep_hg(k) = precep_hg(k) + sed_qip(k) /rhof(k) ! kg kg-1 m s-1
+        !precep_i(k) = precep_i(k) + precep_hg(k) ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
+  ! tendencies
+  tend(idn_hg_se,:) = (nip_spl - n_hg)/delt
+  tend(idq_hg_se,:) = (qip_spl - q_hg)/delt
 
-  do k=1,k1   
-    ! tendencies
-    dn_hg_se(k) = (nip_spl(k) - n_hg(k))/delt
-    dq_hg_se(k) = (qip_spl(k) - q_hg(k))/delt
-
-    ! updates 
-    n_hgp(k)= n_hgp(k) + dn_hg_se(k) 
-    q_hgp(k)= q_hgp(k) + dq_hg_se(k)
-  enddo 
-
-  deallocate (nip_spl, qip_spl,sed_nip,sed_qip)
+  ! updates
+  n_hgp = n_hgp + tend(idn_hg_se,:)
+  q_hgp = q_hgp + tend(idq_hg_se,:)
 end subroutine sedim_graupel3
- 
 
-! sedimentation of cloud ice 
+
+! sedimentation of cloud ice
 ! --------------------------
-subroutine sedim_ice3
+subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
+  real, intent(in)    :: q_ci(k1), n_ci(k1)
+  real, intent(inout) :: q_cip(k1), n_cip(k1)
+  real, intent(out)   :: tend(ntends, k1)
 
   integer :: k,jn,n_spl
 
-  real, allocatable,dimension(:)  :: qip_spl, nip_spl
-  real, allocatable,dimension(:)  :: sed_qip, sed_nip
+  real :: qip_spl(k1), nip_spl(k1)
+  real :: sed_qip(k1), sed_nip(k1)
 
   real :: dt_spl, xip_spl, wvar, wfall
-
-  allocate( sed_qip(k1) &
-           ,sed_nip(k1) &
-           ,qip_spl(k1) &
-           ,nip_spl(k1) )
-   
 
   n_spl = ceiling(split_factor*wfallmax_ci*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
-  qip_spl(1:k1)  = q_ci(1:k1)
-  nip_spl(1:k1)  = n_ci(1:k1)
+  qip_spl = q_ci
+  nip_spl = n_ci
 
   do jn = 1 , n_spl ! time splitting loop
-    sed_qip(1:k1) = 0.
-    sed_nip(1:k1) = 0.
+    sed_qip = 0.
+    sed_nip = 0.
 
     do k=1,k1
       if ( (qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0) ) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
         xip_spl = min(max(xip_spl,x_ci_bmin),x_ci_bmax) ! to ensure xr is within borders
-        ! Dvp_spl = a_ci*xip_spl**b_ci         
+        ! Dvp_spl = a_ci*xip_spl**b_ci
 
         ! terminal fall velocity
-        wfall = max(0.0,c_v_i * xip_spl**be_ci)
+        wfall = max(0.0,c_v_s1 * xip_spl**be_ci)
         sed_qip(k) = wfall*qip_spl(k)*rhof(k)
 
-        wfall = max(0.0,c_v_i0 * xip_spl**be_ci)
+        wfall = max(0.0,c_v_s0 * xip_spl**be_ci)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
       endif
     enddo
@@ -688,79 +617,78 @@ subroutine sedim_ice3
       if (wvar.lt. 0.) then
         write(6,*) 'ice sedim too large'
       end if
+      qip_spl(k) = max(0.0, wvar)
 
-      nip_spl(k) = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      qip_spl(k) = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
+      if (wvar.lt. 0.) then
+        write(6,*) 'ice sedim too large'
+      end if
+      nip_spl(k) = max(0.0, wvar)
 
       !d -> check this part properly later
-      if ( jn == 1. ) then
-        precep_ci(k) = sed_qip(k)/rhof(k) ! kg kg-1 m s-1
-        precep_i(k) = precep_i(k) + precep_ci(k) ! kg kg-1 m s-1
+      if (jn == 1) then
+        ! TODO
+        !precep_ci(k) = sed_qip(k)/rhof(k) ! kg kg-1 m s-1
+        !precep_i(k) = precep_i(k) + precep_ci(k) ! kg kg-1 m s-1
       endif
 
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  do k=1,k1
-    ! tendencies
-    dn_ci_se(k) = (nip_spl(k) - n_ci(k))/delt
-    dq_ci_se(k) = (qip_spl(k) - q_ci(k))/delt
+  ! tendencies
+  tend(idn_ci_se,:) = (nip_spl - n_ci)/delt
+  tend(idq_ci_se,:) = (qip_spl - q_ci)/delt
 
-    ! updates 
-    n_cip(k)= n_cip(k) + dn_ci_se(k) 
-    q_cip(k)= q_cip(k) + dq_ci_se(k)
+  ! updates
+  n_cip = n_cip + tend(idn_ci_se,:)
+  q_cip = q_cip + tend(idq_ci_se,:)
 
-    ! BUG: also qtpmcr and thlpmcr change?
-    ! qtpmcr(k) = qtpmcr + 0.0
-    ! thlpmcr(k) = thlpmcr + 0.0
-  enddo
-
-  deallocate(nip_spl,qip_spl,sed_nip,sed_qip)
+  ! BUG: also qtpmcr and thlpmcr change?
+  ! qtpmcr(k) = qtpmcr + 0.0
+  ! thlpmcr(k) = thlpmcr + 0.0
 end subroutine sedim_ice3
 
 
 !*********************************************************************
 ! sedimentation of cloud water
 !*********************************************************************
-subroutine sedim_cl3 ! sedim_ice3
+subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
   use modglobal, only : k1,kmax,dzf,rlv,cp
   use modfields, only : rhof, exnf
   implicit none
+  real, intent(in)    :: q_cl(k1), n_cl(k1)
+  real, intent(inout) :: q_clp(k1), n_clp(k1), n_ccp(k1)
+  real, intent(inout) :: qtpmcr(k1), thlpmcr(k1)
+  real, intent(out)   :: tend(ntends, k1)
 
   integer :: k, jn, n_spl
-  real, allocatable,dimension(:,:,:)  :: qip_spl, nip_spl
-  real, allocatable,dimension(:,:,:)  :: sed_qip, sed_nip
-  real, allocatable :: wvar, xip_spl
-  real,save :: dt_spl,wfall
+  real :: qip_spl(k1), nip_spl(k1)
+  real :: sed_qip(k1), sed_nip(k1)
+  real :: wvar, xip_spl
+  real :: dt_spl,wfall
 
-
-  allocate( sed_qip(k1)   &
-           ,sed_nip(k1)   &
-           ,qip_spl(k1)   &
-           ,nip_spl(k1)   &  
-   
-  qip_spl(1:k1)  = q_cl(1:k1)
-  nip_spl(1:k1)  = n_cl(1:k1)
+  qip_spl = q_cl
+  nip_spl = n_cl
 
   n_spl = ceiling(split_factor*wfallmax_cl*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
   do jn = 1 , n_spl ! time splitting loop
 
-    sed_qip(1:k1) = 0.
-    sed_nip(1:k1) = 0.
+    sed_qip = 0.
+    sed_nip = 0.
 
     do k=1,k1
       if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
         xip_spl = min(max(xip_spl,x_cl_bmin),x_cl_bmax) ! to ensure xr is within borders
-        ! Dvp_spl = a_cl*xip_spl**b_cl         
+        ! Dvp_spl = a_cl*xip_spl**b_cl
 
         ! terminal fall velocity
-        wfall = max(0.0,c_v_c_1 * xip_spl**be_cl)
+        wfall = max(0.0,c_v_c1 * xip_spl**be_cl)
         sed_qip(k)   = wfall*qip_spl(k)*rhof(k)
 
-        wfall = max(0.0,c_v_c_0 * xip_spl**be_cl)
+        wfall = max(0.0,c_v_c0 * xip_spl**be_cl)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
       endif
     enddo
@@ -771,63 +699,37 @@ subroutine sedim_cl3 ! sedim_ice3
       if (wvar.lt. 0.) then
         write(6,*)'cloud sedim too large'
       end if
-      nip_spl(k) = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      qip_spl(k) = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
+      qip_spl(k) = max(0.0, wvar)
+
+      wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
+      if (wvar.lt. 0.) then
+        write(6,*)'cloud sedim too large'
+      end if
+      nip_spl(k) = max(0.0, wvar)
 
       ! BUG: no precep?
     enddo  ! second k loop
 
   enddo ! time splitting loop
 
+  ! tendencies
+  tend(idn_cl_se,:) = (nip_spl - n_cl)/delt
+  tend(idq_cl_se,:) = (qip_spl - q_cl)/delt
+
+  ! updates
+  n_clp = n_clp + tend(idn_cl_se,:)
+  q_clp = q_clp + tend(idq_cl_se,:)
+
+  ! also qtpmcr and thlpmcr change
+  qtpmcr = qtpmcr + tend(idq_cl_se,:)
   do k=1,k1
-    ! tendencies
-    dn_cl_se(k) = (nip_spl(k) - n_cl(k))/delt
-    dq_cl_se(k) = (qip_spl(k) - q_cl(k))/delt
+    thlpmcr(k) = thlpmcr(k) - (rlv/(cp*exnf(k)))*tend(idq_cl_se,k)
+  enddo
 
-    ! updates
-    n_clp(k) = n_clp(k) + dn_cl_se(k) 
-    q_clp(k) = q_clp(k) + dq_cl_se(k)
-
-    ! also qtpmcr and thlpmcr change      
-    qtpmcr(k) = qtpmcr(k) + dq_cl_se(k)
-    thlpmcr(k) = thlpmcr(k)-(rlv/(cp*exnf(k)))*dq_cl_se(k)
-  enddo         
-
-  deallocate (nip_spl,qip_spl,sed_nip, sed_qip)
+  ! NOTE: moved here from recover_cc point process
+  ! recovery of ccn
+  n_ccp = n_ccp + tend(idn_cl_se,:)
 end subroutine sedim_cl3
-
-
-!    recovery of ccn
-!
-!   - to be later replaced based on advance literature
-!   - so far just and easy recovery
-!     of ccn based on number of water particles that evaporated, sublimated
-!     or got removed with remaining positive n_
-! -------------------------------------------------------------------------
-subroutine recover_cc
-  use modglobal, only : k1
-  implicit none
-
-  integer :: k
-
-  if(.not.(l_c_ccn)) then
-    do k=1,k1
-        ! decrease in total amount of potential CCN
-        n_ccp = n_ccp         &
-              + dn_cl_sc      &
-              + dn_cl_se      &
-              + dn_cl_au      &
-              + dn_cl_ac      &
-              + dn_cl_hom     &
-              + dn_cl_het     &
-              + dn_cl_rime_ci &
-              + dn_cl_rime_hs &
-              + dn_cl_rime_hg
-
-        n_ccp = n_ccp + c_rec_cc*ret_cc
-    enddo
-  endif
-end subroutine recover_cc
 
 
 ! Function to calculate numerically the analytical solution of the
@@ -860,8 +762,6 @@ real function sed_flux3(Nin,Din,sig2,Ddiv,nnn)
           ,D_max        & ! max integration limit
           ,flux           ![kg m^-2 s^-1]
 
-  integer :: k
-
   if (Din < Ddiv) then
     alfa = 3.e5*100  ![1/ms]
     beta = 2
@@ -889,7 +789,6 @@ real function sed_flux3(Nin,Din,sig2,Ddiv,nnn)
     D_min = 1.25e-3
     D_max = D_intmax
     flux = flux + C*Nin*alfa*erfint3(beta,Din,D_min,D_max,sig2,nnn)
-    end do
   end if
   sed_flux3 = flux
 end function sed_flux3

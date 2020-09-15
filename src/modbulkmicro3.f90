@@ -57,21 +57,19 @@ module modbulkmicro3
 !   bulkmicro is called from *modmicrophysics*
 !
 !*********************************************************************
-!  use modmicrodata
-!  use modmicrodata3
+  use modmicrodata
+  use modmicrodata3
 
   implicit none
-  real :: gamma25
-  real :: gamma3
-  real :: gamma35
   contains
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro3
-    use modglobal, only : ih,i1,jh,j1,k1,lwarmstart,ifnamopt,fname_options
-    use modmpi,    only : myid,my_real,comm3d,mpi_integer,mpi_logical
+    use modglobal, only : lwarmstart,ifnamopt,fname_options
+    use modmpi,    only : myid,my_real,comm3d,mpi_logical
     implicit none
     integer :: ierr
+
     ! #sb3 START - namelist for setting of bulk microphysics
     ! set some initial values before loading namelist
     !
@@ -191,13 +189,6 @@ module modbulkmicro3
      call MPI_BCAST(xc0_min,           1, MY_REAL     ,0,comm3d,ierr)
      call MPI_BCAST(Nccn0,             1, MY_REAL     ,0,comm3d,ierr)
 
-
-     allocate(thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1) &
-             ,qtpmcr   (2-ih:i1+ih,2-jh:j1+jh,k1) &
-
-  gamma25=lacz_gamma(2.5)
-  gamma3=2.
-  gamma35=lacz_gamma(3.5)
 
   ! adding calculation of the constant part for moment
   c_mmt_1cl = calc_cons_mmt (1, mu_cl_cst, nu_cl_cst)
@@ -367,6 +358,7 @@ module modbulkmicro3
      write (6,*) ' === Settings of Mphys ===='
      write (6,*) 'imicro = ', imicro
      write (6,*) 'l_sb = ', l_sb
+     write (6,*) 'l_lognormal', l_lognormal
      write (6,*) 'l_sb_classic = ', l_sb_classic
      write (6,*) 'l_sb_all_or = ', l_sb_all_or
      write (6,*) 'l_sb_dumpall = ', l_sb_dumpall
@@ -423,7 +415,7 @@ module modbulkmicro3
      write (6,*)   '   th_0aa    = 2*th_i0 - th_i0i = ', 2*th_i0 - th_i0i ! from Seifert, 2002
      write (6,*)   '   th_1a     = th_i1 = ', th_i1
      write (6,*)   '   th_1aa    = th_i0 - th_i1i + th_i1 = ', th_i0 - th_i1i + th_i1  ! th_i0i - th_i1i + th_i1 ! th_1ab    = th_i1i
-      write (6,*)   ' --------------------------------------------------- '
+     write (6,*)   ' --------------------------------------------------- '
 
    endif
   end subroutine initbulkmicro3
@@ -439,13 +431,23 @@ end subroutine exitbulkmicro3
 !> Calculates the microphysical source term.
 ! ---------------------------------------------------------------------------------
 subroutine bulkmicro3
-  use modglobal, only : i1,j1,k1,rdt,rk3step,timee,ih,jh
+  use modglobal, only : i1,j1,k1,rdt,rk3step
 
-  use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,qvsl,qvsi,qt0
+  use modfields, only : sv0,svp,svm,qtp,thlp,qvsl,tmp0,qt0,w0,ql0,esl,qvsi
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
+  use modmicrodata3, only : in_cl
   use modmpi,    only : myid
+  use modbulkmicro_point, only : point_processes
+  use modbulkmicro_column, only : nucleation3, column_processes
   implicit none
-  integer :: i,j,k
+  integer :: i,j,k,isv
+  real :: tmp0_col(1:k1), qt0_col(1:k1)
+  real :: ql0_col(1:k1),  esl_col(1:k1)
+  real :: qvsl_col(1:k1), qvsi_col(1:k1)
+  real :: w0_col(1:k1)
+  real :: sv0_col(12,k1),svp_col(12,k1),svm_col(12,k1)
+  real :: thlpmcr_col(1:k1), qtpmcr_col(1:k1)
+  real :: tend(ntends, k1)
 
   ! check if ccn and clouds were already initialised
   ! ------------------------------------------------
@@ -466,49 +468,79 @@ subroutine bulkmicro3
 
   delt = rdt / (4. - dble(rk3step))
 
-  ! TODO: remove output?
-  if (timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
-    write(*,*) 'l_lognormal',l_lognormal
-    write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
-    write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
-    write(*,*) 'nuc = param'
-  endif
-
   ! loop over all (i,j) columns
   do i=1,i1
   do j=1,j1
 
-  ! Column processes
-  ! ------------------------------------------------------------------
-    call column_nucleation
-
-  ! loop over all k-points in this (i,j) column
-    do k=1,kmax
-
-  !  - Point processes at k-point
-  ! ------------------------------------------------------------------
-      call point_processes
+    ! Copy the all variables in this column to local vars
+    ! NOTE: this will be slow when the arrays are large,
+    !       as we have a memory-bandwidth bottleneck
+    ! TODO: unroll / split this loop? different memory layout for the scalars? multiple columns at once?
+    do k=1,k1
+      tmp0_col(k) = tmp0(i,j,k)
+      qt0_col(k)  = qt0(i,j,k)
+      ql0_col(k)  = ql0(i,j,k)
+      esl_col(k)  = esl(i,j,k)
+      qvsl_col(k) = qvsl(i,j,k)
+      qvsi_col(k) = qvsi(i,j,k)
+      w0_col(k)   = w0(i,j,k)
+    enddo
+    do k=1,k1
+    do isv=1,12
+      svm_col(isv,k) = svm(i,j,k,isv)
+      sv0_col(isv,k) = sv0(i,j,k,isv)
+      svp_col(isv,k) = svp(i,j,k,isv)
+    enddo
     enddo
 
   ! Column processes
   ! ------------------------------------------------------------------
-    call column_processes
+    call nucleation3(qt0_col, qvsl_col, w0_col            &
+                    ,sv0_col(iq_cl,:), svp_col(iq_cl,:)   &
+                    ,sv0_col(in_cl,:), svp_col(in_cl,:)   &
+                    ,sv0_col(in_cc,:), tend(idn_cl_nu,:)  )
+
+  ! loop over all k-points in this (i,j) column
+    do k=1,k1 ! TODO: kmax?
+
+  !  - Point processes at k-point
+  ! ------------------------------------------------------------------
+      call point_processes(tmp0_col(k), qt0_col(k), ql0_col(k), esl_col(k)   &
+                          ,qvsl_col(k), qvsi_col(k)                          &
+                          ,sv0_col(:,k), svp_col(:,k), svm_col(:,k)          &
+                          ,thlpmcr_col(k), qtpmcr_col(k), tend(:,k)          )
+    enddo
+
+  ! Column processes
+  ! ------------------------------------------------------------------
+    call column_processes(sv0_col,svp_col,thlpmcr_col,qtpmcr_col,tend)
 
   ! remove negative values and non physical low values
   ! ------------------------------------------------------------------
-    call correct_neg_qt
+    call correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
 
-  ! updating main prognostic variables by contribution from mphys processes
+  ! update main prognostic variables by contribution from mphys processes,
+  ! by copying form the column to the full 3d fields.
+  !
+  ! NOTE: this will be slow when the arrays are large,
+  !       as we have a memory-bandwidth bottleneck
   ! ------------------------------------------------------------------
-    thlp(i,j,:) = thlp(i,j,:) + thlpmcr(i,j,:)
-    qtp(i,j,:) = qtp(i,j,:) + qtpmcr(i,j,:)
+    do k=1,k1
+      thlp(i,j,k) = thlp(i,j,k) + thlpmcr_col(k)
+      qtp(i,j,k) = qtp(i,j,k) + qtpmcr_col(k)
+    enddo
+    do k=1,k1
+    do isv=1,12
+      svp(i,j,k,isv) = svp_col(isv,k)
+    enddo
+    enddo
+  enddo ! loop over i
+  enddo ! loop over j
 
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
-    ! call bulkmicrotend3 ! #t5
-    ! call bulkmicrostat3 ! #t5
-  enddo ! loop over i
-  enddo ! loop over j
+  ! call bulkmicrotend3 ! #t5
+  ! call bulkmicrostat3 ! #t5
 end subroutine bulkmicro3
 
 
@@ -524,57 +556,57 @@ end subroutine bulkmicro3
 !     - limit if mean x_cl smaller than xcmin
 ! ----------------------------------------------------------------------------
 subroutine initclouds3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax,zf
-  use modfields, only : rhof, qt0, svm, sv0, svp, qvsl, qsat
-  implicit none
+use modglobal, only : i1,j1,k1
+use modfields, only : rhof, qt0, svm, sv0, qvsl
+implicit none
 
-  integer :: i,j,k
-  real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+integer :: i,j,k
+real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
 
-  x_min = xc0_min  ! minimal size of droplets
-  Nc_set =  Nc0    ! prescribed number of droplets
+x_min = xc0_min  ! minimal size of droplets
+Nc_set =  Nc0    ! prescribed number of droplets
 
-  ! initialisation itself
-  if (l_c_ccn) then
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
-      if (q_tocl>0.0) then
-        ! prepare number of droplet
-        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
-        ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN
-        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
-        ! save values to arrays
-        sv0(i,j,k,in_cl) = n_prop
-        svm(i,j,k,in_cl) = n_prop
-        sv0(i,j,k,iq_cl) = q_tocl
-        svm(i,j,k,iq_cl) = q_tocl
-      endif
-    enddo
-    enddo
-    enddo
-  else
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
-      if (q_tocl>0.0) then
-        ! prepare number of droplet
-        n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
-        n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
-        n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+! initialisation itself
+if (l_c_ccn) then
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    if (q_tocl>0.0) then
+      ! prepare number of droplet
+      n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
+      ! n_prop = min(n_prop,sv0(i,j,k,in_cc)) ! number has to be lower than number of available CCN
+      n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
+      ! save values to arrays
+      sv0(i,j,k,in_cl) = n_prop
+      svm(i,j,k,in_cl) = n_prop
+      sv0(i,j,k,iq_cl) = q_tocl
+      svm(i,j,k,iq_cl) = q_tocl
+    endif
+  enddo
+  enddo
+  enddo
+else
+  do k=1,k1
+  do j=2,j1
+  do i=2,i1
+    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    if (q_tocl>0.0) then
+      ! prepare number of droplet
+      n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
+      n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
+      n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
 
-        ! save values to arrays
-        sv0(i,j,k,in_cl) = n_prop
-        svm(i,j,k,in_cl) = n_prop
-        sv0(i,j,k,iq_cl) = q_tocl
-        svm(i,j,k,iq_cl) = q_tocl
-      endif
-    enddo
-    enddo
-    enddo
-  endif
+      ! save values to arrays
+      sv0(i,j,k,in_cl) = n_prop
+      svm(i,j,k,in_cl) = n_prop
+      sv0(i,j,k,iq_cl) = q_tocl
+      svm(i,j,k,iq_cl) = q_tocl
+    endif
+  enddo
+  enddo
+  enddo
+endif
 
 end subroutine initclouds3
 
@@ -588,266 +620,117 @@ end subroutine initclouds3
 !     - set ccn fields
 ! ------------------------------------------------------------------------------
 subroutine initccn3
-  use modglobal, only : ih,i1,jh,j1,k1,kmax
-  use modfields, only : rhof, svm, sv0, svp
-  implicit none
+use modglobal, only : i1,j1,k1
+use modfields, only : rhof, svm, sv0
+implicit none
 
-  integer :: i,j,k
-  real ::   Nccn_set, n_prop            ! available water and proposed size
+integer :: i,j,k
+real ::   Nccn_set, n_prop            ! available water and proposed size
 
-  Nccn_set = Nccn0                      ! prescribed number of ccn
+Nccn_set = Nccn0                      ! prescribed number of ccn
 
-  do k=1,k1
-  do j=2,j1
-  do i=2,i1
-    ! prepare number of CCNs
-    n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
-    ! save values to arrays
-    sv0(i,j,k,in_cc) = n_prop
-    svm(i,j,k,in_cc) = n_prop
-  enddo
-  enddo
-  enddo
+do k=1,k1
+do j=2,j1
+do i=2,i1
+  ! prepare number of CCNs
+  n_prop = Nccn_set/rhof(k)           ! to get number of droplets in kg^{-1}
+
+  ! save values to arrays
+  sv0(i,j,k,in_cc) = n_prop
+  svm(i,j,k,in_cc) = n_prop
+enddo
+enddo
+enddo
 
 end subroutine initccn3
 
 
-
-subroutine correct_neg_qt
+subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
+  use modglobal, only : cp, rlv, k1
+  use modfields, only : exnf
   implicit none
-  integer :: insv, iqsv ! #sb3 - species number
+  real, intent(in)    :: svm_col(12,k1)
+  real, intent(inout) :: svp_col(12,k1),thlpmcr_col(k1),qtpmcr_col(k1)
+
+  integer :: k
+  real :: nrtest, qrtest
+
+  ! correction, after Jerome's implementation in Gales
+  real :: qtp_cor(k1), thlp_cor(k1)
+
+  qtp_cor = 0.
+  thlp_cor = 0.
+
+  do k=1,k1
+    ! == rain ==
+    qrtest=svm_col(iq_hr,k)+svp_col(iq_hr,k)*delt
+    nrtest=svm_col(in_hr,k)+svp_col(in_hr,k)*delt
+    if ((qrtest < q_hr_min) .or. (nrtest < 0.0)) then
+      qtp_cor(k) = qtp_cor(k) + qrtest
+      thlp_cor(k) = thlp_cor(k) + (rlv/(cp*exnf(k))) * qrtest
+
+      svp_col(iq_hr,k) = - svm_col(iq_hr,k)/delt
+      svp_col(in_hr,k) = - svm_col(in_hr,k)/delt
+    end if
+
+    ! == snow ==
+    qrtest=svm_col(iq_hs,k)+svp_col(iq_hs,k)*delt
+    nrtest=svm_col(in_hs,k)+svp_col(in_hs,k)*delt
+    if ((qrtest .lt. qsnowmin) .or. (nrtest < 0.0) ) then
+      qtp_cor(k) = qtp_cor(k) + qrtest
+      thlp_cor(k) = thlp_cor(k) - (rlvi/(cp*exnf(k))) * qrtest
+
+      svp_col(iq_hs,k) = - svm_col(iq_hs,k)/delt
+      svp_col(in_hs,k) = - svm_col(in_hs,k)/delt
+    endif
+
+    ! == graupel ==
+    qrtest=svm_col(iq_hg,k)+svp_col(iq_hg,k)*delt
+    nrtest=svm_col(in_hg,k)+svp_col(in_hg,k)*delt
+    if ((qrtest .lt. qgrmin) .or. (nrtest < 0.0) ) then
+      qtp_cor(k) = qtp_cor(k) + qrtest * delt
+      thlp_cor(k) = thlp_cor(k) - (rlvi/(cp*exnf(k))) * qrtest
+
+      svp_col(iq_hg,k) = - svm_col(iq_hg,k)/delt
+      svp_col(in_hg,k) = - svm_col(in_hg,k)/delt
+    endif
+
+    ! == cloud ice ==
+    qrtest=svm_col(iq_ci,k)+svp_col(iq_ci,k)*delt
+    nrtest=svm_col(in_ci,k)+svp_col(in_ci,k)*delt
+    if ((qrtest .lt. qicemin) .or. (nrtest < 0.0) ) then
+      qtp_cor(k)  = qtp_cor(k) + qrtest
+      thlp_cor(k) = thlp_cor(k) - (rlvi/(cp*exnf(k))) * qrtest
+
+      svp_col(iq_ci,k) = - svm_col(iq_ci,k)/delt
+      svp_col(in_ci,k) = - svm_col(in_ci,k)/delt
+    endif
+
+    ! == cloud liquid water ==
+    qrtest=svm_col(iq_cl,k)+svp_col(iq_cl,k)*delt
+    nrtest=svm_col(in_cl,k)+svp_col(in_cl,k)*delt
+    if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then
+      svp_col(iq_cl,k) = - svm_col(iq_cl,k)/delt
+      svp_col(in_cl,k) = - svm_col(in_cl,k)/delt
+    endif
+  enddo
+
+  ! apply correction
   if (l_corr_neg_qt) then
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iq_hr)+(svp(i,j,k,iq_hr)+q_hrp(i,j,k))*delt
-      nrtest=svm(i,j,k,in_hr)+(svp(i,j,k,in_hr)+n_hrp(i,j,k))*delt
-      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k)  -  &
-               (rlv/(cp*exnf(k)))*(svm(i,j,k,iq_hr)/delt + svp(i,j,k,iq_hr) + q_hrp(i,j,k))
-
-        svp(i,j,k,iq_hr) = - svm(i,j,k,iq_hr)/delt
-        svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
-      else
-        svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-        svp(i,j,k,in_hr)=svp(i,j,k,in_hr)+n_hrp(i,j,k)
-        ! adjust negative qr tendencies at the end of the time-step
-      end if
-    enddo
-    enddo
-    enddo
-
-    ! == snow ==
-    iqsv = iq_hs
-    insv = in_hs
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
-      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k)  -  &
-               (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt + svp(i,j,k,iqsv) + q_hsp(i,j,k))
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hsp(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hsp(i,j,k)
-      end if
-    enddo
-    enddo
-    enddo
-
-    ! == graupel ==
-    iqsv = iq_hg
-    insv = in_hg
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
-      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k) -  &
-               (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_hgp(i,j,k))
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-    ! == cloud ice ==
-    iqsv = iq_ci
-    insv = in_ci
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_cip(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_cip(i,j,k))*delt
-      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k)+svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k) -  &
-               (rlvi/(cp*exnf(k)))*(svm(i,j,k,iqsv)/delt+svp(i,j,k,iqsv)+q_cip(i,j,k))
-
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-        ! recovery of aerosols
-        ! ret_cc(i,j,k)   = ret_cc(i,j,k)+max(0.0,nrtest/delt)
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-    ! == cloud liquid water ==
-    iqsv = iq_cl
-    insv = in_cl
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
-      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-  else  ! l_corr_neg_qt
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iq_hr)+(svp(i,j,k,iq_hr)+q_hrp(i,j,k))*delt
-      nrtest=svm(i,j,k,in_hr)+(svp(i,j,k,in_hr)+n_hrp(i,j,k))*delt
-      if ((qrtest < q_hr_min) .or. (nrtest < 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        svp(i,j,k,iq_hr) = - svm(i,j,k,iq_hr)/delt
-        svp(i,j,k,in_hr) = - svm(i,j,k,in_hr)/delt
-      else
-        svp(i,j,k,iq_hr)=svp(i,j,k,iq_hr)+q_hrp(i,j,k)
-        svp(i,j,k,in_hr)=svp(i,j,k,in_hr)+n_hrp(i,j,k)
-      end if
-    enddo
-    enddo
-    enddo
-
-    ! == snow ==
-    iqsv = iq_hs
-    insv = in_hs
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hsp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hsp(i,j,k))*delt
-      if ((qrtest .lt. qsnowmin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-       svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hsp(i,j,k)
-       svp(i,j,k,insv)=svp(i,j,k,insv)+n_hsp(i,j,k)
-      end if
-    enddo
-    enddo
-    enddo
-
-    ! == graupel ==
-    iqsv = iq_hg
-    insv = in_hg
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_hgp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_hgp(i,j,k))*delt
-      if ((qrtest .lt. qgrmin) .or. (nrtest .le. 0.0) ) then
-        ! correction, after Jerome's implementation in Gales
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_hgp(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_hgp(i,j,k)
-      end if
-    enddo
-    enddo
-    enddo
-
-    ! == cloud ice ==
-    iqsv = iq_ci
-    insv = in_ci
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-       qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_cip(i,j,k))*delt
-       nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_cip(i,j,k))*delt
-      if ((qrtest .lt. qicemin) .or. (nrtest .le. 0.0) ) then
-        ! (nrtest < 0.0)  correction, after Jerome's implementation in Gales
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_cip(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_cip(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-    ! == cloud liquid water ==
-    iqsv = iq_cl
-    insv = in_cl
-    do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqsv)+(svp(i,j,k,iqsv)+q_clp(i,j,k))*delt
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_clp(i,j,k))*delt
-      if ((qrtest .lt. qcliqmin) .or. (nrtest .le. 0.0) ) then
-        ! (nrtest < n_c_min) ) then ! (nrtest < 0.0) ) correction, after Jerome's implementation in Gales
-        svp(i,j,k,iqsv) = - svm(i,j,k,iqsv)/delt
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,iqsv)=svp(i,j,k,iqsv)+q_clp(i,j,k)
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_clp(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-  endif ! l_corr__neg_qt
+    qtpmcr_col = qtpmcr_col + qtp_cor / delt
+    thlpmcr_col = thlpmcr_col + thlp_cor / delt
+  endif
 
   ! == CCN checking ==
   if(.not.l_c_ccn) then
-    insv = in_cc
     do k=1,k1
-    do j=2,j1
-    do i=2,i1
-      nrtest=svm(i,j,k,insv)+(svp(i,j,k,insv)+n_ccp(i,j,k))*delt
-      if (nrtest .le.0.0 ) then ! correction
-        svp(i,j,k,insv) = - svm(i,j,k,insv)/delt
-      else
-        svp(i,j,k,insv)=svp(i,j,k,insv)+n_ccp(i,j,k)
-        ! no change for qt and th
+      nrtest=svm_col(in_cc,k)+svp_col(in_cc,k)*delt
+      if (nrtest < 0.0) then
+        svp_col(in_cc,k) = - svm_col(in_cc,k)/delt
       end if
     enddo
-    enddo
-    enddo
   endif ! not l_c_ccn
-end subroutine
+end subroutine correct_neg_qt
 
 
 !*********************************************************************
@@ -858,6 +741,7 @@ end subroutine
 !*********************************************************************
 real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
   use modglobal, only : lacz_gamma ! LACZ_GAMMA
+  use modmicrodata, only : avf
   implicit none
   real, intent(in) ::  mu_a, nu_a, a_a,b_a, av
   integer, intent(in) :: nn
@@ -886,7 +770,7 @@ end function calc_avent
 ! for ventilation parameter
 ! specified in Appendix B in S&B
 !*********************************************************************
-real function calc_bvent (nn, mu_a, nu_a, a_a,b_a, beta_a, bv )
+real function calc_bvent (nn, mu_a, nu_a, a_a, b_a, beta_a, bv)
   use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
   real, intent(in) ::  mu_a, nu_a, a_a,b_a, beta_a, bv
