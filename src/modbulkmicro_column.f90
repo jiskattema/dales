@@ -46,15 +46,17 @@ end subroutine column_processes
 !> Cloud nucleation
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
-subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, dn_cl_nu)
+subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, tend)
   use modglobal, only : dzf,k1
   implicit none
   real, intent(in)    :: qt0(k1), qvsl(k1), w0(k1)
   real, intent(in)    :: q_cl(k1), n_cl(k1), n_cc(k1)
-  real, intent(inout) :: q_clp(k1), n_clp(k1), dn_cl_nu(k1)
+  real, intent(inout) :: q_clp(k1), n_clp(k1)
+  real, intent(out)   :: tend(ntends, k1)
 
+  real    :: dn_cl_nu(k1) = 0.  !< droplet nucleation rate
   integer :: k
-  real  :: coef_ccn, n_act
+  real    :: coef_ccn, n_act
 
   ! note that supersaturation is
   ! not always how supersaturated is water vapour,
@@ -63,8 +65,6 @@ subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, dn_cl_nu)
          ,ssat(k1)    & !                 at (...,k)
          ,ssat_d      & !                 at (...,k-1)
          ,wdssatdz(k1)  ! derivation of supersaturation
-
-  dn_cl_nu = 0.0
 
   coef_ccn  = 1.0/sat_max**kappa_ccn ! 1.0
   ! allows to keep both definitions consistent
@@ -244,11 +244,14 @@ subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, dn_cl_nu)
   enddo
 
   ! increase in cloud water number
-  n_clp = n_clp + dn_cl_nu
+  n_clp(:) = n_clp(:) + dn_cl_nu(:)
 
   ! update water density [kg kg^{-1}]
-  q_clp = q_clp + x_cnuc * dn_cl_nu
+  q_clp(:) = q_clp(:) + x_cnuc(:) * dn_cl_nu(:)
 
+  if (l_tendencies) then
+    tend(idn_cl_nu,:) = dn_cl_nu(:)
+  endif
 end subroutine  nucleation3
 
 
@@ -405,13 +408,14 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, tend)
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  ! tendencies
-  tend(idn_hr_se,:) = (Nr_spl - n_hr)/delt
-  tend(idq_hr_se,:) = (qr_spl - q_hr)/delt
-
   ! updates
   n_hrp = n_hrp + tend(idn_hr_se,:)
   q_hrp = q_hrp + tend(idq_hr_se,:)
+
+  if (l_tendencies) then
+    tend(idn_hr_se,:) = (Nr_spl(:) - n_hr(:))/delt
+    tend(idq_hr_se,:) = (qr_spl(:) - q_hr(:))/delt
+  endif
 end subroutine sedim_rain3
 
 
@@ -482,13 +486,14 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, tend)
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  ! tendencies
-  tend(idn_hs_se,:) = (nip_spl - n_hs)/delt
-  tend(idq_hs_se,:) = (qip_spl - q_hs)/delt
-
   ! updates
   n_hsp = n_hsp + tend(idn_hs_se,:)
   q_hsp = q_hsp + tend(idq_hs_se,:)
+
+  if (l_tendencies) then
+    tend(idn_hs_se,:) = (nip_spl(:) - n_hs(:))/delt
+    tend(idq_hs_se,:) = (qip_spl(:) - q_hs(:))/delt
+  endif
 end subroutine sedim_snow3
 
 
@@ -559,13 +564,14 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, tend)
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  ! tendencies
-  tend(idn_hg_se,:) = (nip_spl - n_hg)/delt
-  tend(idq_hg_se,:) = (qip_spl - q_hg)/delt
-
   ! updates
   n_hgp = n_hgp + tend(idn_hg_se,:)
   q_hgp = q_hgp + tend(idq_hg_se,:)
+
+  if (l_tendencies) then
+    tend(idn_hg_se,:) = (nip_spl(:) - n_hg(:))/delt
+    tend(idq_hg_se,:) = (qip_spl(:) - q_hg(:))/delt
+  endif
 end subroutine sedim_graupel3
 
 
@@ -635,10 +641,6 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
     enddo  ! second k loop
   enddo ! time splitting loop
 
-  ! tendencies
-  tend(idn_ci_se,:) = (nip_spl - n_ci)/delt
-  tend(idq_ci_se,:) = (qip_spl - q_ci)/delt
-
   ! updates
   n_cip = n_cip + tend(idn_ci_se,:)
   q_cip = q_cip + tend(idq_ci_se,:)
@@ -646,6 +648,11 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
   ! BUG: also qtpmcr and thlpmcr change?
   ! qtpmcr(k) = qtpmcr + 0.0
   ! thlpmcr(k) = thlpmcr + 0.0
+
+  if (l_tendencies) then
+    tend(idn_ci_se,:) = (nip_spl - n_ci)/delt
+    tend(idq_ci_se,:) = (qip_spl - q_ci)/delt
+  endif
 end subroutine sedim_ice3
 
 
@@ -712,10 +719,6 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
 
   enddo ! time splitting loop
 
-  ! tendencies
-  tend(idn_cl_se,:) = (nip_spl - n_cl)/delt
-  tend(idq_cl_se,:) = (qip_spl - q_cl)/delt
-
   ! updates
   n_clp = n_clp + tend(idn_cl_se,:)
   q_clp = q_clp + tend(idq_cl_se,:)
@@ -729,6 +732,11 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
   ! NOTE: moved here from recover_cc point process
   ! recovery of ccn
   n_ccp = n_ccp + tend(idn_cl_se,:)
+
+  if (l_tendencies) then
+    tend(idn_cl_se,:) = (nip_spl(:) - n_cl(:))/delt
+    tend(idq_cl_se,:) = (qip_spl(:) - q_cl(:))/delt
+  endif
 end subroutine sedim_cl3
 
 

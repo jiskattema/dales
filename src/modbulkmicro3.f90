@@ -498,7 +498,7 @@ subroutine bulkmicro3
     call nucleation3(qt0_col, qvsl_col, w0_col            &
                     ,sv0_col(iq_cl,:), svp_col(iq_cl,:)   &
                     ,sv0_col(in_cl,:), svp_col(in_cl,:)   &
-                    ,sv0_col(in_cc,:), tend(idn_cl_nu,:)  )
+                    ,sv0_col(in_cc,:), tend(:,:)          )
 
   ! loop over all k-points in this (i,j) column
     do k=1,k1 ! TODO: kmax?

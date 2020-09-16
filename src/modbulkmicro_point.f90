@@ -51,107 +51,32 @@ module modbulkmicro_point
           ,v_hg     & ! \bar{v}_hg mean velocity for graupel particle
           ,Dvr,lbdr
 
-  real ::     dn_cl_nu       &    !< droplet nucleation rate
-             ,dn_ci_inu      &    !< ice nucleation rate
-             ,dn_cl_au       &    !< change in number of cloud droplets due to autoconversion
-             ,dq_hr_au       &    !< change in mass of raindrops due to autoconversion
-             ,dn_hr_au       &    !< change in number of raindrops due to autoconversion
-             ,dq_hr_ac       &    !< change in mass of raindrops due to accretion
-             ,dn_cl_ac       &    !< change in number of cloud droplets due to accretion
-             ,dn_hr_br       &
-             ,dn_hr_sc       &
-             ,dq_hr_ev       &
-             ,dn_hr_ev       &
-             ,dq_ci_dep      &    !< deposition rate for clouds
-             ,dq_hs_dep      &    !< deposition rate for snow
-             ,dq_hg_dep      &    !< deposition rate for graupel
-             ,dq_ci_rime     &    !< riming growth of ice
-             ,dn_cl_rime_ci  &    !<  - and impact on n_cl
-             ,dq_hs_rime     &    !< riming growth of snow
-             ,dn_cl_rime_hs  &    !<  - and impact on n_cl
-             ,dq_hg_rime     &    !< riming growth for graupel
-             ,dn_cl_rime_hg  &    !<  - and impact on n_cl
-             ,dq_hghr_rime   &    !< riming growth for graupel with rain
-             ,dn_hr_rime_hg  &    !<  - and impact on n_hr
-             ,dq_hshr_rime   &    !U< riming growth for snow with rain
-             ,dn_hr_rime_hs  &    !U<  - and impact on n_hr
-             ,dq_hr_rime_ri  &    !U< rain loss from riming of ice+rain->gr
-             ,dq_ci_rime_ri  &    !U< ice loss from riming of ice+rain->gr
-             ,dn_ci_rime_ri  &    !U< ice number loss from riming of ice+rain->gr
-             ,dn_hr_rime_ri  &    !U< rain number loss from riming of ice+rain->gr
-             ,dq_hr_col_rs   &    !< rain loss from riming of ice+snow->gr
-             ,dq_hs_col_rs   &    !< rain number loss from riming of ice+snow->gr
-             ,dn_hr_col_rs   &    !< snow loss from riming of ice+snow->gr
-             ,dn_hs_col_rs   &    !< snow number loss from riming of ice+snow->gr
-             ,dq_hr_col_ri   &    !< rain loss from riming of ice+rain->gr
-             ,dq_ci_col_ri   &    !< ice loss from riming of ice+rain->gr
-             ,dn_ci_col_ri   &    !< ice number loss from riming of ice+rain->gr
-             ,dn_hr_col_ri   &    !< rain number loss from riming of ice+rain->gr
-             ,dq_cl_het      &    !< heterogeneou freezing of cloud water
-             ,dn_cl_het      &    !< heterogeneou freezing of cloud water
-             ,dq_hr_het      &    !< heterogeneou freezing of raindrops
-             ,dn_hr_het      &    !< heterogeneou freezing of raindrops
-             ,dq_cl_hom      &    !< homogeneous freezing of cloud water
-             ,dn_cl_hom      &    !< homogeneous freezing of cloud water
-             ,dq_ci_col_iis  &    !< self-collection of cloud ice
-             ,dn_ci_col_iis  &    !< self-collection of cloud ice
-             ,dn_hs_col_sss  &    !< self-collection of snow
-             ,dq_hsci_col    &    !< collection s+i - trend in q_hs
-             ,dn_ci_col_hs   &    !< collection s+i - trend in n_ci
-             ,dq_hghs_col    &    !< collection g+s - trend in q_hg
-             ,dn_hs_col_hg   &    !< collection g+s - trend in n_hs
-             ,dq_ci_cv       &    !< partial conversion ice -> graupel
-             ,dn_ci_cv       &
-             ,dq_hs_cv       &    !< partial conversion snow-> graupel
-             ,dn_hs_cv       &
-             ,dn_cl_sc       &    !< cloud self-collection
-             ,dn_ci_mul      &    !< ice multiplication
-             ,dq_ci_mul      &    !< ice multiplication
-             ,dn_ci_me       &    !< number tendency melting of cloud ice
-             ,dq_ci_me       &    !< mass tendency melting of cloud ice
-             ,dn_hs_me       &    !< number tendency melting of snow
-             ,dq_hs_me       &    !< mass tendency melting of snow
-             ,dn_hg_me       &    !< number tendency melting of graupel
-             ,dq_hg_me       &    !< mass tendency melting of graupel
-             ,dn_ci_ev       &    !< number tendency evaporation of cloud ice
-             ,dq_ci_ev       &    !< mass tendency evaporation of cloud ice
-             ,dn_hs_ev       &    !< number tendency evaporation of snow
-             ,dq_hs_ev       &    !< mass tendency evaporation of snow
-             ,dn_hg_ev       &    !< number tendency evaporation of graupel
-             ,dq_hg_ev       &    !< mass tendency evaporation of graupel
-             ,dn_ci_eme_ic   &    !< number tendency enhanced melting of cloud ice by cloud water
-             ,dq_ci_eme_ic   &    !< mass tendency enhanced melting of cloud ice by cloud water
-             ,dn_ci_eme_ri   &    !< number tendency enhanced melting of cloud ice by rain
-             ,dq_ci_eme_ri   &    !< mass tendency enhanced melting of cloud ice  by rain
-             ,dn_hs_eme_sc   &    !< number tendency enhanced melting of snow by cloud water
-             ,dq_hs_eme_sc   &    !< mass tendency enhanced melting of snow by cloud water
-             ,dn_hs_eme_rs   &    !< number tendency enhanced melting of snow by rain
-             ,dq_hs_eme_rs   &    !< mass tendency enhanced melting of snow by rain
-             ,dn_hg_eme_gc   &    !< number tendency enhanced melting of graupel
-             ,dq_hg_eme_gc   &    !< mass tendency enhanced melting of graupel
-             ,dn_hg_eme_gr   &    !< number tendency enhanced melting of graupel by rain
-             ,dq_hg_eme_gr   &    !< mass tendency enhanced melting of graupel by rain
-             ,dn_cl_se       &    !< sedimentation for clouds water - number
-             ,dq_cl_se       &    !<       -||-- mixing ration
-             ,dn_ci_se       &    !< sedimentation for cloud ice - number
-             ,dq_ci_se       &    !<       -||-- mixing ration
-             ,dn_hr_se       &    !< sedimentation for rain - number
-             ,dq_hr_se       &    !<       -||-- mixing ration
-             ,dn_hs_se       &    !< sedimentation for snow - number
-             ,dq_hs_se       &    !<       -||-- mixing ration
-             ,dn_hg_se       &    !< sedimentation for graupel - number
-             ,dq_hg_se       &    !<       -||-- mixing ration
-             ,dq_cl_sa       &    !< saturation adjustment
-             ,dn_cl_sa       &    !< change in n_cl due to saturation adjustment
-             ,ret_cc              !< recovery of ccn
+          ,dn_cl_au       &    !< change in number of cloud droplets due to autoconversion
+          ,dn_cl_ac       &    !< change in number of cloud droplets due to accretion
+          ,dq_ci_dep      &    !< deposition rate for clouds
+          ,dq_hs_dep      &    !< deposition rate for snow
+          ,dq_hg_dep      &    !< deposition rate for graupel
+          ,dq_ci_rime     &    !< riming growth of ice
+          ,dn_cl_rime_ci  &    !<  - and impact on n_cl
+          ,dq_hs_rime     &    !< riming growth of snow
+          ,dn_cl_rime_hs  &    !<  - and impact on n_cl
+          ,dq_hg_rime     &    !< riming growth for graupel
+          ,dn_cl_rime_hg  &    !<  - and impact on n_cl
+          ,dq_hghr_rime   &    !< riming growth for graupel with rain
+          ,dq_hr_col_rs   &    !< rain loss from riming of ice+snow->gr
+          ,dq_hs_col_rs   &    !< rain number loss from riming of ice+snow->gr
+          ,dq_hr_col_ri   &    !< rain loss from riming of ice+rain->gr
+          ,dq_ci_col_ri   &    !< ice loss from riming of ice+rain->gr
+          ,dn_cl_het      &    !< heterogeneou freezing of cloud water
+          ,dn_cl_hom      &    !< homogeneous freezing of cloud water
+          ,dn_cl_sc       &    !< cloud self-collection
+          ,ret_cc              !< recovery of ccn
 
   real ::     qtpmcr         &
              ,thlpmcr
 
 contains
 ! TODO:  * removed warnings when throwing away too much negative moisture
-!        * use constants to index the tendencies
-!        * possible -1 for don't save the tendency
 !        * debug / NaN output
 !        * make all variables local, to we can use OpenMP if needed.
 !        * have a look if all constants are parameters (pre-calculate if not?)
@@ -241,101 +166,27 @@ contains
     v_hs   = 0.0
     v_hg   = 0.0
 
-    ! 0 to values of the update
-                                           ! Parameter used by:
-    dn_cl_nu       = tend(idn_cl_nu      ) ! nucleation3
-    dn_ci_inu      = tend(idn_ci_inu     ) ! icenucle3
-    dn_cl_au       = tend(idn_cl_au      ) ! autoconversion3, cloud_self3, recover_cc
-    dq_hr_au       = tend(idq_hr_au      ) ! autoconversion3
-    dn_hr_au       = tend(idn_hr_au      ) ! autoconversion3
-    dq_hr_ac       = tend(idq_hr_ac      ) ! accretion3
-    dn_cl_ac       = tend(idn_cl_ac      ) ! accretion3, recover_cc
-    dn_hr_br       = tend(idn_hr_br      ) ! accretion3
-    dn_hr_sc       = tend(idn_hr_sc      ) ! accretion3
-    dq_hr_ev       = tend(idq_hr_ev      ) ! evap_rain3
-    dn_hr_ev       = tend(idn_hr_ev      ) ! evap_rain3
-    dq_ci_dep      = tend(idq_ci_dep     ) ! deposit_ice3, cor_deposit3
-    dq_hs_dep      = tend(idq_hs_dep     ) ! deposit_snow3, cor_deposit3
-    dq_hg_dep      = tend(idq_hg_dep     ) ! deposit_graupel3, cor_deposit3
-    dq_ci_rime     = tend(idq_ci_rime    ) ! coll_ici3, ice_multi3, conv_partial3
-    dn_cl_rime_ci  = tend(idn_cl_rime_ci ) ! coll_ici3, recover_cc
-    dq_hs_rime     = tend(idq_hs_rime    ) ! coll_scs3, ice_multi3, conv_partial3
-    dn_cl_rime_hs  = tend(idn_cl_rime_hs ) ! coll_scs3, recover_cc
-    dq_hg_rime     = tend(idq_hg_rime    ) ! coll_gcg3, ice_multi3
-    dn_cl_rime_hg  = tend(idn_cl_rime_hg ) ! coll_gcg3, recover_cc
-    dq_hshr_rime   = tend(idq_hshr_rime  ) ! unused
-    dn_hr_rime_hs  = tend(idn_hr_rime_hs ) ! unused
-    dq_hghr_rime   = tend(idq_hghr_rime  ) ! coll_grg3, ice_multi3
-    dn_hr_rime_hg  = tend(idn_hr_rime_hg ) ! coll_grg3
-    dq_hr_rime_ri  = tend(idq_hr_rime_ri ) ! unused
-    dq_ci_rime_ri  = tend(idq_ci_rime_ri ) ! unused
-    dn_ci_rime_ri  = tend(idn_ci_rime_ri ) ! unused
-    dn_hr_rime_ri  = tend(idn_hr_rime_ri ) ! unused
-    dq_hr_col_rs   = tend(idq_hr_col_rs  ) ! coll_rsg3, ice_multi3
-    dq_hs_col_rs   = tend(idq_hs_col_rs  ) ! coll_rsg3, ice_multi3
-    dn_hr_col_rs   = tend(idn_hr_col_rs  ) ! coll_rsg3
-    dn_hs_col_rs   = tend(idn_hs_col_rs  ) ! coll_rsg3
-    dq_hr_col_ri   = tend(idq_hr_col_ri  ) ! coll_rig3
-    dq_ci_col_ri   = tend(idq_ci_col_ri  ) ! coll_rig3, ice_multi3
-    dn_ci_col_ri   = tend(idn_ci_col_ri  ) ! coll_rig3
-    dn_hr_col_ri   = tend(idn_hr_col_ri  ) ! coll_rig3
-    dq_cl_het      = tend(idq_cl_het     ) ! hetfreez3
-    dn_cl_het      = tend(idn_cl_het     ) ! hetfreez3, recover_cc
-    dq_hr_het      = tend(idq_hr_het     ) ! rainhetfreez3
-    dn_hr_het      = tend(idn_hr_het     ) ! rainhetfreez3
-    dq_cl_hom      = tend(idq_cl_hom     ) ! homfreez3
-    dn_cl_hom      = tend(idn_cl_hom     ) ! homfreez3, recover_cc
-    dq_ci_col_iis  = tend(idq_ci_col_iis ) ! ice_aggr3
-    dn_ci_col_iis  = tend(idn_ci_col_iis ) ! ice_aggr3
-    dn_hs_col_sss  = tend(idn_hs_col_sss ) ! snow_self3
-    dq_hsci_col    = tend(idq_hsci_col   ) ! coll_sis3
-    dn_ci_col_hs   = tend(idn_ci_col_hs  ) ! coll_sis3
-    dq_hghs_col    = tend(idq_hghs_col   ) ! coll_gsg3
-    dn_hs_col_hg   = tend(idn_hs_col_hg  ) ! coll_gsg3
-    dq_ci_cv       = tend(idq_ci_cv      ) ! conv_partial3
-    dn_ci_cv       = tend(idn_ci_cv      ) ! conv_parital3
-    dq_hs_cv       = tend(idq_hs_cv      ) ! conv_parital3
-    dn_hs_cv       = tend(idn_hs_cv      ) ! conv_parital3
-    dn_cl_sc       = tend(idn_cl_sc      ) ! cloud_self3, recover_cc
-    dn_ci_mul      = tend(idn_ci_mul     ) ! ice_multi3
-    dq_ci_mul      = tend(idq_ci_mul     ) ! ice_multi3
-    dn_ci_me       = tend(idn_ci_me      ) ! evapmelting3
-    dq_ci_me       = tend(idq_ci_me      ) ! evapmelting3
-    dn_hs_me       = tend(idn_hs_me      ) ! evapmelting3
-    dq_hs_me       = tend(idq_hs_me      ) ! evapmelting3
-    dn_hg_me       = tend(idn_hg_me      ) ! evapmelting3
-    dq_hg_me       = tend(idq_hg_me      ) ! evapmelting3
-    dn_ci_ev       = tend(idn_ci_ev      ) ! evapmelting3
-    dq_ci_ev       = tend(idq_ci_ev      ) ! evapmelting3
-    dn_hs_ev       = tend(idn_hs_ev      ) ! evapmelting3
-    dq_hs_ev       = tend(idq_hs_ev      ) ! evapmelting3
-    dn_hg_ev       = tend(idn_hg_ev      ) ! evapmelting3
-    dq_hg_ev       = tend(idq_hg_ev      ) ! evapmelting3
-    dn_ci_eme_ic   = tend(idn_ci_eme_ic  ) ! coll_ici3
-    dq_ci_eme_ic   = tend(idq_ci_eme_ic  ) ! coll_ici3
-    dn_ci_eme_ri   = tend(idn_ci_eme_ri  ) ! coll_rig3
-    dq_ci_eme_ri   = tend(idq_ci_eme_ri  ) ! coll_rig3
-    dn_hs_eme_sc   = tend(idn_hs_eme_sc  ) ! coll_scs3
-    dq_hs_eme_sc   = tend(idq_hs_eme_sc  ) ! coll_scs3
-    dn_hs_eme_rs   = tend(idn_hs_eme_rs  ) ! coll_rsg3
-    dq_hs_eme_rs   = tend(idq_hs_eme_rs  ) ! coll_rsg3
-    dn_hg_eme_gc   = tend(idn_hg_eme_gc  ) ! coll_gcg3
-    dq_hg_eme_gc   = tend(idq_hg_eme_gc  ) ! coll_gcg3
-    dn_hg_eme_gr   = tend(idn_hg_eme_gr  ) ! coll_grg3
-    dq_hg_eme_gr   = tend(idq_hg_eme_gr  ) ! coll_grg3
-    dn_cl_se       = tend(idn_cl_se      ) ! sedim_cl3
-    dq_cl_se       = tend(idq_cl_se      ) ! sedim_cl3
-    dn_ci_se       = tend(idn_ci_se      ) ! sedim_ice3
-    dq_ci_se       = tend(idq_ci_se      ) ! sedim_ice3
-    dn_hr_se       = tend(idn_hr_se      ) ! sedim_rain3
-    dq_hr_se       = tend(idq_hr_se      ) ! sedim_rain3
-    dn_hs_se       = tend(idn_hs_se      ) ! sedim_snow3
-    dq_hs_se       = tend(idq_hs_se      ) ! sedim_snow3
-    dn_hg_se       = tend(idn_hg_se      ) ! sedim_graupel3
-    dq_hg_se       = tend(idq_hg_se      ) ! sedim_graupel3
-    dq_cl_sa       = tend(idq_cl_sa      ) ! satadj3
-    dn_cl_sa       = tend(idn_cl_sa      ) ! satadj3
-    ret_cc         = tend(iret_cc        ) ! evap_rain3, recover_cc
+                        ! used by:
+    dn_cl_au       = 0. ! autoconversion3, cloud_self3, recover_cc
+    dn_cl_ac       = 0. ! accretion3, recover_cc
+    dq_ci_dep      = 0. ! deposit_ice3, cor_deposit3
+    dq_hs_dep      = 0. ! deposit_snow3, cor_deposit3
+    dq_hg_dep      = 0. ! deposit_graupel3, cor_deposit3
+    dq_ci_rime     = 0. ! coll_ici3, ice_multi3, conv_partial3
+    dn_cl_rime_ci  = 0. ! coll_ici3, recover_cc
+    dq_hs_rime     = 0. ! coll_scs3, ice_multi3, conv_partial3
+    dn_cl_rime_hs  = 0. ! coll_scs3, recover_cc
+    dq_hg_rime     = 0. ! coll_gcg3, ice_multi3
+    dn_cl_rime_hg  = 0. ! coll_gcg3, recover_cc
+    dq_hghr_rime   = 0. ! coll_grg3, ice_multi3
+    dq_hr_col_rs   = 0. ! coll_rsg3, ice_multi3
+    dq_hs_col_rs   = 0. ! coll_rsg3, ice_multi3
+    dq_hr_col_ri   = 0. ! coll_rig3, ice_multi3
+    dq_ci_col_ri   = 0. ! coll_rig3, ice_multi3
+    dn_cl_het      = 0. ! hetfreez3, recover_cc
+    dn_cl_hom      = 0. ! homfreez3, recover_cc
+    dn_cl_sc       = 0. ! cloud_self3, recover_cc
+    ret_cc         = 0. ! evap_rain3, recover_cc
 
     ! Testing for a noticable amount of rain graupel and snow
     ! -------------------------------------------------------
@@ -433,7 +284,6 @@ contains
 
     ! Save the results
     ! -----------------------------------------------------------------
-
     svp(in_cc) = n_ccp
     svp(in_cl) = n_clp
     svp(in_ci) = n_cip
@@ -448,101 +298,6 @@ contains
 
     thlpmcr_out = thlpmcr
     qtpmcr_out = qtpmcr
-
-    tend(idn_cl_nu      ) = dn_cl_nu
-    tend(idn_ci_inu     ) = dn_ci_inu
-    tend(idn_cl_au      ) = dn_cl_au
-    tend(idq_hr_au      ) = dq_hr_au
-    tend(iidn_hr_au     ) = dn_hr_au
-    tend(idq_hr_ac      ) = dq_hr_ac
-    tend(idn_cl_ac      ) = dn_cl_ac
-    tend(idn_hr_br      ) = dn_hr_br
-    tend(idn_hr_sc      ) = dn_hr_sc
-    tend(idq_hr_ev      ) = dq_hr_ev
-    tend(idn_hr_ev      ) = dn_hr_ev
-    tend(idq_ci_dep     ) = dq_ci_dep
-    tend(idq_hs_dep     ) = dq_hs_dep
-    tend(idq_hg_dep     ) = dq_hg_dep
-    tend(idq_ci_rime    ) = dq_ci_rime
-    tend(idn_cl_rime_ci ) = dn_cl_rime_ci
-    tend(idq_hs_rime    ) = dq_hs_rime
-    tend(idn_cl_rime_hs ) = dn_cl_rime_hs
-    tend(idq_hg_rime    ) = dq_hg_rime
-    tend(idn_cl_rime_hg ) = dn_cl_rime_hg
-    tend(idq_hshr_rime  ) = dq_hshr_rime
-    tend(idn_hr_rime_hs ) = dn_hr_rime_hs
-    tend(idq_hghr_rime  ) = dq_hghr_rime
-    tend(idn_hr_rime_hg ) = dn_hr_rime_hg
-    tend(idq_hr_rime_ri ) = dq_hr_rime_ri
-    tend(idq_ci_rime_ri ) = dq_ci_rime_ri
-    tend(idn_ci_rime_ri ) = dn_ci_rime_ri
-    tend(idn_hr_rime_ri ) = dn_hr_rime_ri
-    tend(idq_hr_col_rs  ) = dq_hr_col_rs
-    tend(idq_hs_col_rs  ) = dq_hs_col_rs
-    tend(idn_hr_col_rs  ) = dn_hr_col_rs
-    tend(idn_hs_col_rs  ) = dn_hs_col_rs
-    tend(idq_hr_col_ri  ) = dq_hr_col_ri
-    tend(idq_ci_col_ri  ) = dq_ci_col_ri
-    tend(idn_ci_col_ri  ) = dn_ci_col_ri
-    tend(idn_hr_col_ri  ) = dn_hr_col_ri
-    tend(idq_cl_het     ) = dq_cl_het
-    tend(idn_cl_het     ) = dn_cl_het
-    tend(idq_hr_het     ) = dq_hr_het
-    tend(idn_hr_het     ) = dn_hr_het
-    tend(idq_cl_hom     ) = dq_cl_hom
-    tend(idn_cl_hom     ) = dn_cl_hom
-    tend(idq_ci_col_iis ) = dq_ci_col_iis
-    tend(idn_ci_col_iis ) = dn_ci_col_iis
-    tend(idn_hs_col_sss ) = dn_hs_col_sss
-    tend(idq_hsci_col   ) = dq_hsci_col
-    tend(idn_ci_col_hs  ) = dn_ci_col_hs
-    tend(idq_hghs_col   ) = dq_hghs_col
-    tend(idn_hs_col_hg  ) = dn_hs_col_hg
-    tend(idq_ci_cv      ) = dq_ci_cv
-    tend(idn_ci_cv      ) = dn_ci_cv
-    tend(idq_hs_cv      ) = dq_hs_cv
-    tend(idn_hs_cv      ) = dn_hs_cv
-    tend(idn_cl_sc      ) = dn_cl_sc
-    tend(idn_ci_mul     ) = dn_ci_mul
-    tend(idq_ci_mul     ) = dq_ci_mul
-    tend(idn_ci_me      ) = dn_ci_me
-    tend(idq_ci_me      ) = dq_ci_me
-    tend(idn_hs_me      ) = dn_hs_me
-    tend(idq_hs_me      ) = dq_hs_me
-    tend(idn_hg_me      ) = dn_hg_me
-    tend(idq_hg_me      ) = dq_hg_me
-    tend(idn_ci_ev      ) = dn_ci_ev
-    tend(idq_ci_ev      ) = dq_ci_ev
-    tend(idn_hs_ev      ) = dn_hs_ev
-    tend(idq_hs_ev      ) = dq_hs_ev
-    tend(idn_hg_ev      ) = dn_hg_ev
-    tend(idq_hg_ev      ) = dq_hg_ev
-    tend(idn_ci_eme_ic  ) = dn_ci_eme_ic
-    tend(idq_ci_eme_ic  ) = dq_ci_eme_ic
-    tend(idn_ci_eme_ri  ) = dn_ci_eme_ri
-    tend(idq_ci_eme_ri  ) = dq_ci_eme_ri
-    tend(idn_hs_eme_sc  ) = dn_hs_eme_sc
-    tend(idq_hs_eme_sc  ) = dq_hs_eme_sc
-    tend(idn_hs_eme_rs  ) = dn_hs_eme_rs
-    tend(idq_hs_eme_rs  ) = dq_hs_eme_rs
-    tend(idn_hg_eme_gc  ) = dn_hg_eme_gc
-    tend(idq_hg_eme_gc  ) = dq_hg_eme_gc
-    tend(idn_hg_eme_gr  ) = dn_hg_eme_gr
-    tend(idq_hg_eme_gr  ) = dq_hg_eme_gr
-    tend(idn_cl_se      ) = dn_cl_se
-    tend(idq_cl_se      ) = dq_cl_se
-    tend(idn_ci_se      ) = dn_ci_se
-    tend(idq_ci_se      ) = dq_ci_se
-    tend(idn_hr_se      ) = dn_hr_se
-    tend(idq_hr_se      ) = dq_hr_se
-    tend(idn_hs_se      ) = dn_hs_se
-    tend(idq_hs_se      ) = dq_hs_se
-    tend(idn_hg_se      ) = dn_hg_se
-    tend(idq_hg_se      ) = dq_hg_se
-    tend(idq_cl_sa      ) = dq_cl_sa
-    tend(idn_cl_sa      ) = dn_cl_sa
-    tend(iret_cc        ) = ret_cc
-
 end subroutine point_processes
 
 
@@ -648,7 +403,8 @@ subroutine icenucle3
   implicit none
 
   real :: ssice
-  real::  n_in,n_tid
+  real :: n_in,n_tid
+  real :: dn_ci_inu = 0.   !< ice nucleation rate
 
   ! not always how supersaturated is water vapour, depending on a flag,
   ! it can also include water already in ice particles
@@ -722,6 +478,9 @@ subroutine icenucle3
       endif ! l_sb_dbg
     endif ! ssice.gt.ssice_min
   endif ! tmp0.lt.tmp_inuc
+  if (l_tendencies) then
+    tend(idn_ci_inu) = dn_ci_inu
+  endif
 end subroutine icenucle3
 
 
@@ -739,6 +498,8 @@ subroutine homfreez3
 
   ! calculate constants
   real, parameter :: expC_30 = exp(C_30_Cf02)
+
+  real :: dq_cl_hom = 0. !< homogeneous freezing of cloud water
 
   if (q_cl_mask.and.tmp0.lt.T_3) then
 
@@ -779,6 +540,10 @@ subroutine homfreez3
 
     ! change in th_l due to freezing
     thlpmcr = thlpmcr-((rlv+rlme)/(cp_exnf_k))*dq_cl_hom
+    if (l_tendencies) then
+      tend(idq_cl_hom) = dq_cl_hom
+      tend(idn_cl_hom) = dn_cl_hom
+    endif
   endif ! q_cl_mask
  end subroutine homfreez3
 
@@ -790,7 +555,8 @@ subroutine hetfreez3
   use modglobal, only : rlv
   implicit none
 
-  real    :: J_het   ! freezing rate
+  real :: J_het   ! freezing rate
+  real :: dq_cl_het = 0.   !< heterogeneou freezing of cloud water
 
   if (q_cl_mask.and.tmp0.lt.T_3) then
     J_het = A_het *exp( B_het*(T_3-tmp0) -1)
@@ -815,6 +581,10 @@ subroutine hetfreez3
 
     ! change in th_l due to freezing
     thlpmcr = thlpmcr-((rlv+rlme)/(cp_exnf_k))*(dq_cl_het)
+    if (l_tendencies) then
+      tend(idq_cl_het) = dq_cl_het
+      tend(idn_cl_het) = dn_cl_het
+    endif
   endif ! q_cl_mask
 end subroutine hetfreez3
 
@@ -887,6 +657,9 @@ subroutine deposit_ice3
         ! too high:    ((qt0-qvsi-q_clm-q_cim-delt*dq_ci_dep).lt. 0.0)
         ! negative qt: ((qt0-delt*dq_ci_dep).lt. 0.0)
       endif
+    endif
+    if (l_tendencies) then
+      tend(idq_ci_dep) = dq_ci_dep
     endif
   endif
 end subroutine deposit_ice3
@@ -961,6 +734,9 @@ subroutine deposit_snow3
         ! count((qt0-qvsi-q_clm-q_cim-delt*dq_hs_dep).lt. 0.0)
         ! getting negative q_t in count((qt0-delt*dq_hs_dep).lt. 0.0)
       endif
+    endif
+    if (l_tendencies) then
+      tend(idq_hs_dep) = dq_hs_dep
     endif
   endif
 end subroutine deposit_snow3
@@ -1037,6 +813,9 @@ subroutine deposit_graupel3
         ! getting negative q_t in  count((qt0-delt*dq_hg_dep).lt. 0.0)
       endif
     endif
+    if (l_tendencies) then
+      tend(idq_hg_dep) = dq_hg_dep
+    endif
   endif
 end subroutine deposit_graupel3
 
@@ -1112,9 +891,10 @@ subroutine ice_aggr3
             ,th_1aa_i
 
   real :: dif_D_10, x_crit_ii, x_minagg_ii, rem_cf_i
-
-  ! Temporary variables, value changes several times in this routine
   real :: E_ab, E_stick
+
+  real :: dq_ci_col_iis = 0. !< self-collection of cloud ice
+  real :: dn_ci_col_iis = 0. !< self-collection of cloud ice
 
   ! calculate constants
   dlt_0aa_i   = 2*dlt_i0 + dlt_i0i
@@ -1194,6 +974,10 @@ subroutine ice_aggr3
       write(6,*) ' removing too much ice particles'
       ! count((n_ci+delt*dn_ci_col_iis).lt. 0.0)
     endif
+    if (l_tendencies) then
+      tend(idq_ci_col_iis) = dq_ci_col_iis
+      tend(idn_ci_col_iis) = dn_ci_col_iis
+    endif
   endif
 end subroutine ice_aggr3
 
@@ -1208,17 +992,16 @@ subroutine snow_self3
 
   real :: dlt_0aa, th_0aa
   real :: rem_cf_s, E_ab_s
-
-  ! Temporary variables, value changes several times in this routine
   real :: E_stick
-
-  ! adjusting coefficient
-  ! prepare coefficient for remaining water number
-  rem_cf_s = (1.0-rem_n_hs_min)/delt
-  dlt_0aa = 2*dlt_s0 + dlt_s0s
-  th_0aa = 2*th_s0 - th_s0s   ! from Seifert, 2002
+  real :: dn_hs_col_sss = 0.  !< self-collection of snow
 
   if(q_hs_mask) then
+    ! adjusting coefficient
+    ! prepare coefficient for remaining water number
+    rem_cf_s = (1.0-rem_n_hs_min)/delt
+    dlt_0aa = 2*dlt_s0 + dlt_s0s
+    th_0aa = 2*th_s0 - th_s0s   ! from Seifert, 2002
+
     ! calculating sticking efficiency
     if (l_sb_stickyice) then
       E_stick = c_E_o_s*exp(B_stick *(tmp0+stick_off))
@@ -1234,17 +1017,20 @@ subroutine snow_self3
                     *(th_0aa*v_hs**2+2*sigma_hs**2)**0.5
 
     dn_hs_col_sss = max(min(0.0,dn_hs_col_sss),-rem_cf_s*n_hsm-n_hsp)
-  endif
 
-  n_hsp    = n_hsp + dn_hs_col_sss
+    n_hsp    = n_hsp + dn_hs_col_sss
 
-  if (l_sb_dbg) then
-    if(( n_hsm+delt*dn_hs_col_sss .lt. 0.0 )) then
-      write(6,*) 'WARNING: snow self-collection too high'
-      write(6,*) ' decreasing number of snowflakes below 0'
-      ! count((n_hsm+delt*dn_hs_col_sss).lt. 0.0 )
-      write(6,*) ' decreasing number of snowflakes too much'
-      ! count((n_hs+delt*dn_hs_col_sss).lt. 0.0 )
+    if (l_sb_dbg) then
+      if(( n_hsm+delt*dn_hs_col_sss .lt. 0.0 )) then
+        write(6,*) 'WARNING: snow self-collection too high'
+        write(6,*) ' decreasing number of snowflakes below 0'
+        ! count((n_hsm+delt*dn_hs_col_sss).lt. 0.0 )
+        write(6,*) ' decreasing number of snowflakes too much'
+        ! count((n_hs+delt*dn_hs_col_sss).lt. 0.0 )
+      endif
+    endif
+    if (l_tendencies) then
+      tend(idn_hs_col_sss) =  dn_hs_col_sss
     endif
   endif
 end subroutine snow_self3
@@ -1259,8 +1045,10 @@ subroutine coll_sis3
   use modglobal, only : pi
   implicit none
 
-  ! Temporary variables, value changes several times in this routine
   real :: E_ab, E_stick, rem_cf_i
+
+  real :: dq_hsci_col   = 0.  !< collection s+i - trend in q_hs
+  real :: dn_ci_col_hs  = 0.  !< collection s+i - trend in n_ci
 
   ! adjusting coefficient
   ! prepare coefficient for remaining water number
@@ -1286,29 +1074,33 @@ subroutine coll_sis3
 
     dq_hsci_col = min(dq_hsci_col,max(0.0,q_cim/delt+q_cip))   ! following ICON, 2017
     dn_ci_col_hs = max(dn_ci_col_hs,min(0.0,-rem_cf_i*n_cim-n_cip))
-  endif
 
-  n_cip    = n_cip + dn_ci_col_hs
-  q_cip    = q_cip + dq_hsci_col
-  q_hsp    = q_hsp - dq_hsci_col
+    n_cip    = n_cip + dn_ci_col_hs
+    q_cip    = q_cip + dq_hsci_col
+    q_hsp    = q_hsp - dq_hsci_col
 
-  if (l_sb_dbg) then
-    if(q_cim-delt*dq_hsci_col.lt. 0.0) then
-      write(6,*) 'WARNING: coll_sis3 too high removing more ice than available'
-      write(6,*) ' removing more ice than available'
-      ! count((q_cim-delt*dq_hsci_col).lt. 0.0)
-      write(6,*) ' removing too much ice'
-      ! count((q_ci-delt*dq_hsci_col).lt. 0.0)
-      write(6,*) ' getting negative q_t'
-      ! count((qt0-delt*q_cip).lt. 0.0 )
+    if (l_sb_dbg) then
+      if(q_cim-delt*dq_hsci_col.lt. 0.0) then
+        write(6,*) 'WARNING: coll_sis3 too high removing more ice than available'
+        write(6,*) ' removing more ice than available'
+        ! count((q_cim-delt*dq_hsci_col).lt. 0.0)
+        write(6,*) ' removing too much ice'
+        ! count((q_ci-delt*dq_hsci_col).lt. 0.0)
+        write(6,*) ' getting negative q_t'
+        ! count((qt0-delt*q_cip).lt. 0.0 )
+      endif
+
+      if(n_cim+delt*dn_ci_col_hs.lt. 0.0) then
+        write(6,*) 'WARNING: coll_sis3 too high'
+        write(6,*) ' removing more ice particles then available in gridpoints'
+        ! count(n_cim+delt*dn_ci_col_hs.lt. 0.0)
+        write(6,*) ' removing too many ice particles in gridpoints '
+        ! count((n_ci+delt*dn_ci_col_hs).lt. 0.0)
+      endif
     endif
-
-    if(n_cim+delt*dn_ci_col_hs.lt. 0.0) then
-      write(6,*) 'WARNING: coll_sis3 too high'
-      write(6,*) ' removing more ice particles then available in gridpoints'
-      ! count(n_cim+delt*dn_ci_col_hs.lt. 0.0)
-      write(6,*) ' removing too many ice particles in gridpoints '
-      ! count((n_ci+delt*dn_ci_col_hs).lt. 0.0)
+    if (l_tendencies) then
+      tend(idq_hsci_col ) = dq_hsci_col
+      tend(idn_ci_col_hs) = dn_ci_col_hs
     endif
   endif
 end subroutine coll_sis3
@@ -1324,13 +1116,16 @@ subroutine coll_gsg3
   implicit none
 
   real :: E_ab, E_stick, rem_cf_s
-
-  ! adjusting coefficient
-  ! prepare coefficient for remaining water number
-  rem_cf_s = (1.0-rem_n_hs_min)/delt
+  real :: dq_hghs_col  = 0.   !< collection g+s - trend in q_hg
+  real :: dn_hs_col_hg = 0.   !< collection g+s - trend in n_hs
 
   ! graupel collecting snow
   if (q_hg_mask.and.q_hs_mask) then
+
+    ! adjusting coefficient
+    ! prepare coefficient for remaining water number
+    rem_cf_s = (1.0-rem_n_hs_min)/delt
+
     ! calculating sticking efficiency
     E_stick = c_E_o_s*exp(B_stick *(tmp0+stick_off))
     E_stick =min(c_E_o_s,E_stick)
@@ -1354,29 +1149,33 @@ subroutine coll_gsg3
     dn_hs_col_hg = max(dn_hs_col_hg,&
                        min(0.0,     &
                        -rem_cf_s*n_hsm-n_hsp))
-  endif
 
-  n_hsp    = n_hsp + dn_hs_col_hg
-  q_hsp    = q_hsp - dq_hghs_col
-  q_hgp    = q_hgp + dq_hghs_col
+    n_hsp    = n_hsp + dn_hs_col_hg
+    q_hsp    = q_hsp - dq_hghs_col
+    q_hgp    = q_hgp + dq_hghs_col
 
-  if (l_sb_dbg) then
-    if((q_hsm-delt*dq_hghs_col).lt. 0.0) then
-      write(6,*) 'WARNING: coll_gsg3 too high removing more ice than available'
-      write(6,*) ' removing more ice than available'
-      ! count(q_hsm-delt*dq_hghs_col.lt. 0.0)
-      write(6,*) ' removing too much ice'
-      ! count(q_hs-delt*dq_hghs_col.lt. 0.0)
-      write(6,*) ' getting negative q_t'
-      ! count(qt0-delt*q_hsp.lt. 0.0)
+    if (l_sb_dbg) then
+      if((q_hsm-delt*dq_hghs_col).lt. 0.0) then
+        write(6,*) 'WARNING: coll_gsg3 too high removing more ice than available'
+        write(6,*) ' removing more ice than available'
+        ! count(q_hsm-delt*dq_hghs_col.lt. 0.0)
+        write(6,*) ' removing too much ice'
+        ! count(q_hs-delt*dq_hghs_col.lt. 0.0)
+        write(6,*) ' getting negative q_t'
+        ! count(qt0-delt*q_hsp.lt. 0.0)
+      endif
+
+      if(n_hsm+delt*dn_hs_col_hg.lt. 0.0) then
+        write(6,*) 'WARNING: coll_gsg3 too high'
+        write(6,*) ' removing more ice particles then available'
+        ! count(n_hsm+delt*dn_hs_col_hg.lt. 0.0)
+        write(6,*) ' removing too many ice particles'
+        ! count(n_hs+delt*dn_hs_col_hg.lt. 0.0)
+      endif
     endif
-
-    if(n_hsm+delt*dn_hs_col_hg.lt. 0.0) then
-      write(6,*) 'WARNING: coll_gsg3 too high'
-      write(6,*) ' removing more ice particles then available'
-      ! count(n_hsm+delt*dn_hs_col_hg.lt. 0.0)
-      write(6,*) ' removing too many ice particles'
-      ! count(n_hs+delt*dn_hs_col_hg.lt. 0.0)
+    if (l_tendencies) then
+      tend(idq_hghs_col ) = dq_hghs_col
+      tend(idn_hs_col_hg) = dn_hs_col_hg
     endif
   endif
 end subroutine coll_gsg3
@@ -1396,12 +1195,14 @@ subroutine coll_ici3
 
   implicit none
 
-  ! Temporary variables, value changes several times in this routine
   real :: E_ab
   real :: dif_D_10
   real :: k_enhm
   real :: rem_cf
   real :: dn_col_ici, dq_col_ici
+
+  real :: dn_ci_eme_ic = 0.   !< number tendency enhanced melting of cloud ice by cloud water
+  real :: dq_ci_eme_ic = 0.   !< mass tendency enhanced melting of cloud ice by cloud water
 
   ! collision efficiency
   if (q_ci_mask.and.q_cl_mask) then
@@ -1454,32 +1255,38 @@ subroutine coll_ici3
       ! - and not more than total number of particles
       dn_ci_eme_ic = max(dn_ci_eme_ic,-n_cim/delt-n_cip)
     endif
-  endif
 
-  n_clp    = n_clp + dn_cl_rime_ci
-  q_clp    = q_clp - dq_ci_rime - dq_ci_eme_ic
-  n_cip    = n_cip + dn_ci_eme_ic
-  q_cip    = q_cip + dq_ci_rime + dq_ci_eme_ic
+    n_clp    = n_clp + dn_cl_rime_ci
+    q_clp    = q_clp - dq_ci_rime - dq_ci_eme_ic
+    n_cip    = n_cip + dn_ci_eme_ic
+    q_cip    = q_cip + dq_ci_rime + dq_ci_eme_ic
 
-  qtpmcr = qtpmcr - dq_ci_rime - dq_ci_eme_ic
-  thlpmcr = thlpmcr+(rlvi/(cp_exnf_k))*(dq_ci_rime + dq_ci_eme_ic)
+    qtpmcr = qtpmcr - dq_ci_rime - dq_ci_eme_ic
+    thlpmcr = thlpmcr+(rlvi/(cp_exnf_k))*(dq_ci_rime + dq_ci_eme_ic)
 
-  if (l_sb_dbg) then
-    if(q_clm-delt*dq_col_ici.lt. 0.0) then
-      write(6,*) 'WARNING: coll_ici3 too high'
-      write(6,*) ' removing more cloud water then available'
-      ! count(q_clm-delt*dq_ci_rime.lt. 0.0)
-      write(6,*) ' removing too much water'
-      ! count(q_cl-delt*dq_ci_rime.lt. 0.0)
-      write(6,*) ' getting negative q_t'
-      ! count(qt0+delt*q_cip.lt. 0.0)
+    if (l_sb_dbg) then
+      if(q_clm-delt*dq_col_ici.lt. 0.0) then
+        write(6,*) 'WARNING: coll_ici3 too high'
+        write(6,*) ' removing more cloud water then available'
+        ! count(q_clm-delt*dq_ci_rime.lt. 0.0)
+        write(6,*) ' removing too much water'
+        ! count(q_cl-delt*dq_ci_rime.lt. 0.0)
+        write(6,*) ' getting negative q_t'
+        ! count(qt0+delt*q_cip.lt. 0.0)
+      endif
+      if(n_clm+delt*dn_col_ici.lt. 0.0) then
+        write(6,*) 'WARNING: coll_ici3 too high'
+        write(6,*) ' removing more droplets then available'
+        ! count(n_clm+delt*dn_cl_rime_ci.lt. 0.0)
+        write(6,*) ' removing too many droplets'
+        ! count(n_cl+delt*dn_cl_rime_ci.lt. 0.0)
+      endif
     endif
-    if(n_clm+delt*dn_col_ici.lt. 0.0) then
-      write(6,*) 'WARNING: coll_ici3 too high'
-      write(6,*) ' removing more droplets then available'
-      ! count(n_clm+delt*dn_cl_rime_ci.lt. 0.0)
-      write(6,*) ' removing too many droplets'
-      ! count(n_cl+delt*dn_cl_rime_ci.lt. 0.0)
+    if (l_tendencies) then
+      tend(idn_ci_eme_ic) = dn_ci_eme_ic
+      tend(idq_ci_eme_ic) = dq_ci_eme_ic
+      tend(idq_ci_rime)   = dq_ci_rime
+      tend(idn_cl_rime_ci)= dn_cl_rime_ci
     endif
   endif
 end subroutine coll_ici3
@@ -1497,6 +1304,8 @@ subroutine coll_scs3
   real :: dif_D_10
   real :: k_enhm
   real :: dn_col_b, dq_col_a
+  real :: dn_hs_eme_sc = 0.   !< number tendency enhanced melting of snow by cloud water
+  real :: dq_hs_eme_sc = 0.   !< mass tendency enhanced melting of snow by cloud water
 
   if (q_hs_mask.and.q_cl_mask) then
 
@@ -1619,6 +1428,12 @@ subroutine coll_scs3
         ! count(n_cl+delt*dn_cl_rime_hs.lt. 0.0)
       endif
     endif
+    if (l_tendencies) then
+      tend(idn_hs_eme_sc ) = dn_hs_eme_sc
+      tend(idq_hs_eme_sc ) = dq_hs_eme_sc
+      tend(idq_hs_rime   ) = dq_hs_rime
+      tend(idn_cl_rime_hs) = dn_cl_rime_hs
+    endif
   endif
 end subroutine coll_scs3
 
@@ -1638,6 +1453,8 @@ subroutine coll_gcg3
   real :: k_enhm
   real :: rem_cf
   real :: dn_col_b, dq_col_a
+  real :: dn_hg_eme_gc = 0.  !< number tendency enhanced melting of graupel
+  real :: dq_hg_eme_gc = 0.  !< mass tendency enhanced melting of graupel
 
   if (q_hg_mask.and.q_cl_mask) then
     ! collision efficiency
@@ -1747,6 +1564,12 @@ subroutine coll_gcg3
         ! count(n_cl+delt*dn_cl_rime_hg.lt. 0.0)
       endif
     endif
+    if (l_tendencies) then
+      tend(idn_hg_eme_gc ) = dn_hg_eme_gc
+      tend(idq_hg_eme_gc ) = dq_hg_eme_gc
+      tend(idq_hg_rime   ) = dq_hg_rime
+      tend(idn_cl_rime_hg) = dn_cl_rime_hg
+    endif
   endif
 end subroutine coll_gcg3
 
@@ -1765,6 +1588,10 @@ subroutine coll_grg3
   real :: k_enhm
   real :: rem_cf
   real :: dn_col_b, dq_col_a
+
+  real :: dn_hr_rime_hg = 0.
+  real :: dn_hg_eme_gr  = 0.   !< number tendency enhanced melting of graupel by rain
+  real :: dq_hg_eme_gr  = 0.   !< mass tendency enhanced melting of graupel by rain
 
   if (q_hg_mask.and.q_hr_mask) then
     E_ab =  E_er_m
@@ -1865,6 +1692,11 @@ subroutine coll_grg3
         ! count(n_hr+delt*dn_hr_rime_hg.lt. 0.0)
       endif
     endif
+    if (l_tendencies) then
+      tend(idn_hr_rime_hg) = dn_hr_rime_hg
+      tend(idn_hg_eme_gr ) = dn_hg_eme_gr
+      tend(idq_hg_eme_gr ) = dq_hg_eme_gr
+      tend(idq_hghr_rime ) = dq_hghr_rime
   endif
 endsubroutine coll_grg3
 
@@ -1875,7 +1707,9 @@ endsubroutine coll_grg3
 subroutine rainhetfreez3
   implicit none
 
-  real    :: J_het
+  real :: J_het
+  real :: dq_hr_het = 0. !< heterogeneou freezing of raindrops
+  real :: dn_hr_het = 0. !< heterogeneou freezing of raindrops
 
   ! performing calculation for the freezing rate
   if (q_hr_mask.and.(tmp0.lt.T_3)) then
@@ -1905,6 +1739,11 @@ subroutine rainhetfreez3
 
     ! change in th_l due to freezing
     thlpmcr = thlpmcr - (rlme/(cp_exnf_k))*dq_hr_het
+
+    if (l_tendencies) then
+      tend(idq_hr_het) = dq_hr_het
+      tend(idn_hr_het) = dn_hr_het
+    endif
   endif
 end subroutine rainhetfreez3
 
@@ -1915,8 +1754,13 @@ subroutine coll_rig3
   use modglobal, only : pi
   implicit none
 
-  real    :: rem_ci_cf,rem_hr_cf,k_enhm
-  real    :: E_ab, dn_col_b, dq_col_a, dq_col_b
+  real :: rem_ci_cf,rem_hr_cf,k_enhm
+  real :: E_ab, dn_col_b, dq_col_a, dq_col_b
+
+  real :: dn_ci_col_ri  = 0.  !< ice number loss from riming of ice+rain->gr
+  real :: dn_hr_col_ri  = 0.  !< rain number loss from riming of ice+rain->gr
+  real :: dn_ci_eme_ri  = 0.  !< number tendency enhanced melting of cloud ice by rain
+  real :: dq_ci_eme_ri  = 0.  !< mass tendency enhanced melting of cloud ice  by rain
 
   ! setting up extra coefficients
   ! remain coefficients
@@ -2016,6 +1860,14 @@ subroutine coll_rig3
       ! change in thl - heat spent on melting
       thlpmcr = thlpmcr+(rlme/(cp_exnf_k))*dq_ci_eme_ri
     endif
+    if (l_tendencies) then
+      tend(idn_ci_col_ri) = dn_ci_col_ri
+      tend(idq_ci_col_ri) = dq_ci_col_ri
+      tend(idn_hr_col_ri) = dn_hr_col_ri
+      tend(idq_hr_col_ri) = dq_hr_col_ri
+      tend(idn_ci_eme_ri) = dn_ci_eme_ri
+      tend(idq_ci_eme_ri) = dq_ci_eme_ri
+    endif
   endif
 end subroutine coll_rig3
 
@@ -2027,8 +1879,13 @@ subroutine coll_rsg3
   use modglobal, only : pi
   implicit none
 
-  real    :: rem_cf, k_enhm
-  real    :: E_ab, dn_col_b, dq_col_a, dq_col_b
+  real :: rem_cf, k_enhm
+  real :: E_ab, dn_col_b, dq_col_a, dq_col_b
+
+  real :: dn_hr_col_rs  = 0. !< snow loss from riming of ice+snow->gr
+  real :: dn_hs_col_rs  = 0. !< snow number loss from riming of ice+snow->gr
+  real :: dn_hs_eme_rs  = 0. !< number tendency enhanced melting of snow by rain
+  real :: dq_hs_eme_rs  = 0. !< mass tendency enhanced melting of snow by rain
 
   dn_col_b = 0.0
   dq_col_a = 0.0
@@ -2119,17 +1976,28 @@ subroutine coll_rsg3
       ! change in thl - heat spent on melting
       thlpmcr = thlpmcr+(rlme/(cp_exnf_k))*dq_hs_eme_rs
     endif
+    if (l_tendencies) then
+      tend(idn_hr_col_rs) = dn_hr_col_rs
+      tend(idn_hs_col_rs) = dn_hs_col_rs
+      tend(idn_hs_eme_rs) = dn_hs_eme_rs
+      tend(idq_hs_eme_rs) = dq_hs_eme_rs
+      tend(idq_hr_col_rs) = dq_hr_col_rs
+      tend(idq_hs_col_rs) = dq_hs_col_rs
+    endif
   endif
 end subroutine coll_rsg3
 
 
 ! Ice multiplication
 !   - calls separately H-M process for each of the riming processes
+! TODO: only call when there is ice
 ! ------------------
 subroutine ice_multi3
   implicit none
 
-  real    :: dq_ci_spl, dn_ci_spl, dq_hg_temp
+  real :: dq_ci_spl, dn_ci_spl, dq_hg_temp
+  real :: dn_ci_mul = 0.  !< ice multiplication
+  real :: dq_ci_mul = 0.  !< ice multiplication
 
   dq_hg_temp = 0.0
   dq_ci_spl  = 0.0
@@ -2182,6 +2050,10 @@ subroutine ice_multi3
   n_cip = n_cip + dn_ci_mul
   q_cip = q_cip + dq_ci_mul
 
+  if (l_tendencies) then
+    tend(idn_ci_mul) = dn_ci_mul
+    tend(idq_ci_mul) = dq_ci_mul
+  endif
 end subroutine ice_multi3
 
 
@@ -2206,6 +2078,11 @@ subroutine conv_partial3
                      ,cc_hs = al_0snow*rhow/rhoeps
 
   real :: rem_ci_cf, rem_hs_cf
+
+  real :: dq_ci_cv = 0. !< partial conversion ice -> graupel
+  real :: dn_ci_cv = 0.
+  real :: dq_hs_cv = 0. !< partial conversion snow-> graupel
+  real :: dn_hs_cv = 0.
 
   ! remain coefficients
   rem_ci_cf = (1.0-rem_n_min_cv)/delt
@@ -2302,6 +2179,12 @@ subroutine conv_partial3
         ! count(q_hs+delt*dq_hs_cv.lt. 0)
       endif
     endif
+    if (l_tendencies) then
+      tend(idq_ci_cv) = dq_ci_cv
+      tend(idn_ci_cv) = dn_ci_cv
+      tend(idq_hs_cv) = dq_hs_cv
+      tend(idn_hs_cv) = dn_hs_cv
+    endif
   endif
 end subroutine conv_partial3
 
@@ -2317,6 +2200,18 @@ end subroutine conv_partial3
 subroutine evapmelting3
   use modglobal, only : rlv
   implicit none
+  real :: dn_ci_me = 0.   !< number tendency melting of cloud ice
+  real :: dq_ci_me = 0.   !< mass tendency melting of cloud ice
+  real :: dn_hs_me = 0.   !< number tendency melting of snow
+  real :: dq_hs_me = 0.   !< mass tendency melting of snow
+  real :: dn_hg_me = 0.   !< number tendency melting of graupel
+  real :: dq_hg_me = 0.   !< mass tendency melting of graupel
+  real :: dn_ci_ev = 0.   !< number tendency evaporation of cloud ice
+  real :: dq_ci_ev = 0.   !< mass tendency evaporation of cloud ice
+  real :: dn_hs_ev = 0.   !< number tendency evaporation of snow
+  real :: dq_hs_ev = 0.   !< mass tendency evaporation of snow
+  real :: dn_hg_ev = 0.   !< number tendency evaporation of graupel
+  real :: dq_hg_ev = 0.   !< mass tendency evaporation of graupel
 
   ! ------------------------------------
   ! calling separate melting processes
@@ -2385,6 +2280,21 @@ subroutine evapmelting3
   thlpmcr = thlpmcr+                             &
             (rlme/(cp_exnf_k))*(dq_ci_me+dq_hs_me+dq_hg_me) + &
       ((rlv+rlme)/(cp_exnf_k))*(dq_ci_ev+dq_hs_ev+dq_hg_ev)
+
+  if (l_tendencies) then
+    tend(idn_ci_me) =  dn_ci_me
+    tend(idq_ci_me) =  dq_ci_me
+    tend(idn_hs_me) =  dn_hs_me
+    tend(idq_hs_me) =  dq_hs_me
+    tend(idn_hg_me) =  dn_hg_me
+    tend(idq_hg_me) =  dq_hg_me
+    tend(idn_ci_ev) =  dn_ci_ev
+    tend(idq_ci_ev) =  dq_ci_ev
+    tend(idn_hs_ev) =  dn_hs_ev
+    tend(idq_hs_ev) =  dq_hs_ev
+    tend(idn_hg_ev) =  dn_hg_ev
+    tend(idq_hg_ev) =  dq_hg_ev
+  endif
 end subroutine evapmelting3
 
 
@@ -2401,6 +2311,8 @@ subroutine autoconversion3
 
   real :: rem_cf
   real :: tau, phi, nuc
+  real :: dq_hr_au = 0.   !< change in mass of raindrops due to autoconversion
+  real :: dn_hr_au = 0.   !< change in number of raindrops due to autoconversion
 
   if (l_sb) then
     !
@@ -2481,7 +2393,11 @@ subroutine autoconversion3
       ! count(n_cl(2:i1,2:j1,1:kmax)/delt - (2.0/x_s)*dq_hr_au.lt. 0.)
     end if
   endif
-
+  if (l_tendencies) then
+    tend(idq_hr_au) = dq_hr_au
+    tend(idn_hr_au) = dn_hr_au
+    tend(idn_cl_au) = dn_cl_au
+  endif
 end subroutine autoconversion3
 
 
@@ -2519,6 +2435,9 @@ subroutine cloud_self3
         ! count(n_clm/delt -dn_cl_sc).lt. 0.)
       endif
     endif
+    if (l_tendencies) then
+      tend(idn_cl_sc) = dn_cl_sc
+    endif
   endif
 end subroutine cloud_self3
 
@@ -2533,6 +2452,9 @@ subroutine accretion3
 
   real :: phi, Dvrf, tau
   real :: rem_cf
+  real :: dq_hr_ac = 0.  !< change in mass of raindrops due to accretion
+  real :: dn_hr_br = 0.
+  real :: dn_hr_sc = 0.
 
   if (l_sb) then
     if (l_sb_classic) then
@@ -2660,6 +2582,12 @@ subroutine accretion3
       ! count(n_clm/delt-dq_hr_ac/x_cl.lt. 0.)
     endif
   endif ! l_sb_dbg
+  if (l_tendencies) then
+    tend(idn_cl_ac) = dn_cl_ac
+    tend(idq_hr_ac) = dq_hr_ac
+    tend(idn_hr_br) = dn_hr_br
+    tend(idn_hr_sc) = dn_hr_sc
+  endif
 end subroutine accretion3
 
 
@@ -2678,6 +2606,9 @@ subroutine evap_rain3
          ,vihr  & ! mean terminal velocity
          ,nrex  & ! Reynolds number N_re(xr)
          ,x_hrf   ! full x_hr without bounds
+
+  real :: dq_hr_ev = 0.
+  real :: dn_hr_ev = 0.
 
   if (q_hr_mask) then
     ! adjusting the calculation for saturation
@@ -2720,6 +2651,11 @@ subroutine evap_rain3
     ! recovery of aerosols ?
     ret_cc = ret_cc - c_ccn_ev_r*min(0.0,dn_hr_ev)
 
+    if (l_tendencies) then
+      tend(idq_hr_ev) = dq_hr_ev
+      tend(idn_hr_ev) = dn_hr_ev
+      tend(iret_cc  ) = ret_cc
+    endif
   endif
 end subroutine evap_rain3
 
@@ -2741,6 +2677,8 @@ subroutine satadj3
   implicit none
 
   real :: ntest, n_bmax, cogr_max, ql_res
+  real :: dq_cl_sa = 0.  !< saturation adjustment
+  real :: dn_cl_sa = 0.  !< change in n_cl due to saturation adjustment
 
   if (l_sb_all_or) then
     ! NOTE: threshold might be lower then threshold for cloud computations, obviously
@@ -2848,7 +2786,13 @@ subroutine satadj3
     ! and update
     q_clp  = q_clp + dq_cl_sa
     n_clp  = n_clp + dn_cl_sa
+
   endif ! l_sb_all_or
+
+  if (l_tendencies)
+    tend(idq_cl_sa) = dq_cl_sa
+    tend(idn_cl_sa) = dn_cl_sa
+  endif
 end subroutine satadj3
 
 
@@ -2921,7 +2865,6 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
   nrex        =  0.0
   me_q        =  0.0
   me_n        =  0.0
-
 
   ! constant evaporation parameter for melting particles
   ! based on: G = (rv * tmp0) / (Dv*esl) + rlv/(Kt*tmp0)*(rlv/(rv*tmp0) -1.)
@@ -3044,21 +2987,20 @@ subroutine hallet_mossop3(t0,dq_rime,q_e,dq_i_hm,dn_i_hm)
   real, intent(out) :: dq_i_hm   ! tendency in q_i by H-M process
   real, intent(out) :: dn_i_hm   ! tendency in n_i by H-M process
 
-  ! local variables
-
-! constants in calculation
+  ! constants in calculation
   real, parameter :: c_spl  = c_spl_hm74 &
                     ,c_1_hm = 1.0/(tmp_opt_hm74-tmp_min_hm74) &
                     ,c_2_hm = 1.0/(tmp_opt_hm74-tmp_max_hm74)
 
+  ! local variables
   real :: mult_1,mult_2,mint_1,mint_2    &  ! calculation variables
          ,dn_try,dq_try,rem_cf              ! trial variables
 
-  ! setting coefficient for reminder
-  rem_cf  = (1.0-rem_q_e_hm)/delt
-
   ! only if riming going on temperature below 0
   if ((dq_rime.gt.0).and.(t0.lt.T_3)) then
+
+     ! setting coefficient for reminder
+     rem_cf  = (1.0-rem_q_e_hm)/delt
 
      ! f_spl calculation following ICON
      mult_1 = c_1_hm * (t0-tmp_min_hm74)   ! positive in the target interval
