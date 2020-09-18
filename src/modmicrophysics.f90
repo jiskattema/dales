@@ -43,7 +43,7 @@ contains
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
     use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
-                             imicro_sice, imicro_sice2, imicro_none, &
+                             imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
                              l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
                              Nc_0, sig_g, sig_gr, courantp
     use modbulkmicro3, only : initbulkmicro3 !#sb3
@@ -118,7 +118,8 @@ contains
    use modsimpleice, only : simpleice
    use modsimpleice2, only : simpleice2
    use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, &
-                            imicro_sice, imicro_sice2, imicro_user, imicro_none
+                            imicro_sice, imicro_sice2, imicro_user, imicro_none, &
+                            imicro_bulk3
    use modbulkmicro3, only : bulkmicro3 !#sb3
 !     use modbinmicro,  only : binmicrosources
     implicit none
@@ -148,7 +149,8 @@ contains
     use modsimpleice, only : exitsimpleice
     use modsimpleice2, only : exitsimpleice2
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bin, &
-                             imicro_user, imicro_bulk, imicro_sice, imicro_sice2
+                             imicro_user, imicro_bulk, imicro_sice, imicro_sice2, &
+                             imicro_bulk3
     use modbulkmicro3, only : exitbulkmicro3 !#sb3
  !     use modbinmicro,  only : exitbinmicro
     implicit none
