@@ -753,11 +753,11 @@ contains
       do j=2,j1
       do i=2,i1
        ! calculate surface precipitation
-       sfc_precw_avl = sfc_precw_avl+1000.0*rhof(1)           &
-                       *(precep_l(i,j,1)+precep_i(i,j,1))
-       sfc_prec_avl = sfc_prec_avl                            &
-                      +rlv*rhof(1)*precep_l(i,j,1)            &
-                      +rlvi*rhof(1)*precep_i(i,j,1)
+       sfc_precw_avl = sfc_precw_avl+1000.0*rhof(1)         &
+                       *(precep_l(i,j)+precep_i(i,j))
+       sfc_prec_avl = sfc_prec_avl                          &
+                      +rlv*rhof(1)*precep_l(i,j)            &
+                      +rlvi*rhof(1)*precep_i(i,j)
       enddo 
       enddo
       

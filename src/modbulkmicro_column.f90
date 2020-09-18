@@ -3,58 +3,61 @@ module modbulkmicro_column
   use modmicrodata3
   use modglobal, only : k1
   implicit none
-!
-! TODO: who uses these?
-! (precep_hr     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of raindrops
-! ,precep_ci     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of ice crystals
-! ,precep_hs     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of snow
-! ,precep_hg     (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< precipitation of graupel
-! ,ret_cc        (2-ih:i1+ih,2-jh:j1+jh,k1) &      !< recovery of ccn
-! )
 
 contains
 
-subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, tend)
+subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
+                            precep_hr,precep_ci,precep_hs,precep_hg,&
+                            tend)
   implicit none
-  real, intent(in),    dimension(k1,12)     :: sv0
-  real, intent(inout), dimension(k1,12)     :: svp
+  real, intent(in),    dimension(ncols,k1)     :: sv0
+  real, intent(inout), dimension(ncols,k1)     :: svp
   real, intent(inout), dimension(k1)        :: thlpmcr, qtpmcr
-  real, intent(inout), dimension(ntends,k1) :: tend
+  real, intent(out),   dimension(k1)        :: precep_hr, precep_ci, precep_hs, precep_hg
+  real, intent(out),   dimension(ntends,k1) :: tend
 
   ! sedimentation
   ! -----------------------------------------------------------------
+  !write(*,*) 'rain'
   call sedim_rain3(sv0(iq_hr,:), sv0(in_hr,:) &
                   ,svp(iq_hr,:), svp(in_hr,:) &
-                  ,tend)
+                  ,precep_hr,tend)
+  !write(*,*) 'cl'
   call sedim_cl3(sv0(iq_cl,:), sv0(in_cl,:) &
                 ,svp(iq_cl,:), svp(in_cl,:) &
                 ,svp(in_cc,:)               &
                 ,qtpmcr,thlpmcr,tend)
+  !write(*,*) 'ice'
   call sedim_ice3(sv0(iq_ci,:), sv0(in_ci,:) &
                  ,svp(iq_ci,:), svp(in_ci,:) &
-                 ,tend)
+                 ,precep_ci,tend)
+  !write(*,*) 'snow'
   call sedim_snow3(sv0(iq_hs,:), sv0(in_hs,:) &
                   ,svp(iq_hs,:), svp(in_hs,:) &
-                  ,tend)
+                  ,precep_hs,tend)
+  !write(*,*) 'graupel'
   call sedim_graupel3(sv0(iq_hg,:), sv0(in_hg,:) &
                      ,svp(iq_hg,:), svp(in_hg,:) &
-                     ,tend)
+                     ,precep_hg,tend)
 
+  !write(*,*) 'done'
 end subroutine column_processes
 
 
 !> Cloud nucleation
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
-subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, tend)
+subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc &
+                      ,statistics,tend)
   use modglobal, only : dzf,k1
   implicit none
   real, intent(in)    :: qt0(k1), qvsl(k1), w0(k1)
   real, intent(in)    :: q_cl(k1), n_cl(k1), n_cc(k1)
   real, intent(inout) :: q_clp(k1), n_clp(k1)
   real, intent(out)   :: tend(ntends, k1)
+  real, intent(inout)  :: statistics(nmphys,k1)
 
-  real    :: dn_cl_nu(k1) = 0.  !< droplet nucleation rate
+  real    :: dn_cl_nu(k1)  !< droplet nucleation rate
   integer :: k
   real    :: coef_ccn, n_act
 
@@ -65,6 +68,8 @@ subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, tend)
          ,ssat(k1)    & !                 at (...,k)
          ,ssat_d      & !                 at (...,k-1)
          ,wdssatdz(k1)  ! derivation of supersaturation
+
+  dn_cl_nu = 0.
 
   coef_ccn  = 1.0/sat_max**kappa_ccn ! 1.0
   ! allows to keep both definitions consistent
@@ -244,13 +249,16 @@ subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, tend)
   enddo
 
   ! increase in cloud water number
-  n_clp(:) = n_clp(:) + dn_cl_nu(:)
+  n_clp = n_clp + dn_cl_nu
 
   ! update water density [kg kg^{-1}]
-  q_clp(:) = q_clp(:) + x_cnuc(:) * dn_cl_nu(:)
+  q_clp = q_clp + x_cnuc * dn_cl_nu
 
   if (l_tendencies) then
     tend(idn_cl_nu,:) = dn_cl_nu(:)
+  endif
+  if (l_statistics) then
+    statistics(imphys_cond,:) = statistics(imphys_cond,:) + x_cnuc * dn_cl_nu(:)
   endif
 end subroutine  nucleation3
 
@@ -262,12 +270,13 @@ end subroutine  nucleation3
 !! - l_lognormal =T : lognormal DSD is assumed with D_g and N known and
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
-subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, tend)
+subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
   use modglobal, only : k1,kmax,eps1,dzf
   use modfields, only : rhof
   implicit none
   real, intent(in)     :: q_hr(k1), n_hr(k1)
   real, intent(inout)  :: q_hrp(k1), n_hrp(k1)
+  real, intent(out)    :: precep_hr(k1)
   real, intent(out)    :: tend(ntends, k1)
 
   integer :: k,jn,n_spl
@@ -402,15 +411,14 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, tend)
       Nr_spl(k) = max(0.0, wvar)
 
       if (jn == 1) then
-        ! TODO
-        ! precep_hr(k) = sed_qr(k)/rhof(k) ! kg kg-1 m s-1
+        precep_hr(k) = sed_qr(k)/rhof(k)          ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
   ! updates
-  n_hrp = n_hrp + tend(idn_hr_se,:)
-  q_hrp = q_hrp + tend(idq_hr_se,:)
+  n_hrp = n_hrp + (Nr_spl(:) - n_hr(:))/delt
+  q_hrp = q_hrp + (qr_spl(:) - q_hr(:))/delt
 
   if (l_tendencies) then
     tend(idn_hr_se,:) = (Nr_spl(:) - n_hr(:))/delt
@@ -421,12 +429,13 @@ end subroutine sedim_rain3
 
 ! sedimentation of snow
 ! ---------------------
-subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, tend)
+subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, precep_hs, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
   real, intent(in)    :: q_hs(k1), n_hs(k1)
   real, intent(inout) :: q_hsp(k1), n_hsp(k1)
+  real, intent(out)   :: precep_hs(k1)
   real, intent(out)   :: tend(ntends, k1)
 
   integer :: k,jn
@@ -479,16 +488,14 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, tend)
 
       ! -> check this part properly later
       if (jn == 1) then
-        ! TODO
-        ! precep_hs(k) = sed_qip(k)/rhof(k)       ! kg kg-1 m s-1
-        ! precep_i(k) = precep_i(k)+ precep_hs(k) ! kg kg-1 m s-1
+        precep_hs(k) = sed_qip(k)/rhof(k)        ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
   ! updates
-  n_hsp = n_hsp + tend(idn_hs_se,:)
-  q_hsp = q_hsp + tend(idq_hs_se,:)
+  n_hsp = n_hsp + (nip_spl(:) - n_hs(:))/delt
+  q_hsp = q_hsp + (qip_spl(:) - q_hs(:))/delt
 
   if (l_tendencies) then
     tend(idn_hs_se,:) = (nip_spl(:) - n_hs(:))/delt
@@ -499,12 +506,13 @@ end subroutine sedim_snow3
 
 ! sedimentation of graupel
 ! ------------------------
-subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, tend)
+subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, precep_hg, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
   real, intent(in)    :: q_hg(k1), n_hg(k1)
   real, intent(inout) :: q_hgp(k1), n_hgp(k1)
+  real, intent(out)   :: precep_hg(k1)
   real, intent(out)   :: tend(ntends, k1)
 
   integer :: k,jn
@@ -557,16 +565,14 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, tend)
 
       ! -> check this part properly later
       if (jn == 1) then
-        ! TODO BUG
-        !precep_hg(k) = precep_hg(k) + sed_qip(k) /rhof(k) ! kg kg-1 m s-1
-        !precep_i(k) = precep_i(k) + precep_hg(k) ! kg kg-1 m s-1
+        precep_hg(k) = sed_qip(k)/rhof(k)          ! kg kg-1 m s-1
       endif
     enddo  ! second k loop
   enddo ! time splitting loop
 
   ! updates
-  n_hgp = n_hgp + tend(idn_hg_se,:)
-  q_hgp = q_hgp + tend(idq_hg_se,:)
+  n_hgp = n_hgp + (nip_spl(:) - n_hg(:))/delt
+  q_hgp = q_hgp + (qip_spl(:) - q_hg(:))/delt
 
   if (l_tendencies) then
     tend(idn_hg_se,:) = (nip_spl(:) - n_hg(:))/delt
@@ -577,15 +583,16 @@ end subroutine sedim_graupel3
 
 ! sedimentation of cloud ice
 ! --------------------------
-subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
+subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
   use modglobal, only : k1,kmax,dzf
   use modfields, only : rhof
   implicit none
   real, intent(in)    :: q_ci(k1), n_ci(k1)
   real, intent(inout) :: q_cip(k1), n_cip(k1)
+  real, intent(out)   :: precep_ci(k1)
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k,jn,n_spl
+  integer :: k,jn,n_spl, k_low, k_high
 
   real :: qip_spl(k1), nip_spl(k1)
   real :: sed_qip(k1), sed_nip(k1)
@@ -602,6 +609,9 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
     sed_qip = 0.
     sed_nip = 0.
 
+    k_low = k1
+    k_high = 0
+
     do k=1,k1
       if ( (qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0) ) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
@@ -614,36 +624,41 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, tend)
 
         wfall = max(0.0,c_v_s0 * xip_spl**be_ci)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
+
+        k_low = min(k_low, k)
+        k_high = max(k_high, k)
       endif
     enddo
 
+    if (k_high == 0 .and. jn == 1) return ! no sedimentation
+
     ! segmentation over levels
-    do k = 1,kmax
+    do k = k_low,min(kmax,k_high)
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'ice sedim too large'
+        write(6,*) 'sedim_ice3: d seq_qip / dk too large' &
+                  ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'ice sedim too large'
+        write(6,*) 'sedim_ice3: d sed_nip / dk too large' &
+                  ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       nip_spl(k) = max(0.0, wvar)
 
       !d -> check this part properly later
       if (jn == 1) then
-        ! TODO
-        !precep_ci(k) = sed_qip(k)/rhof(k) ! kg kg-1 m s-1
-        !precep_i(k) = precep_i(k) + precep_ci(k) ! kg kg-1 m s-1
+        precep_ci(k) = sed_qip(k)/rhof(k)         ! kg kg-1 m s-1
       endif
 
     enddo  ! second k loop
   enddo ! time splitting loop
 
   ! updates
-  n_cip = n_cip + tend(idn_ci_se,:)
-  q_cip = q_cip + tend(idq_ci_se,:)
+  n_cip = n_cip + (nip_spl - n_ci)/delt
+  q_cip = q_cip + (qip_spl - q_ci)/delt
 
   ! BUG: also qtpmcr and thlpmcr change?
   ! qtpmcr(k) = qtpmcr + 0.0
@@ -668,7 +683,7 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
   real, intent(inout) :: qtpmcr(k1), thlpmcr(k1)
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k, jn, n_spl
+  integer :: k, jn, n_spl, k_low, k_high
   real :: qip_spl(k1), nip_spl(k1)
   real :: sed_qip(k1), sed_nip(k1)
   real :: wvar, xip_spl
@@ -685,6 +700,9 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
     sed_qip = 0.
     sed_nip = 0.
 
+    k_low = k1
+    k_high = 0
+
     do k=1,k1
       if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
@@ -697,41 +715,50 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
 
         wfall = max(0.0,c_v_c0 * xip_spl**be_cl)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
+
+        k_low = min(k_low, k)
+        k_high = max(k_high, k)
       endif
     enddo
 
+    if (k_high == 0 .and. jn == 1) return ! no sedimentation
+
     ! segmentation over levels
-    do k = 1,kmax
+    do k = k_low,min(kmax,k_high)
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*)'cloud sedim too large'
+        write(6,*) 'sedim_cl3: d sed_qip / dk too large' &
+                  ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*)'cloud sedim too large'
+        write(6,*) 'sedim_cl3: d sed_nip / dk too large' &
+                  ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       nip_spl(k) = max(0.0, wvar)
 
-      ! BUG: no precep?
+      ! BUG: no precep from cloud water?
     enddo  ! second k loop
+
+    if(any(q_cl < 0.0) .or. any(qip_spl < 0.)) then
+      write(*,*)'Sedim cloud negative issues', count(q_cl <0.), count(qip_spl <0.)
+    endif
 
   enddo ! time splitting loop
 
   ! updates
-  n_clp = n_clp + tend(idn_cl_se,:)
-  q_clp = q_clp + tend(idq_cl_se,:)
+  n_clp = n_clp + (nip_spl(:) - n_cl(:))/delt
+  q_clp = q_clp + (qip_spl(:) - q_cl(:))/delt
 
   ! also qtpmcr and thlpmcr change
-  qtpmcr = qtpmcr + tend(idq_cl_se,:)
-  do k=1,k1
-    thlpmcr(k) = thlpmcr(k) - (rlv/(cp*exnf(k)))*tend(idq_cl_se,k)
-  enddo
+  qtpmcr  = qtpmcr + (qip_spl(:) - q_cl(:))/delt
+  thlpmcr = thlpmcr - (rlv/(cp*exnf(k)))*(qip_spl(:) - q_cl(:))/delt
 
   ! NOTE: moved here from recover_cc point process
   ! recovery of ccn
-  n_ccp = n_ccp + tend(idn_cl_se,:)
+  n_ccp = n_ccp + (nip_spl(:) - n_cl(:))/delt
 
   if (l_tendencies) then
     tend(idn_cl_se,:) = (nip_spl(:) - n_cl(:))/delt

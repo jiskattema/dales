@@ -30,7 +30,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI, NLeSC
 !
 
 ! TODO:
@@ -65,14 +65,12 @@ module modbulkmicro3
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro3
-    use modglobal, only : lwarmstart,ifnamopt,fname_options
+    use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
     use modmpi,    only : myid,my_real,comm3d,mpi_logical
     implicit none
     integer :: ierr
 
-    ! #sb3 START - namelist for setting of bulk microphysics
     ! set some initial values before loading namelist
-    !
     namelist/NAMBULK3/  &
      l_sb_classic, l_sb_dumpall                              &
      ,l_sb_all_or, l_sb_dbg                                  &
@@ -87,7 +85,8 @@ module modbulkmicro3
      ,N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R               & !  parameters for ice nucleation - Reisner correction
      ,c_ccn, n_clmax                                         & ! C_CCN parameter, used when l_c_ccn
      ,kappa_ccn, x_cnuc,sat_max                              & ! parameters for liquid cloud nucleation
-     ,Nc0, xc0_min, Nccn0                                      !! setting of initial clouds
+     ,Nc0, xc0_min, Nccn0                                    & ! setting of initial clouds
+     ,l_statistics, l_tendencies                               ! output
 
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -418,6 +417,17 @@ module modbulkmicro3
      write (6,*)   ' --------------------------------------------------- '
 
    endif
+
+   allocate(precep_l     (2-ih:i1+ih,2-jh:j1+jh) &
+           ,precep_i     (2-ih:i1+ih,2-jh:j1+jh) )
+   allocate(statistics_patch(nmphys,k1) &
+           ,tend_patch(ntends,k1)       )
+   allocate(precep_hr_colcnt(k1) &
+           ,precep_hr_colcsm(k1) &
+           ,precep_hr_colsum(k1) &
+           ,precep_ci_colsum(k1) &
+           ,precep_hs_colsum(k1) &
+           ,precep_hg_colsum(k1) )
   end subroutine initbulkmicro3
 
 
@@ -425,6 +435,10 @@ module modbulkmicro3
 ! ---------------------------------------------------------------------------------
 subroutine exitbulkmicro3
   implicit none
+  deallocate(precep_l, precep_i)
+  deallocate(statistics_patch,tend_patch)
+  deallocate(precep_hr_colcnt, precep_hr_colcsm,precep_hr_colsum &
+            ,precep_ci_colsum, precep_hs_colsum,precep_hg_colsum)
 end subroutine exitbulkmicro3
 
 
@@ -433,7 +447,8 @@ end subroutine exitbulkmicro3
 subroutine bulkmicro3
   use modglobal, only : i1,j1,k1,rdt,rk3step
 
-  use modfields, only : sv0,svp,svm,qtp,thlp,qvsl,tmp0,qt0,w0,ql0,esl,qvsi
+  use modfields, only : sv0,svp,svm,qtp,thlp,qvsl,tmp0,qt0,w0,ql0,esl,qvsi &
+                       ,exnf,rhof,presf
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
   use modmicrodata3, only : in_cl
   use modmpi,    only : myid
@@ -441,13 +456,16 @@ subroutine bulkmicro3
   use modbulkmicro_column, only : nucleation3, column_processes
   implicit none
   integer :: i,j,k,isv
-  real :: tmp0_col(1:k1), qt0_col(1:k1)
-  real :: ql0_col(1:k1),  esl_col(1:k1)
-  real :: qvsl_col(1:k1), qvsi_col(1:k1)
-  real :: w0_col(1:k1)
-  real :: sv0_col(12,k1),svp_col(12,k1),svm_col(12,k1)
-  real :: thlpmcr_col(1:k1), qtpmcr_col(1:k1)
-  real :: tend(ntends, k1)
+
+  real :: sv0_t   (ncols,k1,i1,j1) &
+         ,svp_t   (ncols,k1,i1,j1) &
+         ,svm_t   (ncols,k1,i1,j1) &
+         ,prg_t   (   k1, 9,i1,j1)
+
+  real :: tend_col      (ntends, k1)  &
+         ,statistics_col(nmphys, k1)
+
+  real :: precep_hr_col(k1),precep_ci_col(k1),precep_hs_col(k1),precep_hg_col(k1)
 
   ! check if ccn and clouds were already initialised
   ! ------------------------------------------------
@@ -466,83 +484,356 @@ subroutine bulkmicro3
     endif
   endif
 
+  ! Zero the 2D precipitation fields, and summed statistics and tendencies
+  precep_l = 0.
+  precep_i = 0.
+  if (l_tendencies) then
+    tend_patch = 0.
+  endif
+  if (l_statistics) then
+    statistics_patch = 0.
+  endif
+
   delt = rdt / (4. - dble(rk3step))
+
+  ! Re-order the data in column (isv,k,i,j) format
+  ! ----------------------------------------------
+  call transpose_svs(sv0_t, svm_t, svp_t, prg_t)
 
   ! loop over all (i,j) columns
   do i=1,i1
   do j=1,j1
-
-    ! Copy the all variables in this column to local vars
-    ! NOTE: this will be slow when the arrays are large,
-    !       as we have a memory-bandwidth bottleneck
-    ! TODO: unroll / split this loop? different memory layout for the scalars? multiple columns at once?
-    do k=1,k1
-      tmp0_col(k) = tmp0(i,j,k)
-      qt0_col(k)  = qt0(i,j,k)
-      ql0_col(k)  = ql0(i,j,k)
-      esl_col(k)  = esl(i,j,k)
-      qvsl_col(k) = qvsl(i,j,k)
-      qvsi_col(k) = qvsi(i,j,k)
-      w0_col(k)   = w0(i,j,k)
-    enddo
-    do k=1,k1
-    do isv=1,12
-      svm_col(isv,k) = svm(i,j,k,isv)
-      sv0_col(isv,k) = sv0(i,j,k,isv)
-      svp_col(isv,k) = svp(i,j,k,isv)
-    enddo
-    enddo
+    ! Zero the column outputs
+    if (l_tendencies) then
+      precep_hr_colcnt = 0.
+      precep_hr_colcsm = 0.
+      precep_hr_colsum = 0.
+      precep_ci_colsum = 0.
+      precep_hs_colsum = 0.
+      precep_hg_colsum = 0.
+      tend_col = 0.
+    endif
+    if (l_statistics) then
+      statistics_col = 0.
+    endif
 
   ! Column processes
   ! ------------------------------------------------------------------
-    call nucleation3(qt0_col, qvsl_col, w0_col            &
-                    ,sv0_col(iq_cl,:), svp_col(iq_cl,:)   &
-                    ,sv0_col(in_cl,:), svp_col(in_cl,:)   &
-                    ,sv0_col(in_cc,:), tend(:,:)          )
-
-  ! loop over all k-points in this (i,j) column
-    do k=1,k1 ! TODO: kmax?
+    call nucleation3(prg_t(:,1,i,j), prg_t(:,5,i,j), prg_t(:,7,i,j)  &
+                    ,sv0_t(iq_cl,:,i,j), svp_t(iq_cl,:,i,j)          &
+                    ,sv0_t(in_cl,:,i,j), svp_t(in_cl,:,i,j)          &
+                    ,sv0_t(in_cc,:,i,j)                              &
+                    ,statistics_col, tend_col                        )
 
   !  - Point processes at k-point
   ! ------------------------------------------------------------------
-      call point_processes(tmp0_col(k), qt0_col(k), ql0_col(k), esl_col(k)   &
-                          ,qvsl_col(k), qvsi_col(k)                          &
-                          ,sv0_col(:,k), svp_col(:,k), svm_col(:,k)          &
-                          ,thlpmcr_col(k), qtpmcr_col(k), tend(:,k)          )
+    do k=1,k1 ! TODO: kmax?
+      call point_processes(prg_t(k,1,i,j), prg_t(k,2,i,j), prg_t(k,3,i,j), prg_t(k,4,i,j) &
+                          ,prg_t(k,5,i,j), prg_t(k,6,i,j)                                 &
+                          ,exnf(k),rhof(k),presf(k)                          &
+                          ,sv0_t(:,k,i,j), svp_t(:,k,i,j), svm_t(:,k,i,j)    &
+                          ,prg_t(k,8,i,j), prg_t(k,9,i,j)                    &
+                          ,statistics_col(:,k), tend_col(:,k)                )
     enddo
+
 
   ! Column processes
   ! ------------------------------------------------------------------
-    call column_processes(sv0_col,svp_col,thlpmcr_col,qtpmcr_col,tend)
+    call column_processes(sv0_t(:,:,i,j),svp_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j)  &
+                         ,precep_hr_col,precep_ci_col,precep_hs_col,precep_hg_col      &
+                         ,tend_col)
 
   ! remove negative values and non physical low values
   ! ------------------------------------------------------------------
-    call correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
+    call correct_neg_qt(svp_t(:,:,i,j),svm_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j))
 
-  ! update main prognostic variables by contribution from mphys processes,
-  ! by copying form the column to the full 3d fields.
-  !
-  ! NOTE: this will be slow when the arrays are large,
-  !       as we have a memory-bandwidth bottleneck
-  ! ------------------------------------------------------------------
-    do k=1,k1
-      thlp(i,j,k) = thlp(i,j,k) + thlpmcr_col(k)
-      qtp(i,j,k) = qtp(i,j,k) + qtpmcr_col(k)
-    enddo
-    do k=1,k1
-    do isv=1,12
-      svp(i,j,k,isv) = svp_col(isv,k)
-    enddo
-    enddo
+
+    ! Keep track of output
+    precep_l(i,j) = precep_hr_col(1)
+    precep_i(i,j) = precep_ci_col(1) + precep_hs_col(1) + precep_hg_col(1)
+
+    if (l_tendencies) then
+      tend_patch = tend_patch + tend_col
+      do k=1,k1
+        if (precep_hr_col(k) > epsprec) then
+          precep_hr_colcnt(k) = precep_hr_colcnt(k) + 1
+          precep_hr_colcsm(k) = precep_hr_colcsm(k) + precep_hr_col(k)
+        endif
+      enddo
+      precep_hr_colsum = precep_hr_colsum + precep_hr_col
+      precep_ci_colsum = precep_ci_colsum + precep_ci_col
+      precep_hs_colsum = precep_hs_colsum + precep_hs_col
+      precep_hg_colsum = precep_hg_colsum + precep_hg_col
+    endif
+    if (l_statistics) then
+      statistics_patch = statistics_patch + statistics_col
+    endif
   enddo ! loop over i
   enddo ! loop over j
 
+  ! update main prognostic variables by contribution from mphys processes
+  ! ----------------------------------------------------------------------
+  call integrate_svs(svp_t,prg_t)
+
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
-  ! call bulkmicrotend3 ! #t5
-  ! call bulkmicrostat3 ! #t5
+  !call bulkmicrotend3 ! #t5
+  !call bulkmicrostat3 ! #t5
 end subroutine bulkmicro3
 
+
+! Re-order the data to column layout
+!
+! When the arrays get larger, they will no longer fit in the cache and data
+! needs to be fetched from a next cache, and finally the main memory.
+! This is very slow.
+! In this subroutine we transpose the data such that all elements necessary
+! to calculate a grid point are close together (ie. on the same memory page).
+! Ideally, the microphysics can then run purely on the cache.
+! The transpose itself also accesses a lot of memory, but the total amount of
+! cache misses is reduced because of the cache-friendly(er) access pattern.
+!
+! tmp0,qt0,ql0,esl,qvsl,qvsi,w0,thlpmcr,qtmpcr (i,j,k)  => prg_t (k,iprg,j)
+!  1   2   3    4   5   6    7   8      9
+!
+! sv0,svm,svp0 (i,j,k,isv)  =>  sv0_t, svm_t, svp_t (isv,k,i,j)
+!
+! NOTE: Loop ordering and partial unrolling to improve performance
+! ----------------------------------------------
+subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
+  use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0
+  use modfields, only : sv0, svm, svp
+  use modglobal, only : i1,j1,k1
+  implicit none
+  real, intent(out) ::  sv0_t   (ncols,k1,i1,j1) &
+                       ,svp_t   (ncols,k1,i1,j1) &
+                       ,svm_t   (ncols,k1,i1,j1) &
+                       ,prg_t   (   k1, 9,i1,j1)
+
+  integer :: i,j,k,isv
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,1,i+0,j) = tmp0(i+0,j,k)
+    prg_t(k,1,i+1,j) = tmp0(i+1,j,k)
+    prg_t(k,1,i+2,j) = tmp0(i+2,j,k)
+    prg_t(k,1,i+3,j) = tmp0(i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,2,i+0,j) = qt0 (i+0,j,k)
+    prg_t(k,2,i+1,j) = qt0 (i+1,j,k)
+    prg_t(k,2,i+2,j) = qt0 (i+2,j,k)
+    prg_t(k,2,i+3,j) = qt0 (i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,3,i+0,j) = ql0 (i+0,j,k)
+    prg_t(k,3,i+1,j) = ql0 (i+1,j,k)
+    prg_t(k,3,i+2,j) = ql0 (i+2,j,k)
+    prg_t(k,3,i+3,j) = ql0 (i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,4,i+0,j) = esl (i+0,j,k)
+    prg_t(k,4,i+1,j) = esl (i+1,j,k)
+    prg_t(k,4,i+2,j) = esl (i+2,j,k)
+    prg_t(k,4,i+3,j) = esl (i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,5,i+0,j) = qvsl(i+0,j,k)
+    prg_t(k,5,i+1,j) = qvsl(i+1,j,k)
+    prg_t(k,5,i+2,j) = qvsl(i+2,j,k)
+    prg_t(k,5,i+3,j) = qvsl(i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,6,i+0,j) = qvsi(i+0,j,k)
+    prg_t(k,6,i+1,j) = qvsi(i+1,j,k)
+    prg_t(k,6,i+2,j) = qvsi(i+2,j,k)
+    prg_t(k,6,i+3,j) = qvsi(i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do i=2,i1,4
+  do k=1,k1
+    prg_t(k,7,i+0,j) = w0  (i+0,j,k)
+    prg_t(k,7,i+1,j) = w0  (i+1,j,k)
+    prg_t(k,7,i+2,j) = w0  (i+2,j,k)
+    prg_t(k,7,i+3,j) = w0  (i+3,j,k)
+  enddo
+  enddo
+  enddo
+
+  ! thlpmcr = 8
+  prg_t(:,8,:,:) = 0.
+  ! qtpmcr  = 9
+  prg_t(:,9,:,:) = 0.
+
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1,4
+  do isv=1,12
+      svm_t(isv,k,i+0,j) = max(svm(i+0,j,k,isv), 0.)
+      svm_t(isv,k,i+1,j) = max(svm(i+1,j,k,isv), 0.)
+      svm_t(isv,k,i+2,j) = max(svm(i+2,j,k,isv), 0.)
+      svm_t(isv,k,i+3,j) = max(svm(i+3,j,k,isv), 0.)
+  enddo
+  enddo
+  enddo
+  enddo
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1,4
+  do isv=1,12
+      sv0_t(isv,k,i+0,j) = max(sv0(i+0,j,k,isv), 0.)
+      sv0_t(isv,k,i+1,j) = max(sv0(i+1,j,k,isv), 0.)
+      sv0_t(isv,k,i+2,j) = max(sv0(i+2,j,k,isv), 0.)
+      sv0_t(isv,k,i+3,j) = max(sv0(i+3,j,k,isv), 0.)
+  enddo
+  enddo
+  enddo
+  enddo
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1,4
+  do isv=1,12
+    svp_t(isv,k,i+0,j) = svp(i+0,j,k,isv)
+    svp_t(isv,k,i+1,j) = svp(i+1,j,k,isv)
+    svp_t(isv,k,i+2,j) = svp(i+2,j,k,isv)
+    svp_t(isv,k,i+3,j) = svp(i+3,j,k,isv)
+  enddo
+  enddo
+  enddo
+  enddo
+endsubroutine
+
+
+! update main prognostic variables by contribution from mphys processes,
+! by copying from the column to the full 3d fields.
+!
+! NOTE: this will be slow when the arrays are large,
+!       as we have a memory-bandwidth bottleneck
+! ----------------------------------------------
+subroutine integrate_svs(svp_t,prg_t)
+  use modfields, only : svp, thlp, qtp
+  use modglobal, only : i1,j1,k1
+  implicit none
+  real, intent(in) ::  svp_t   (ncols,k1,i1,j1)
+  real, intent(in) ::  prg_t   (   k1, 9,i1,j1)
+
+  integer :: i,j,k,isv
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1,4
+  do isv=1,12
+     svp(i+0,j,k,isv) = svp(i+0,j,k,isv) + svp_t(isv,k,i+0,j)
+     svp(i+1,j,k,isv) = svp(i+1,j,k,isv) + svp_t(isv,k,i+1,j)
+     svp(i+2,j,k,isv) = svp(i+2,j,k,isv) + svp_t(isv,k,i+2,j)
+     svp(i+3,j,k,isv) = svp(i+3,j,k,isv) + svp_t(isv,k,i+3,j)
+  enddo
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1
+    thlp(i,j,k+0) = thlp(i,j,k+0) + prg_t(k+0,8,i,j)
+  enddo
+  enddo
+  enddo
+
+  do j=2,j1
+  do k=1,k1
+  do i=2,i1
+    qtp(i,j,k+0)  = qtp(i,j,k+0)  + prg_t(k+0,9,i,j)
+  enddo
+  enddo
+  enddo
+endsubroutine
+
+
+! Copy the all variables in this column to local vars
+!
+! NOTE: this will be slow when the arrays are large,
+!       as we have a memory-bandwidth bottleneck
+!------------------------------------------------------------------
+subroutine copy_in(i,j &
+                  ,tmp0_col, qt0_col, ql0_col, esl_col, qvsl_col, qvsi_col, w0_col)
+  use modglobal, only : k1
+  use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0, sv0, svm, svp
+  implicit none
+  integer,intent(in) :: i,j
+  real,intent(out) :: tmp0_col(1:k1), qt0_col (1:k1)
+  real,intent(out) :: ql0_col (1:k1), esl_col (1:k1)
+  real,intent(out) :: qvsl_col(1:k1), qvsi_col(1:k1)
+  real,intent(out) :: w0_col  (1:k1)
+  !real,intent(out) :: sv0_col(ncols,k1), svp_col(ncols,k1), svm_col(ncols,k1)
+
+  integer :: k, isv
+
+  do k=1,k1
+    tmp0_col(k) = tmp0(i,j,k)
+    qt0_col(k)  = qt0 (i,j,k)
+    ql0_col(k)  = ql0 (i,j,k)
+    esl_col(k)  = esl (i,j,k)
+    qvsl_col(k) = qvsl(i,j,k)
+    qvsi_col(k) = qvsi(i,j,k)
+    w0_col(k)   = w0  (i,j,k)
+  enddo
+
+end subroutine copy_in
+
+
+subroutine copy_out(i,j,thlpmcr_col, qtpmcr_col)
+  use modglobal, only : k1
+  use modfields, only : thlp, qtp, svp
+  implicit none
+  real :: svp_col(ncols,k1)
+  real :: thlpmcr_col(1:k1), qtpmcr_col(1:k1)
+  integer, intent(in) :: i,j
+
+  integer :: k,isv
+  do k=1,k1
+    thlp(i,j,k) = thlp(i,j,k) + thlpmcr_col(k)
+  enddo
+  do k=1,k1
+    qtp(i,j,k) = qtp(i,j,k) + qtpmcr_col(k)
+  enddo
+
+  !do isv=1,12,4
+  !do k=1,k1
+  !  svp(i,j,k,isv+0) = svp(i,j,k,isv+0) + svp_col(isv+0,k)
+  !  svp(i,j,k,isv+1) = svp(i,j,k,isv+1) + svp_col(isv+1,k)
+  !  svp(i,j,k,isv+2) = svp(i,j,k,isv+2) + svp_col(isv+2,k)
+  !  svp(i,j,k,isv+3) = svp(i,j,k,isv+3) + svp_col(isv+3,k)
+  !enddo
+  !enddo
+end subroutine copy_out
 
 !  cloud initialisation
 ! ===============================
@@ -649,8 +940,8 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
   use modglobal, only : cp, rlv, k1
   use modfields, only : exnf
   implicit none
-  real, intent(in)    :: svm_col(12,k1)
-  real, intent(inout) :: svp_col(12,k1),thlpmcr_col(k1),qtpmcr_col(k1)
+  real, intent(in)    :: svm_col(ncols,k1)
+  real, intent(inout) :: svp_col(ncols,k1),thlpmcr_col(k1),qtpmcr_col(k1)
 
   integer :: k
   real :: nrtest, qrtest
@@ -741,7 +1032,6 @@ end subroutine correct_neg_qt
 !*********************************************************************
 real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
   use modglobal, only : lacz_gamma ! LACZ_GAMMA
-  use modmicrodata, only : avf
   implicit none
   real, intent(in) ::  mu_a, nu_a, a_a,b_a, av
   integer, intent(in) :: nn
@@ -1040,7 +1330,6 @@ real function calc_cons_lbd (mu_a, nu_a)
   ! putting it together
   calc_cons_lbd = (mtt11/mtt21)**exp01
 end function calc_cons_lbd
-
 
 !*********************************************************************
 ! Function to calculate the saturation pressure at a specific temperature
