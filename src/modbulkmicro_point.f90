@@ -1,6 +1,6 @@
 module modbulkmicro_point
   use modglobal, only :    rdt,rk3step
-  use modmicrodata, only : Dv,Kt,delt,eps0,nu_a,Sc_num,D_eq, &
+  use modmicrodata, only : Dv,Kt,delt,nu_a,Sc_num,D_eq, &
                            k_br,k_l,k_r,k_rr,kappa_r, phi, pirhow, &
                            k_1,k_2,k_au,k_c, &
                            x_s,xrmax,xrmin,&
@@ -344,7 +344,7 @@ subroutine integrals_bulk3
       if (l_sb) then
         if(l_sb_classic) then
           ! limiting procedure (as per S&B)
-          x_hr    = q_hr/(n_hr+eps0) ! JvdD Added eps0 to avoid floating point exception
+          x_hr    = q_hr/n_hr
           x_hr    = max(xrmin,min(xrmax,x_hr))  ! same as above, for cold mphys
 
           D_hr = a_hr *x_hr**b_hr
@@ -358,7 +358,7 @@ subroutine integrals_bulk3
           lbdr = max(lbdr_min, min(lbdr_max,lbdr))
         else ! l_sb_classic
           ! #sb3 changing the variable name
-          x_hr = q_hr/(n_hr+eps0)
+          x_hr = q_hr/n_hr
           ! TODO: limit x_hr?
           xr = min(max(x_hr,xrmin),xrmax) ! to ensure xr is within borders
           Dvr = (xr/pirhow)**(1./3.)
@@ -377,21 +377,19 @@ subroutine integrals_bulk3
           endif ! l_mur_cst
         endif !  l_sb_classic
       else !  l_sb
-        if (n_hr.gt.0.) then
-          x_hr = q_hr/(n_hr+eps0)
-          ! TODO: limit x_hr?
-          Dvr = (x_hr/pirhow)**(1./3.)
+        x_hr = q_hr/n_hr
+        ! TODO: limit x_hr?
+        Dvr = (x_hr/pirhow)**(1./3.)
 
-          D_hr = a_hr *x_hr**b_hr
-          v_hr = al_hr*x_hr**be_hr*(rho0s/rhof_k)**ga_hr
-        endif
+        D_hr = a_hr *x_hr**b_hr
+        v_hr = al_hr*x_hr**be_hr*(rho0s/rhof_k)**ga_hr
       endif ! l_sb
     endif   ! l_rain
   endif ! q_hr_mask
 
   ! cloud water
   if (q_cl_mask) then
-    x_cl = q_cl/(n_cl+eps0)
+    x_cl = q_cl/n_cl
     x_cl = min(max(x_cl,x_cl_bmin),x_cl_bmax) ! as well - to limit extrme autoconversion
 
     D_cl = a_cl *x_cl**b_cl
@@ -400,7 +398,7 @@ subroutine integrals_bulk3
 
   ! cloud ice
   if (q_ci_mask) then
-    x_ci = q_ci/(n_ci+eps0)
+    x_ci = q_ci/n_ci
     x_ci = min(max(x_ci,x_ci_bmin),x_ci_bmax) ! to ensure x is within borders
 
     D_ci = a_ci *x_ci**b_ci
@@ -409,7 +407,7 @@ subroutine integrals_bulk3
 
   ! snow
   if (q_hs_mask) then
-    x_hs = q_hs/(n_hs+eps0)
+    x_hs = q_hs/n_hs
     x_hs = min(max(x_hs,x_hs_bmin),x_hs_bmax) ! to ensure x is within borders
 
     D_hs = a_hs *x_hs**b_hs
@@ -418,7 +416,7 @@ subroutine integrals_bulk3
 
   ! graupel
   if (q_hg_mask) then
-    x_hg = q_hg/(n_hg+eps0)
+    x_hg = q_hg/n_hg
     x_hg = min(max(x_hg,x_hg_bmin),x_hg_bmax) ! to ensure x is within borders
 
     D_hg = a_hg *x_hg**b_hg
@@ -863,9 +861,10 @@ subroutine cor_deposit3
   ! consumption of water vapour calculated by nucleation and deposition processes
   precon = dq_ci_dep+dq_hs_dep+dq_hg_dep
 
-  if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then ! run only in oversaturted conditions
+  ! run only in oversaturted conditions
+  if ((precon.gt.0.0).and.(tocon-precon).lt.0.0) then
     ! preparing additive correctors:
-    cond_cf = (tocon/(precon+eps0) - 1.0)  ! later added eps0 to prevent 0 values
+    cond_cf = tocon/precon - 1.0
     cond_cf = max(min(0.0, cond_cf),-1.0)
 
     ! - corrector for deposition - only if positive deposition
@@ -1277,7 +1276,7 @@ subroutine coll_ici3
 
     ! calculating number of melted particles
     ! - expected to be proportional to melted mass
-    dn_ci_eme_ic = dq_ci_eme_ic*n_ci/(q_ci+eps0)
+    dn_ci_eme_ic = dq_ci_eme_ic*n_ci/q_ci
 
     ! - but not more than number of interacting particles
     dn_ci_eme_ic = max(dn_ci_eme_ic, max(dn_col_ici,-n_cl/delt))
@@ -1407,7 +1406,7 @@ subroutine coll_scs3
 
     ! calculating number of melted particles
     ! - expected to be proportional to melted mass
-    dn_hs_eme_sc = dq_hs_eme_sc*n_hs/(q_hs+eps0) ! q_hs here is always some small positive number
+    dn_hs_eme_sc = dq_hs_eme_sc*n_hs/q_hs
 
     ! - not more than number of interacting particles
     ! dn_hs_eme_sc = max(dn_hs_eme_sc, max(dn_col_b,-n_cl/delt))
@@ -1549,7 +1548,7 @@ subroutine coll_gcg3
 
     ! calculating number of melted particles
     ! - expected to be proportional to melted mass
-    dn_hg_eme_gc = dq_hg_eme_gc*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
+    dn_hg_eme_gc = dq_hg_eme_gc*n_hg/q_hg
 
     ! - but not more than number of interacting particles
     ! dn_hg_eme_gc = max(dn_hg_eme_gc, max(dn_col_b,-n_cl/delt))
@@ -1683,7 +1682,7 @@ subroutine coll_grg3
 
     ! calculating number of melted particles
     ! - expected to be proportional to melted mass
-    dn_hg_eme_gr = dq_hg_eme_gr*n_hg/(q_hg+eps0) ! q_hg here is always some small positive number
+    dn_hg_eme_gr = dq_hg_eme_gr*n_hg/q_hg
 
     ! - but not more than number of interacting particles
     ! dn_hg_eme_gr = max(dn_hg_eme_gr, max(dn_col_b,-n_hr/delt))
@@ -1873,8 +1872,7 @@ subroutine coll_rig3
     dq_ci_eme_ri = max(dq_ci_eme_ri,min(0.0,-q_cim/delt-q_cip))
 
     ! calculate how many ice perticles melted
-    ! q_ci here is always some small positive number
-    dn_ci_eme_ri = dq_ci_eme_ri*n_ci/(q_ci+eps0)
+    dn_ci_eme_ri = dq_ci_eme_ri*n_ci/q_ci
 
     ! limit so it dos not melt more than interacting
     ! also limit so that new graupel not larger that max mean size of source ice ?
@@ -2239,68 +2237,65 @@ subroutine evapmelting3
   ! ------------------------------------
 
   ! ice
-  call sb_evmelt3(aven_0i,aven_1i,bven_0i,bven_1i,x_ci_bmin        &
-                 ,n_ci,q_ci,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
+  if (q_ci.gt.qicemin) then
+    call sb_evmelt3(aven_0i,aven_1i,bven_0i,bven_1i,x_ci_bmin        &
+                   ,n_ci,q_ci,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
 
-  ! loss of ice
-  n_cip  = n_cip + dn_ci_me + dn_ci_ev
-  q_cip  = q_cip + dq_ci_me + dq_ci_ev
+    ! loss of ice
+    n_cip  = n_cip + dn_ci_me + dn_ci_ev
+    q_cip  = q_cip + dq_ci_me + dq_ci_ev
 
-  ! transformed to rain or cloud
+    ! transformed to rain or cloud
+    ! for now into rain - improve possibly later
+    n_hrp = n_hrp - dn_ci_me
+    q_hrp = q_hrp - dq_ci_me
 
-  ! for now into rain - improve possibly later
-  n_hrp = n_hrp - dn_ci_me
-  q_hrp = q_hrp - dq_ci_me
-
-  ! transfomed to water vapour
-  qtpmcr = qtpmcr - dq_ci_ev
-  ! and heat production : heat spent on melting and evaporation - done lower
-
-  ! snow
-  call sb_evmelt3(aven_0s,aven_1s,bven_0s,bven_1s,x_hs_bmin        &
-                 ,n_hs,q_hs,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
-
-  ! loss of snow
-  n_hsp = n_hsp + dn_hs_me +dn_hs_ev
-  q_hsp = q_hsp + dq_hs_me +dq_hs_ev
-
-  ! transformed to rain
-  n_hrp = n_hrp - dn_hs_me
-  q_hrp = q_hrp - dq_hs_me
-
-  ! transfomed to water vapour
-  qtpmcr = qtpmcr-dq_hs_ev
-  ! and heat production : heat spent on melting and evaporation - done lower
-
-  ! graupel
-  call sb_evmelt3(aven_0g,aven_1g,bven_0g,bven_1g,x_hg_bmin         &
-                 ,n_hg,q_hg,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
-
-  ! limiting not to remove more water than available
-  if (dn_hg_me.lt.0.0) then
-    dn_hg_ev = max(dn_hg_ev,-n_hgm/delt-n_hgp)
-    dq_hg_ev = max(dq_hg_ev,-q_hgm/delt-q_hgp)
-    dn_hg_me = max(dn_hg_me,-n_hgm/delt-n_hgp)
-    dq_hg_me = max(dq_hg_me,-q_hgm/delt-q_hgp)
+    ! transfomed to water vapour
+    qtpmcr = qtpmcr - dq_ci_ev
+    ! and heat production : heat spent on melting and evaporation - done lower
   endif
 
-  ! loss of graupel
-  n_hgp = n_hgp + dn_hg_me + dn_hg_ev
-  q_hgp = q_hgp + dq_hg_me + dq_hg_ev
+  ! snow
+  if (q_hs.gt.qicemin) then ! BUG? should this not be something like q_hs_min?
+    call sb_evmelt3(aven_0s,aven_1s,bven_0s,bven_1s,x_hs_bmin        &
+                   ,n_hs,q_hs,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
 
-  ! transformed to rain
-  n_hrp = n_hrp - dn_hg_me
-  q_hrp = q_hrp - dq_hg_me
+    ! loss of snow
+    n_hsp = n_hsp + dn_hs_me +dn_hs_ev
+    q_hsp = q_hsp + dq_hs_me +dq_hs_ev
 
-  ! transfomed to water vapour
-  qtpmcr = qtpmcr-dq_hg_ev
+    ! transformed to rain
+    n_hrp = n_hrp - dn_hs_me
+    q_hrp = q_hrp - dq_hs_me
 
-  ! and heat production : heat spent on melting and evaporation - done lower
-  !  - melting goes to rain
-  !  - evaporation goes water vapour
-  thlpmcr = thlpmcr +                                       &
-            (rlme/cp_exnf_k)*(dq_ci_me+dq_hs_me+dq_hg_me) + &
-      ((rlv+rlme)/cp_exnf_k)*(dq_ci_ev+dq_hs_ev+dq_hg_ev)
+    ! transfomed to water vapour
+    qtpmcr = qtpmcr-dq_hs_ev
+    ! and heat production : heat spent on melting and evaporation - done lower
+  endif
+
+  ! graupel
+  if (q_hg.gt.qicemin) then ! BUG? should this not be something like q_hg_min?
+    call sb_evmelt3(aven_0g,aven_1g,bven_0g,bven_1g,x_hg_bmin         &
+                   ,n_hg,q_hg,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
+
+    ! loss of graupel
+    n_hgp = n_hgp + dn_hg_me + dn_hg_ev
+    q_hgp = q_hgp + dq_hg_me + dq_hg_ev
+
+    ! transformed to rain
+    n_hrp = n_hrp - dn_hg_me
+    q_hrp = q_hrp - dq_hg_me
+
+    ! transfomed to water vapour
+    qtpmcr = qtpmcr-dq_hg_ev
+
+    ! and heat production : heat spent on melting and evaporation - done lower
+    !  - melting goes to rain
+    !  - evaporation goes water vapour
+    thlpmcr = thlpmcr +                                       &
+              (rlme/cp_exnf_k)*(dq_ci_me+dq_hs_me+dq_hg_me) + &
+        ((rlv+rlme)/cp_exnf_k)*(dq_ci_ev+dq_hs_ev+dq_hg_ev)
+  endif
 
   if (l_tendencies) then
     tend(idn_ci_me) =  dn_ci_me
@@ -2641,7 +2636,7 @@ subroutine evap_rain3
 
   ! calculating  N_re Reynolds number
   nrex = Dvr*vihr/nu_a
-  x_hrf = q_hr/(n_hr+eps0)
+  x_hrf = q_hr/n_hr
 
   f0 = aven_0r+bven_0r*Sc_num**(1.0/3.0)*nrex**0.5
   f1 = aven_1r+bven_1r*Sc_num**(1.0/3.0)*nrex**0.5
@@ -2649,7 +2644,7 @@ subroutine evap_rain3
 
   dq_hr_ev = 2*pi*n_hr*G*Dvr*f1*S
 
-  dn_hr_ev = 2*pi*n_hr*G*Dvr*f0*S/x_hrf ! BUG: x_hr here, not xr
+  dn_hr_ev = 2*pi*n_hr*G*Dvr*f0*S/x_hrf ! BUG: x_hr here, not xr?
 
   ! and limiting it
   dn_hr_ev = min(dn_hr_ev, 0.0)
@@ -2921,6 +2916,9 @@ end subroutine hallet_mossop3
 !   - based on Pruppacher and Klett (1997)
 ! - implementation similar to the one in ICON model
 !
+! NOTE: it is assumed that tmp0.gt.T_3
+!                          q_e.gt.qicemin
+!
 ! - returns:
 !    dq_me  - mass content melting tendency
 !    dn_me  - number content melting tendency
@@ -2997,51 +2995,49 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
 
   ! preparing calculation
   ! calculating for all cells with the value
-  if ((tmp0.gt.T_3).and.(q_e.gt.qicemin)) then
-    ! calculation of the subsaturation
-    S = min(0.0,((qt0-q_cl)/qvsl- 1.0))
+  ! calculation of the subsaturation
+  S = min(0.0,((qt0-q_cl)/qvsl- 1.0))
 
-    ! calculating the thermodynamic term for evaporation
-    g_ev = g_ev_const ! 1.0/g_ev
+  ! calculating the thermodynamic term for evaporation
+  g_ev = g_ev_const ! 1.0/g_ev
 
-    ! calculation of the thermodynamic term for melting
-    g_me= - k_melt*(ktdtodv*(tmp0-T_3)+dvleorv*(esl/tmp0-eslt3/T_3))
+  ! calculation of the thermodynamic term for melting
+  g_me= - k_melt*(ktdtodv*(tmp0-T_3)+dvleorv*(esl/tmp0-eslt3/T_3))
 
-    ! calculating real mean particle mass
-    x_er = q_e/(n_e+eps0)
+  ! calculating real mean particle mass
+  x_er = q_e/n_e
 
-    ! calculating N_re Reynolds number
-    nrex= D_e*v_e/nu_a
+  ! calculating N_re Reynolds number
+  nrex= D_e*v_e/nu_a
 
-    ! calculating from prepared ventilation coefficients
-    f0  = avent0+bvent0*Sc_num**(1.0/3.0)*nrex**0.5
-    f1  = avent1+bvent1*Sc_num**(1.0/3.0)*nrex**0.5
+  ! calculating from prepared ventilation coefficients
+  f0  = avent0+bvent0*Sc_num**(1.0/3.0)*nrex**0.5
+  f1  = avent1+bvent1*Sc_num**(1.0/3.0)*nrex**0.5
 
-    ! preparing updates for evaporation
-    dn_ev = k_ev*g_ev*S*n_e*D_e*f0/max(x_bmin, x_er)
-    dq_ev = k_ev*g_ev*S*n_e*D_e*f1
+  ! preparing updates for evaporation
+  dn_ev = k_ev*g_ev*S*n_e*D_e*f0/max(x_bmin, x_er)
+  dq_ev = k_ev*g_ev*S*n_e*D_e*f1
 
-    ! preparing updates for melting
-    me_n = g_me*n_e*D_e*f0/max(x_bmin, x_er)
-    me_q = g_me*n_e*D_e*f1
+  ! preparing updates for melting
+  me_n = g_me*n_e*D_e*f0/max(x_bmin, x_er)
+  me_q = g_me*n_e*D_e*f1
 
-    ! and limiting so not removing more than available
-    ! basic correction of melting rate
-    me_q = min(0.0,max(me_q,-q_e/delt))
+  ! and limiting so not removing more than available
+  ! basic correction of melting rate
+  me_q = min(0.0,max(me_q,-q_e/delt)) ! BUG: should the correction include me_qp (q_hgp)?
 
-    ! basic correction for number tendency in melting
-    me_n = min(0.0,max(me_n,-n_e/delt))
+  ! basic correction for number tendency in melting
+  me_n = min(0.0,max(me_n,-n_e/delt)) ! BUG: should the correction include mn_qp (n_hgp)?
 
-    ! and prevent melting of all particles while leaving mass ?
-    dq_ev = min(0.0,max(dq_ev,-q_e/delt))
+  ! and prevent melting of all particles while leaving mass ?
+  dq_ev = min(0.0,max(dq_ev,-q_e/delt))
 
-    ! basic correction for number tendency in evaporation
-    dn_ev = min(0.0,max(dn_ev,-n_e/delt))
+  ! basic correction for number tendency in evaporation
+  dn_ev = min(0.0,max(dn_ev,-n_e/delt))
 
-    ! prevent evaporation of all particles while leaving mass ?
-    dq_me = me_q ! min(0.0, me_q - dq_ev)
-    dn_me = me_n ! min(0.0, me_n - dn_ev)
-  endif
+  ! prevent evaporation of all particles while leaving mass ?
+  dq_me = me_q ! min(0.0, me_q - dq_ev)
+  dn_me = me_n ! min(0.0, me_n - dn_ev)
 end subroutine sb_evmelt3
 
 end module modbulkmicro_point
