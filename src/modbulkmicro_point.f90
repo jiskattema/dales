@@ -7,6 +7,8 @@ module modbulkmicro_point
                            l_sb,l_mur_cst,mur_cst,l_rain
   use modmicrodata3
   implicit none
+  private
+  public point_processes
 
   real ::  tmp0     &
           ,ql0      &
@@ -84,7 +86,7 @@ contains
                              ,sv0,svp,svm,thlpmcr_out,qtpmcr_out            &
                              ,statistics_out,tend_out                       )
 
-    use modglobal, only     : k1,cp
+    use modglobal, only     : cp
     use modmicrodata3, only : in_hr,iq_hr,in_cl,iq_cl,in_cc, &
                               in_ci,iq_ci,in_hs,iq_hs,in_hg,iq_hg
     implicit none
@@ -138,6 +140,11 @@ contains
     q_hrm = svm(iq_hr)
     q_hsm = svm(iq_hs)
     q_hgm = svm(iq_hg)
+
+    ! TODO: remove
+    if (any(sv0.lt.0).or.any(svm.lt.0)) then
+      write (6,*) 'modbulkmicro_point: negative values in sv0 or svm'
+    endif
 
     n_ccp  = svp(in_cc)
     n_clp  = svp(in_cl)
@@ -340,6 +347,7 @@ subroutine integrals_bulk3
   real :: xr, N_r0, mur
 
   if (q_hr_mask) then
+    ! NOTE: code is duplicated in subroutine sedim_rain3
     if (l_rain) then
       if (l_sb) then
         if(l_sb_classic) then
@@ -384,7 +392,7 @@ subroutine integrals_bulk3
         D_hr = a_hr *x_hr**b_hr
         v_hr = al_hr*x_hr**be_hr*(rho0s/rhof_k)**ga_hr
       endif ! l_sb
-    endif   ! l_rain
+    endif  ! l_rain
   endif ! q_hr_mask
 
   ! cloud water
@@ -925,28 +933,26 @@ subroutine ice_aggr3
             ,th_0aa_i  &
             ,th_1aa_i
 
-  real :: dif_D_10, x_crit_ii, x_minagg_ii, rem_cf_i
-  real :: E_ab, E_stick
+  real :: dif_D_10, x_minagg_ii, rem_cf_i
+  real :: E_ab, E_stick, x_crit_ii
 
   real :: dq_ci_col_iis = 0. !< self-collection of cloud ice
   real :: dn_ci_col_iis = 0. !< self-collection of cloud ice
 
-  ! calculate constants
-  dlt_0aa_i   = 2*dlt_i0 + dlt_i0i
-  dlt_1aa_i   = dlt_i0 + dlt_i1i + dlt_i1
-  th_0aa_i    = 2*th_i0 - th_i0i   ! from Seifert, 2002
-  th_1aa_i    = th_i0 - th_i1i + th_i1
+  x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)  ! TODO: this is a constant, precalculate
 
   if((x_ci.gt.x_crit_ii).and.(q_ci.gt.q_crit_ii)) then
     ! prepare coefficient for remaining water number
     rem_cf_i = (1.0-rem_n_ci_min)/delt
 
+    ! calculate constants
+    dlt_0aa_i   = 2*dlt_i0 + dlt_i0i
+    dlt_1aa_i   = dlt_i0 + dlt_i1i + dlt_i1
+    th_0aa_i    = 2*th_i0 - th_i0i   ! from Seifert, 2002
+    th_1aa_i    = th_i0 - th_i1i + th_i1
+
     ! and the minimal conversion size
     x_minagg_ii = (D_i_b/a_ci)**(1.0/b_ci)
-
-    ! and the critical size for the start of conversion
-    x_crit_ii   = (D_crit_ii/a_ci)**(1.0/b_ci)
-
     ! calculating sticking efficiency
     if (l_sb_stickyice) then
       E_stick = c_E_o_s*exp(B_stick *(tmp0+stick_off))
@@ -2125,68 +2131,66 @@ subroutine conv_partial3
   rem_hs_cf = (1.0-rem_n_min_cv)/delt
 
   if (q_ci_mask.and.D_ci.gt.D_mincv_ci) then
-      ! remain coefficient
-      rem_ci_cf = (1.0-rem_n_min_cv)/delt
+    ! remain coefficient
+    rem_ci_cf = (1.0-rem_n_min_cv)/delt
 
-      dq_ci_cv = cc_ci*(pi6rhoe*D_ci**3 /x_ci-1.0)
-      ! ? not to exceed conversion rate 1 ?
-      ! G_ci = min(1.0, G_ci)
+    dq_ci_cv = cc_ci*(pi6rhoe*D_ci**3 /x_ci-1.0)
+    ! ? not to exceed conversion rate 1 ?
+    ! G_ci = min(1.0, G_ci)
 
-      dq_ci_cv = -dq_ci_rime/dq_ci_cv
-      dq_ci_cv = max(dq_ci_cv, min(0.0, -q_cim/delt-q_cip))  ! based on ICON, 2017
-      ! = max(dq_ci_cv,-q_cim/delt)
+    dq_ci_cv = -dq_ci_rime/dq_ci_cv
+    dq_ci_cv = max(dq_ci_cv, min(0.0, -q_cim/delt-q_cip))  ! based on ICON, 2017
+    ! = max(dq_ci_cv,-q_cim/delt)
 
-      dn_ci_cv = dq_ci_cv/max(x_ci,x_ci_cvmin)
-      ! = dq_ci_cv/max(x_ci,x_ci_cvmin)
+    dn_ci_cv = dq_ci_cv/max(x_ci,x_ci_cvmin)
+    ! = dq_ci_cv/max(x_ci,x_ci_cvmin)
 
-      dn_ci_cv = max(dn_ci_cv, min(0.0, -rem_ci_cf*n_cim-n_cip))
-      ! = max(dn_hs_cv, -n_cim/delt)
+    dn_ci_cv = max(dn_ci_cv, min(0.0, -rem_ci_cf*n_cim-n_cip))
+    ! = max(dn_hs_cv, -n_cim/delt)
 
-      ! change in the amount of graupel
-      n_hgp = n_hgp - dn_ci_cv
-      q_hgp = q_hgp - dq_ci_cv
+    ! change in the amount of graupel
+    n_hgp = n_hgp - dn_ci_cv
+    q_hgp = q_hgp - dq_ci_cv
 
-      ! change in the amount of cloud ice
-      n_cip = n_cip + dn_ci_cv
-      q_cip = q_cip + dq_ci_cv
-    endif
+    ! change in the amount of cloud ice
+    n_cip = n_cip + dn_ci_cv
+    q_cip = q_cip + dq_ci_cv
   endif
 
   ! term for snow conversion
   if (q_hs_mask.and.D_hs.gt.D_mincv_hs) then
-      ! remain coefficient
-      rem_hs_cf = (1.0-rem_n_min_cv)/delt
+    ! remain coefficient
+    rem_hs_cf = (1.0-rem_n_min_cv)/delt
 
-      dq_hs_cv = cc_hs*(pi6rhoe*D_hs**3 /x_hs-1)
-      ! ? at the sam time, the value should be limited
-      ! ? not to exceed conversion rate 1
-      ! G_hs = min(1.0, G_hs)
-      dq_hs_cv = -dq_hs_rime/dq_hs_cv
+    dq_hs_cv = cc_hs*(pi6rhoe*D_hs**3 /x_hs-1)
+    ! ? at the sam time, the value should be limited
+    ! ? not to exceed conversion rate 1
+    ! G_hs = min(1.0, G_hs)
+    dq_hs_cv = -dq_hs_rime/dq_hs_cv
 
-      ! correction - not removing more than available
-      ! dq_hs_cv = max(dq_hs_cv,-q_hs/delt )
+    ! correction - not removing more than available
+    ! dq_hs_cv = max(dq_hs_cv,-q_hs/delt )
 
-      ! basic correction of the tendency
-      dq_hs_cv = max(dq_hs_cv,&
-                     min(0.0, &
-                     -q_hsm/delt-q_hsp))
-      ! dq_hs_cv = max( dq_hs_cv,-q_hsm/delt)
+    ! basic correction of the tendency
+    dq_hs_cv = max(dq_hs_cv,&
+                   min(0.0, &
+                   -q_hsm/delt-q_hsp))
+    ! dq_hs_cv = max( dq_hs_cv,-q_hsm/delt)
 
-      dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
-      ! dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
+    dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
+    ! dn_hs_cv = dq_hs_cv/max(x_hs,x_hs_cvmin)
 
-      dn_hs_cv = max(dn_hs_cv,min(0.0,-rem_hs_cf*n_hsm-n_hsp))
-      ! dn_hs_cv = max(dn_hs_cv, -n_hsm/delt)
+    dn_hs_cv = max(dn_hs_cv,min(0.0,-rem_hs_cf*n_hsm-n_hsp))
+    ! dn_hs_cv = max(dn_hs_cv, -n_hsm/delt)
 
-      ! and the second correction of the q tendency
-      ! change in the amount of graupel
-      n_hgp = n_hgp - dn_hs_cv
-      q_hgp = q_hgp - dq_hs_cv
+    ! and the second correction of the q tendency
+    ! change in the amount of graupel
+    n_hgp = n_hgp - dn_hs_cv
+    q_hgp = q_hgp - dq_hs_cv
 
-      ! change in the amount of snow
-      n_hsp = n_hsp + dn_hs_cv
-      q_hsp = q_hsp + dq_hs_cv
-    endif
+    ! change in the amount of snow
+    n_hsp = n_hsp + dn_hs_cv
+    q_hsp = q_hsp + dq_hs_cv
   endif
 
   ! warnings

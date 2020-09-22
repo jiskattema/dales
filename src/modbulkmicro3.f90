@@ -61,6 +61,9 @@ module modbulkmicro3
   use modmicrodata3
 
   implicit none
+  private
+  public initbulkmicro3, exitbulkmicro3, bulkmicro3
+
   contains
 
 !> Initializes and allocates the arrays
@@ -422,12 +425,6 @@ module modbulkmicro3
            ,precep_i     (2-ih:i1+ih,2-jh:j1+jh) )
    allocate(statistics_patch(nmphys,k1) &
            ,tend_patch(ntends,k1)       )
-   allocate(precep_hr_colcnt(k1) &
-           ,precep_hr_colcsm(k1) &
-           ,precep_hr_colsum(k1) &
-           ,precep_ci_colsum(k1) &
-           ,precep_hs_colsum(k1) &
-           ,precep_hg_colsum(k1) )
   end subroutine initbulkmicro3
 
 
@@ -437,18 +434,15 @@ subroutine exitbulkmicro3
   implicit none
   deallocate(precep_l, precep_i)
   deallocate(statistics_patch,tend_patch)
-  deallocate(precep_hr_colcnt, precep_hr_colcsm,precep_hr_colsum &
-            ,precep_ci_colsum, precep_hs_colsum,precep_hg_colsum)
 end subroutine exitbulkmicro3
 
 
 !> Calculates the microphysical source term.
 ! ---------------------------------------------------------------------------------
 subroutine bulkmicro3
-  use modglobal, only : i1,j1,k1,rdt,rk3step
+  use modglobal, only : i1,j1,k1,rdt,rk3step,imax,jmax,ih,jh
 
-  use modfields, only : sv0,svp,svm,qtp,thlp,qvsl,tmp0,qt0,w0,ql0,esl,qvsi &
-                       ,exnf,rhof,presf
+  use modfields, only : exnf,rhof,presf
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
   use modmicrodata3, only : in_cl
   use modmpi,    only : myid
@@ -457,15 +451,15 @@ subroutine bulkmicro3
   implicit none
   integer :: i,j,k,isv
 
-  real :: sv0_t   (ncols,k1,i1,j1) &
-         ,svp_t   (ncols,k1,i1,j1) &
-         ,svm_t   (ncols,k1,i1,j1) &
-         ,prg_t   (   k1, 9,i1,j1)
+  real :: sv0_t   (ncols,k1,i1+3,j1) &
+         ,svp_t   (ncols,k1,i1+3,j1) &
+         ,svm_t   (ncols,k1,i1+3,j1) &
+         ,prg_t   (   k1, 9,i1+3,j1)
+
+  real :: precep_hr,precep_ci,precep_hs,precep_hg
 
   real :: tend_col      (ntends, k1)  &
          ,statistics_col(nmphys, k1)
-
-  real :: precep_hr_col(k1),precep_ci_col(k1),precep_hs_col(k1),precep_hg_col(k1)
 
   ! check if ccn and clouds were already initialised
   ! ------------------------------------------------
@@ -501,16 +495,10 @@ subroutine bulkmicro3
   call transpose_svs(sv0_t, svm_t, svp_t, prg_t)
 
   ! loop over all (i,j) columns
-  do i=1,i1
-  do j=1,j1
+  do i=2,i1
+  do j=2,j1
     ! Zero the column outputs
     if (l_tendencies) then
-      precep_hr_colcnt = 0.
-      precep_hr_colcsm = 0.
-      precep_hr_colsum = 0.
-      precep_ci_colsum = 0.
-      precep_hs_colsum = 0.
-      precep_hg_colsum = 0.
       tend_col = 0.
     endif
     if (l_statistics) then
@@ -540,7 +528,7 @@ subroutine bulkmicro3
   ! Column processes
   ! ------------------------------------------------------------------
     call column_processes(sv0_t(:,:,i,j),svp_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j)  &
-                         ,precep_hr_col,precep_ci_col,precep_hs_col,precep_hg_col      &
+                         ,precep_hr,precep_ci,precep_hs,precep_hg                      &
                          ,tend_col)
 
   ! remove negative values and non physical low values
@@ -549,21 +537,11 @@ subroutine bulkmicro3
 
 
     ! Keep track of output
-    precep_l(i,j) = precep_hr_col(1)
-    precep_i(i,j) = precep_ci_col(1) + precep_hs_col(1) + precep_hg_col(1)
+    precep_l(i,j) = precep_hr
+    precep_i(i,j) = precep_ci + precep_hs + precep_hg
 
     if (l_tendencies) then
       tend_patch = tend_patch + tend_col
-      do k=1,k1
-        if (precep_hr_col(k) > epsprec) then
-          precep_hr_colcnt(k) = precep_hr_colcnt(k) + 1
-          precep_hr_colcsm(k) = precep_hr_colcsm(k) + precep_hr_col(k)
-        endif
-      enddo
-      precep_hr_colsum = precep_hr_colsum + precep_hr_col
-      precep_ci_colsum = precep_ci_colsum + precep_ci_col
-      precep_hs_colsum = precep_hs_colsum + precep_hs_col
-      precep_hg_colsum = precep_hg_colsum + precep_hg_col
     endif
     if (l_statistics) then
       statistics_patch = statistics_patch + statistics_col
@@ -599,16 +577,17 @@ end subroutine bulkmicro3
 ! sv0,svm,svp0 (i,j,k,isv)  =>  sv0_t, svm_t, svp_t (isv,k,i,j)
 !
 ! NOTE: Loop ordering and partial unrolling to improve performance
+!       Total performance is quite sensitive, please test before making any changes
 ! ----------------------------------------------
 subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0
   use modfields, only : sv0, svm, svp
-  use modglobal, only : i1,j1,k1
+  use modglobal, only : i1,j1,k1,imax
   implicit none
-  real, intent(out) ::  sv0_t   (ncols,k1,i1,j1) &
-                       ,svp_t   (ncols,k1,i1,j1) &
-                       ,svm_t   (ncols,k1,i1,j1) &
-                       ,prg_t   (   k1, 9,i1,j1)
+  real, intent(out) ::  sv0_t   (ncols,k1,i1+3,j1) &
+                       ,svp_t   (ncols,k1,i1+3,j1) &
+                       ,svm_t   (ncols,k1,i1+3,j1) &
+                       ,prg_t   (   k1, 9,i1+3,j1)
 
   integer :: i,j,k,isv
   do j=2,j1
@@ -740,10 +719,10 @@ endsubroutine
 ! ----------------------------------------------
 subroutine integrate_svs(svp_t,prg_t)
   use modfields, only : svp, thlp, qtp
-  use modglobal, only : i1,j1,k1
+  use modglobal, only : i1,j1,k1,imax
   implicit none
-  real, intent(in) ::  svp_t   (ncols,k1,i1,j1)
-  real, intent(in) ::  prg_t   (   k1, 9,i1,j1)
+  real, intent(in) ::  svp_t   (ncols,k1,i1+3,j1)
+  real, intent(in) ::  prg_t   (   k1, 9,i1+3,j1)
 
   integer :: i,j,k,isv
   do j=2,j1
@@ -760,80 +739,28 @@ subroutine integrate_svs(svp_t,prg_t)
   enddo
 
   do j=2,j1
+  do i=2,i1,4
   do k=1,k1
-  do i=2,i1
-    thlp(i,j,k+0) = thlp(i,j,k+0) + prg_t(k+0,8,i,j)
+    thlp(i+0,j,k) = thlp(i+0,j,k) + prg_t(k,8,i+0,j)
+    thlp(i+1,j,k) = thlp(i+1,j,k) + prg_t(k,8,i+1,j)
+    thlp(i+2,j,k) = thlp(i+2,j,k) + prg_t(k,8,i+2,j)
+    thlp(i+3,j,k) = thlp(i+3,j,k) + prg_t(k,8,i+3,j)
   enddo
   enddo
   enddo
 
   do j=2,j1
+  do i=2,i1,4
   do k=1,k1
-  do i=2,i1
-    qtp(i,j,k+0)  = qtp(i,j,k+0)  + prg_t(k+0,9,i,j)
+    qtp(i+0,j,k)  = qtp(i+0,j,k)  + prg_t(k,9,i+0,j)
+    qtp(i+1,j,k)  = qtp(i+1,j,k)  + prg_t(k,9,i+1,j)
+    qtp(i+2,j,k)  = qtp(i+2,j,k)  + prg_t(k,9,i+2,j)
+    qtp(i+3,j,k)  = qtp(i+3,j,k)  + prg_t(k,9,i+3,j)
   enddo
   enddo
   enddo
 endsubroutine
 
-
-! Copy the all variables in this column to local vars
-!
-! NOTE: this will be slow when the arrays are large,
-!       as we have a memory-bandwidth bottleneck
-!------------------------------------------------------------------
-subroutine copy_in(i,j &
-                  ,tmp0_col, qt0_col, ql0_col, esl_col, qvsl_col, qvsi_col, w0_col)
-  use modglobal, only : k1
-  use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0, sv0, svm, svp
-  implicit none
-  integer,intent(in) :: i,j
-  real,intent(out) :: tmp0_col(1:k1), qt0_col (1:k1)
-  real,intent(out) :: ql0_col (1:k1), esl_col (1:k1)
-  real,intent(out) :: qvsl_col(1:k1), qvsi_col(1:k1)
-  real,intent(out) :: w0_col  (1:k1)
-  !real,intent(out) :: sv0_col(ncols,k1), svp_col(ncols,k1), svm_col(ncols,k1)
-
-  integer :: k, isv
-
-  do k=1,k1
-    tmp0_col(k) = tmp0(i,j,k)
-    qt0_col(k)  = qt0 (i,j,k)
-    ql0_col(k)  = ql0 (i,j,k)
-    esl_col(k)  = esl (i,j,k)
-    qvsl_col(k) = qvsl(i,j,k)
-    qvsi_col(k) = qvsi(i,j,k)
-    w0_col(k)   = w0  (i,j,k)
-  enddo
-
-end subroutine copy_in
-
-
-subroutine copy_out(i,j,thlpmcr_col, qtpmcr_col)
-  use modglobal, only : k1
-  use modfields, only : thlp, qtp, svp
-  implicit none
-  real :: svp_col(ncols,k1)
-  real :: thlpmcr_col(1:k1), qtpmcr_col(1:k1)
-  integer, intent(in) :: i,j
-
-  integer :: k,isv
-  do k=1,k1
-    thlp(i,j,k) = thlp(i,j,k) + thlpmcr_col(k)
-  enddo
-  do k=1,k1
-    qtp(i,j,k) = qtp(i,j,k) + qtpmcr_col(k)
-  enddo
-
-  !do isv=1,12,4
-  !do k=1,k1
-  !  svp(i,j,k,isv+0) = svp(i,j,k,isv+0) + svp_col(isv+0,k)
-  !  svp(i,j,k,isv+1) = svp(i,j,k,isv+1) + svp_col(isv+1,k)
-  !  svp(i,j,k,isv+2) = svp(i,j,k,isv+2) + svp_col(isv+2,k)
-  !  svp(i,j,k,isv+3) = svp(i,j,k,isv+3) + svp_col(isv+3,k)
-  !enddo
-  !enddo
-end subroutine copy_out
 
 !  cloud initialisation
 ! ===============================

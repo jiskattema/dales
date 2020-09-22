@@ -1,46 +1,69 @@
 module modbulkmicro_column
   use modmicrodata
   use modmicrodata3
-  use modglobal, only : k1
   implicit none
+  private
+  public column_processes, nucleation3
 
 contains
+
+! Notes on sedimentation calculation:
+!
+! Some parts of the sedimentation calculations cannot be vectorized (fi, x^y),
+! and the many different fields, parameters, etc. make the code cache-unfriendly.
+! To prevent calculating sedimentation when there is nothing happening,
+! we adjust the boundaries of the two loops over the vertical.
+!
+! Sketch of the sedimentation algorithm:
+!
+! set the boundaries of loop1 to the full vertical k_low1=1,k_high1=k1
+! Time splitting loop to make sure things fall only one level per timestep
+!   k loop1: boundaries k_low1, k_high1
+!     calculate the sedimentation (amount, velocity, ...)
+!     extend the boundaries of loop 2 to only include the active part
+!
+!   short-cut: if there is nothing to sediment, immediately return
+!
+!   k loop2: boundaries k_low2, k_high2
+!     have the sedimentation actually fall down a level, also k_low2 => k_low2 - 1
+!     set boundaries of loop 1 to cover the updated levels with activity
+! update tendencies
 
 subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
                             precep_hr,precep_ci,precep_hs,precep_hg,&
                             tend)
+  use modglobal, only : k1
   implicit none
   real, intent(in),    dimension(ncols,k1)     :: sv0
   real, intent(inout), dimension(ncols,k1)     :: svp
+
   real, intent(inout), dimension(k1)        :: thlpmcr, qtpmcr
-  real, intent(out),   dimension(k1)        :: precep_hr, precep_ci, precep_hs, precep_hg
+  real, intent(out)                         :: precep_hr, precep_ci, precep_hs, precep_hg
   real, intent(out),   dimension(ntends,k1) :: tend
 
   ! sedimentation
   ! -----------------------------------------------------------------
-  !write(*,*) 'rain'
-  call sedim_rain3(sv0(iq_hr,:), sv0(in_hr,:) &
-                  ,svp(iq_hr,:), svp(in_hr,:) &
+  call sedim_rain3(sv0(iq_hr,1:k1), sv0(in_hr,1:k1) &
+                  ,svp(iq_hr,1:k1), svp(in_hr,1:k1) &
                   ,precep_hr,tend)
-  !write(*,*) 'cl'
-  call sedim_cl3(sv0(iq_cl,:), sv0(in_cl,:) &
-                ,svp(iq_cl,:), svp(in_cl,:) &
-                ,svp(in_cc,:)               &
+
+  call sedim_cl3(sv0(iq_cl,1:k1), sv0(in_cl,1:k1) &
+                ,svp(iq_cl,1:k1), svp(in_cl,1:k1) &
+                ,svp(in_cc,1:k1)               &
                 ,qtpmcr,thlpmcr,tend)
-  !write(*,*) 'ice'
-  call sedim_ice3(sv0(iq_ci,:), sv0(in_ci,:) &
-                 ,svp(iq_ci,:), svp(in_ci,:) &
+
+  call sedim_ice3(sv0(iq_ci,1:k1), sv0(in_ci,1:k1) &
+                 ,svp(iq_ci,1:k1), svp(in_ci,1:k1) &
                  ,precep_ci,tend)
-  !write(*,*) 'snow'
-  call sedim_snow3(sv0(iq_hs,:), sv0(in_hs,:) &
-                  ,svp(iq_hs,:), svp(in_hs,:) &
+
+  call sedim_snow3(sv0(iq_hs,1:k1), sv0(in_hs,1:k1) &
+                  ,svp(iq_hs,1:k1), svp(in_hs,1:k1) &
                   ,precep_hs,tend)
-  !write(*,*) 'graupel'
-  call sedim_graupel3(sv0(iq_hg,:), sv0(in_hg,:) &
-                     ,svp(iq_hg,:), svp(in_hg,:) &
+
+  call sedim_graupel3(sv0(iq_hg,1:k1), sv0(in_hg,1:k1) &
+                     ,svp(iq_hg,1:k1), svp(in_hg,1:k1) &
                      ,precep_hg,tend)
 
-  !write(*,*) 'done'
 end subroutine column_processes
 
 
@@ -276,10 +299,12 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
   implicit none
   real, intent(in)     :: q_hr(k1), n_hr(k1)
   real, intent(inout)  :: q_hrp(k1), n_hrp(k1)
-  real, intent(out)    :: precep_hr(k1)
+  real, intent(out)    :: precep_hr
   real, intent(out)    :: tend(ntends, k1)
 
   integer :: k,jn,n_spl
+  integer :: k_low1,k_high1  & ! Boundaries for the first k loop
+            ,k_low2,k_high2    ! Boundaries for the second k loop
 
   real :: wvar        &!< work variable
          ,dt_spl      &!<
@@ -289,10 +314,11 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
          ,lbdr_spl    &!<     -
          ,Dgr         &!< lognormal geometric diameter
          ,N_r0        &!< rain integral stuff
-         ,lbdr_try    &!< rain integral stuff
          ,pwcont       !<
 
-  real :: sed_qr(k1), sed_Nr(k1), qr_spl(k1), Nr_spl(k1)
+  real :: qr_spl(k1), Nr_spl(k1)
+  real :: sed_qr(k1), sed_Nr(k1)
+
   real :: wfall
 
   n_spl = ceiling(split_factor*wfallmax_hr*delt/(minval(dzf)))
@@ -301,21 +327,39 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
   qr_spl = q_hr
   Nr_spl = n_hr
 
+  ! TODO: remove
+  if (any(qr_spl < 0.0)) then
+    write(6,*) 'sedim_rain3: negative values in qr_spl'
+  endif
+  if (any(Nr_spl < 0.0)) then
+    write(6,*) 'sedim_rain3: negative values in Nr_spl'
+  endif
+
+  ! First time for the first k loop, go over the full column
+  k_low1 = 1
+  k_high1 = k1
+
+  ! The boundaries for the second k loop are extended in the first loop
+  k_low2 = k1
+  k_high2 = 0
+
   do jn = 1 , n_spl ! time splitting loop
 
     sed_qr = 0.
     sed_Nr = 0.
 
-    if (l_sb) then
-      if (l_sb_classic) then
-        do k=1,k1
-          if (qr_spl(k) > qrmin) then
+    do k=k_low1,k_high1
+      ! NOTE: code is a duplicate from subroutine integrals_bulk3
+      if (qr_spl(k) > qrmin.and.(Nr_spl(k) > 0.0)) then  ! BUG: what is the correct limit for qr_spl?
+        if (l_sb) then
+          xr_spl   = qr_spl(k)/Nr_spl(k)
+          xr_spl   = max(xrmin,min(xrmax,xr_spl)) ! BUG: should be xr_spl?
+          Dvr_spl  = (xr_spl/pirhow)**(1./3.)
+
+          if (l_sb_classic) then
             ! limiting procedure (as per S&B)
-            xr_spl   = qr_spl(k)/(Nr_spl(k)+eps0)
-            xr_spl   = max(xrmin,min(xrmax,xr_spl)) ! BUG: x_hr should be xr_spl?
-            Dvr_spl  = (xr_spl/pirhow)**(1./3.)
-            N_r0     = n_hr(k)/Dvr_spl ! rhof(k)*n_hr(k)/Dvr(k) ! BUG Dvr should be Dvr_spl?
-            N_r0     = max(N_0min/rhof(k),min(N_0max/rhof(k),N_r0))
+            N_r0     = rhof(k)*n_hr(k)/Dvr_spl ! rhof(k)*n_hr(k)/Dvr(k) ! BUG Dvr should be Dvr_spl?
+            N_r0     = max(N_0min,min(N_0max,N_r0))
 
             lbdr_spl = (pirhow*N_r0/(rhof(k)*qr_spl(k)))**0.25
             lbdr_spl = max(lbdr_min, min(lbdr_max,lbdr_spl))
@@ -328,14 +372,10 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
             wfall = max(0.,((rho0s/rhof(k))**0.5)*(a_tvsbc  &
                       -b_tvsbc*(1.+c_tvsbc/lbdr_spl)**(-1.0))) ! k=0
             sed_Nr(k) = wfall*Nr_spl(k)*rhof(k)
-          endif
-        enddo
-      else  ! l_sb_classic
-        if (l_lognormal) then
-          do k=1,k1 ! BUG: kmax should be k1?
-            if (qr_spl(k) > qrmin) then
+          else  ! l_sb_classic
+            if (l_lognormal) then
               ! correction for width of DSD
-              ! BUG: Dvr_spl unset!
+              ! BUG: Dvr_spl unset? reusing the one from l_sb_classic
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
 
               sed_qr(k) = 1.*sed_flux3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,3)
@@ -347,45 +387,34 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
               if (pwcont > eps1) then
                 sed_qr(k) = (qr_spl(k)*rhof(k)/pwcont)*sed_qr(k)
               end if
-            end if ! qr_spl
-          enddo
-        else ! l_lognormal
-          !
-          ! SB rain sedimentation
-          !
-          do k=1,k1
-            if (l_mur_cst) then
-              mur_spl = mur_cst
-            else
-              if (qr_spl(k) > qrmin) then
+            else ! l_lognormal
+              !
+              ! SB rain sedimentation
+              !
+              if (l_mur_cst) then
+                mur_spl = mur_cst
+              else
                 ! SS08
                 ! BUG: Dvr_spl is unset
                 ! mur_spl = 10. * (1+tanh(1200.*(Dvr_spl(k)-0.0014)))
 
                 ! G09b
                 mur_spl = min(30.,- 1. + 0.008/ (qr_spl(k)*rhof(k))**0.6)
-              endif
-            endif ! l_mur_cst
+              endif ! l_mur_cst
 
-            if (qr_spl(k) > qrmin) then
-              lbdr_spl  = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl ! BUG: Dvr_spl is unset
+              lbdr_spl  = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl ! BUG: Dvr_spl is unset like above
               wfall = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
               sed_qr(k) = wfall * qr_spl(k) * rhof(k)
 
               wfall = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
               sed_Nr(k) = wfall * Nr_spl(k) * rhof(k)
-            endif
-          enddo
-        endif ! l_lognormal
-      endif ! l_sb_classic
-    else ! l_sb
-      !
-      ! KK00 rain sedimentation
-      !
-      do k=1,k1
-        if (qr_spl(k) > qrmin) then
-          !JvdD added eps0 to avoid division by zero
-          xr_spl = rhof(k)*qr_spl(k)/(Nr_spl(k)+eps0)
+            endif ! l_lognormal
+          endif ! l_sb_classic
+        else ! l_sb
+          !
+          ! KK00 rain sedimentation
+          !
+          xr_spl = rhof(k)*qr_spl(k)/Nr_spl(k)
 
           ! to ensure xr is within borders
           xr_spl = min(xr_spl,xrmaxkk)
@@ -393,37 +422,58 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
           Dvr_spl = (xr_spl/pirhow)**(1./3.)
           sed_qr(k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(k)*rhof(k)
           sed_Nr(k) = max(0.,0.0035*1.0E6*Dvr_spl - 0.1) * Nr_spl(k)
-        endif
-      enddo
-    end if ! l_sb
+        end if ! l_sb
 
-    do k = 1,kmax ! second k loop
+        ! Adjust boundaries for the second k loop
+        k_low2 = min(k_low2, k)
+        k_high2 = max(k_high2, k)
+      endif ! qr_spl
+    enddo ! first k loop
+
+    if (k_high2 == 0 .and. jn == 1) return ! no sedimentation and no updates
+
+    ! As the rain falls down, we need to adjust the lower boundary
+    k_low2 = max(1,k_low2 - 1)
+
+    do k = k_low2,min(kmax,k_high2) ! second k loop
       wvar = qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
-        write(6,*)'  rain sedim of q_r too large'
+        write(6,*) 'sedim_rain3: sed_qr too large', &
+          k, qr_spl(k), '/', (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k)), &
+          jn, k_low1, k_high1, k_low2, k_high2
       end if
       qr_spl(k) = max(0.0, wvar)
 
       wvar = Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
-        write(6,*)'  rain sedim of N_r too large'
+        write(6,*) 'sedim_rain3: sed_Nr too large', &
+          Nr_spl(k), '/',  (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k)), &
+          jn, k_low1, k_high1, k_low2, k_high2
       end if
       Nr_spl(k) = max(0.0, wvar)
-
-      if (jn == 1) then
-        precep_hr(k) = sed_qr(k)/rhof(k)          ! kg kg-1 m s-1
-      endif
     enddo  ! second k loop
+
+    ! BUG: check this part properly later
+    if (jn == 1) then
+      precep_hr = sed_qr(1)/rhof(1)          ! kg kg-1 m s-1
+    endif
+
+    ! Adjust boundaries for the first k loop
+    k_low1 = k_low2
+    k_high1 = k_high2
+
   enddo ! time splitting loop
 
   ! updates
-  n_hrp = n_hrp + (Nr_spl(:) - n_hr(:))/delt
-  q_hrp = q_hrp + (qr_spl(:) - q_hr(:))/delt
+  do k=k_low2,k_high2
+    n_hrp(k) = n_hrp(k) + (Nr_spl(k) - n_hr(k))/delt
+    q_hrp(k) = q_hrp(k) + (qr_spl(k) - q_hr(k))/delt
 
-  if (l_tendencies) then
-    tend(idn_hr_se,:) = (Nr_spl(:) - n_hr(:))/delt
-    tend(idq_hr_se,:) = (qr_spl(:) - q_hr(:))/delt
-  endif
+    if (l_tendencies) then
+      tend(idn_hr_se,k) = (Nr_spl(k) - n_hr(k))/delt
+      tend(idq_hr_se,k) = (qr_spl(k) - q_hr(k))/delt
+    endif
+  enddo
 end subroutine sedim_rain3
 
 
@@ -435,11 +485,12 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, precep_hs, tend)
   implicit none
   real, intent(in)    :: q_hs(k1), n_hs(k1)
   real, intent(inout) :: q_hsp(k1), n_hsp(k1)
-  real, intent(out)   :: precep_hs(k1)
+  real, intent(out)   :: precep_hs
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k,jn
-  integer :: n_spl      !<  sedimentation time splitting loop
+  integer :: k,jn,n_spl
+  integer :: k_low1,k_high1  & ! Boundaries for the first k loop
+            ,k_low2,k_high2    ! Boundaries for the second k loop
 
   real  :: qip_spl(k1), nip_spl(k1)
   real  :: sed_qip(k1), sed_nip(k1)
@@ -453,54 +504,76 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, precep_hs, tend)
   n_spl = ceiling(split_factor*wfallmax_hs*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
+  ! First time for the first k loop, go over the full column
+  k_low1 = 1
+  k_high1 = k1
+
+  ! The boundaries for the second k loop are extended in the first loop
+  k_low2 = k1
+  k_high2 = 0
+
   do jn = 1 , n_spl ! time splitting loop
     sed_qip = 0.
     sed_nip = 0.
 
-    do k=1,k1
+    do k=k_low1,k_high1
       ! terminal fall velocity
-      if ((qip_spl(k) > qsnowmin).and.(nip_spl(k) > 0.0)) then
-        xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
-        xip_spl = min(max(xip_spl,x_hs_bmin),x_hs_bmin) ! to ensure xr is within borders
-        ! Dvp_spl = a_hs*xip_spl**b_hs
+      if ((qip_spl(k) > q_hs_min).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+        xip_spl = qip_spl(k)/nip_spl(k)
+        xip_spl = min(max(xip_spl,x_hs_bmin),x_hs_bmax) ! to ensure xr is within borders
 
         wfall = max(0.0, c_v_s1 * xip_spl**be_hs)
         sed_qip(k) = wfall*qip_spl(k)*rhof(k)
 
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
         wfall = max(0.0, c_v_s0 * xip_spl**be_hs)
-      endif
-    enddo
 
-    ! segmentation over levels
-    do k = 1,kmax
+        ! Adjust boundaries for the second k loop
+        k_low2 = min(k_low2, k)
+        k_high2 = max(k_high2, k)
+      endif ! qs_spl
+    enddo ! first k loop
+
+    if (k_high2 == 0 .and. jn == 1) return ! no sedimentation and no updates
+
+    ! As the snow falls down, we need to adjust the lower boundary
+    k_low2 = max(1,k_low2 - 1)
+
+    do k = k_low2,min(kmax,k_high2) ! second k loop
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*)'  snow sedim too large'
+        write(6,*)'sedim_snow3: seq_qip too large'
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*)'  snow sedim too large'
+        write(6,*)'sedim_snow3: sed_nip too large'
       end if
       nip_spl(k) = max(0.0, wvar)
-
-      ! -> check this part properly later
-      if (jn == 1) then
-        precep_hs(k) = sed_qip(k)/rhof(k)        ! kg kg-1 m s-1
-      endif
     enddo  ! second k loop
+
+    ! BUG: check this part properly later
+    if (jn == 1) then
+      precep_hs = sed_qip(1)/rhof(1)        ! kg kg-1 m s-1
+    endif
+
+    ! Adjust boundaries for the first k loop
+    k_low1 = k_low2
+    k_high1 = k_high2
+
   enddo ! time splitting loop
 
-  ! updates
-  n_hsp = n_hsp + (nip_spl(:) - n_hs(:))/delt
-  q_hsp = q_hsp + (qip_spl(:) - q_hs(:))/delt
+  do k=k_low2,k_high2
+    ! updates
+    n_hsp(k) = n_hsp(k) + (nip_spl(k) - n_hs(k))/delt
+    q_hsp(k) = q_hsp(k) + (qip_spl(k) - q_hs(k))/delt
 
-  if (l_tendencies) then
-    tend(idn_hs_se,:) = (nip_spl(:) - n_hs(:))/delt
-    tend(idq_hs_se,:) = (qip_spl(:) - q_hs(:))/delt
-  endif
+    if (l_tendencies) then
+      tend(idn_hs_se,k) = (nip_spl(k) - n_hs(k))/delt
+      tend(idq_hs_se,k) = (qip_spl(k) - q_hs(k))/delt
+    endif
+  enddo
 end subroutine sedim_snow3
 
 
@@ -512,11 +585,12 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, precep_hg, tend)
   implicit none
   real, intent(in)    :: q_hg(k1), n_hg(k1)
   real, intent(inout) :: q_hgp(k1), n_hgp(k1)
-  real, intent(out)   :: precep_hg(k1)
+  real, intent(out)   :: precep_hg
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k,jn
-  integer :: n_spl      !<  sedimentation time splitting loop
+  integer :: k,jn,n_spl
+  integer :: k_low1,k_high1  & ! Boundaries for the first k loop
+            ,k_low2,k_high2    ! Boundaries for the second k loop
 
   real  :: qip_spl(k1), nip_spl(k1)
   real  :: sed_qip(k1), sed_nip(k1)
@@ -530,54 +604,76 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, precep_hg, tend)
   n_spl = ceiling(split_factor*wfallmax_hg*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
+  ! First time for the first k loop, go over the full column
+  k_low1 = 1
+  k_high1 = k1
+
+  ! The boundaries for the second k loop are extended in the first loop
+  k_low2 = k1
+  k_high2 = 0
+
   do jn = 1 , n_spl ! time splitting loop
     sed_qip = 0.
     sed_nip = 0.
 
-    do k=1,k1
-      if ((qip_spl(k) > qgrmin).and.(nip_spl(k) > 0.0) ) then
-        xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
+    do k=k_low1,k_high1
+      if ((qip_spl(k) > qgrmin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+        xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_hg_bmin),x_hg_bmax) ! to ensure xr is within borders
-        ! Dvp_spl = a_hg*xip_spl**b_gh
 
-        wfall = max(0.0,c_v_g1 * xip_spl**be_hs) ! BUG: should be be_hg?
+        wfall = max(0.0,c_v_g1 * xip_spl**be_hg) ! BUG: hs should be be_hg?
         sed_qip(k) = wfall*qip_spl(k)*rhof(k)
 
-        wfall = max(0.0,c_v_g0 * xip_spl**be_hs)
+        wfall = max(0.0,c_v_g0 * xip_spl**be_hg) ! BUG: hs should be be_hg?
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
-      endif
-    enddo
 
-    ! segmentation over levels
-    do k = 1,kmax
+        ! Adjust boundaries for the second k loop
+        k_low2 = min(k_low2, k)
+        k_high2 = max(k_high2, k)
+      endif ! qip_spl
+    enddo ! first k loop
+
+    if (k_high2 == 0 .and. jn == 1) return ! no sedimentation and no updates
+
+    ! As the graupel falls down, we need to adjust the lower boundary
+    k_low2 = max(1,k_low2 - 1)
+
+    do k = k_low2,min(kmax,k_high2)
       wvar       = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
-        write(6,*)'  graupel sedim too large'
-        qip_spl(k) = 0.0
+        write(6,*)'sedim_graupel3 sed_qip too large'
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt.0.) then
-        write(6,*)'  graupel sedim too large'
+        write(6,*)'sedim_graupel3 sed_nip too large'
       end if
       nip_spl(k) = max(0.0, wvar)
 
-      ! -> check this part properly later
-      if (jn == 1) then
-        precep_hg(k) = sed_qip(k)/rhof(k)          ! kg kg-1 m s-1
-      endif
     enddo  ! second k loop
+
+    ! BUG: check this part properly later
+    if (jn == 1) then
+      precep_hg = sed_qip(1)/rhof(1)          ! kg kg-1 m s-1
+    endif
+
+    ! Adjust boundaries for the first k loop
+    k_low1 = k_low2
+    k_high1 = k_high2
+
   enddo ! time splitting loop
 
-  ! updates
-  n_hgp = n_hgp + (nip_spl(:) - n_hg(:))/delt
-  q_hgp = q_hgp + (qip_spl(:) - q_hg(:))/delt
+  do k=k_low2,k_high2
+    ! updates
+    n_hgp(k) = n_hgp(k) + (nip_spl(k) - n_hg(k))/delt
+    q_hgp(k) = q_hgp(k) + (qip_spl(k) - q_hg(k))/delt
 
-  if (l_tendencies) then
-    tend(idn_hg_se,:) = (nip_spl(:) - n_hg(:))/delt
-    tend(idq_hg_se,:) = (qip_spl(:) - q_hg(:))/delt
-  endif
+    if (l_tendencies) then
+      tend(idn_hg_se,k) = (nip_spl(k) - n_hg(k))/delt
+      tend(idq_hg_se,k) = (qip_spl(k) - q_hg(k))/delt
+    endif
+  enddo
 end subroutine sedim_graupel3
 
 
@@ -589,10 +685,12 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
   implicit none
   real, intent(in)    :: q_ci(k1), n_ci(k1)
   real, intent(inout) :: q_cip(k1), n_cip(k1)
-  real, intent(out)   :: precep_ci(k1)
+  real, intent(out)   :: precep_ci
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k,jn,n_spl, k_low, k_high
+  integer :: k,jn,n_spl
+  integer :: k_low1,k_high1  & ! Boundaries for the first k loop
+            ,k_low2,k_high2    ! Boundaries for the second k loop
 
   real :: qip_spl(k1), nip_spl(k1)
   real :: sed_qip(k1), sed_nip(k1)
@@ -605,18 +703,22 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
   qip_spl = q_ci
   nip_spl = n_ci
 
+  ! First time for the first k loop, go over the full column
+  k_low1 = 1
+  k_high1 = k1
+
+  ! The boundaries for the second k loop are extended in the first loop
+  k_low2 = k1
+  k_high2 = 0
+
   do jn = 1 , n_spl ! time splitting loop
     sed_qip = 0.
     sed_nip = 0.
 
-    k_low = k1
-    k_high = 0
-
-    do k=1,k1
-      if ( (qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0) ) then
-        xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
+    do k=k_low1,k_high1
+      if ((qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+        xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_ci_bmin),x_ci_bmax) ! to ensure xr is within borders
-        ! Dvp_spl = a_ci*xip_spl**b_ci
 
         ! terminal fall velocity
         wfall = max(0.0,c_v_s1 * xip_spl**be_ci)
@@ -625,49 +727,60 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
         wfall = max(0.0,c_v_s0 * xip_spl**be_ci)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
 
-        k_low = min(k_low, k)
-        k_high = max(k_high, k)
-      endif
-    enddo
+        ! Adjust boundaries for the second k loop
+        k_low2 = min(k_low2, k)
+        k_high2 = max(k_high2, k)
+      endif ! qip_spl
+    enddo ! first k loop
 
-    if (k_high == 0 .and. jn == 1) return ! no sedimentation
+    if (k_high2 == 0 .and. jn == 1) return ! no sedimentation and no updates
+
+    ! As the graupel falls down, we need to adjust the lower boundary
+    k_low2 = max(1,k_low2 - 1)
 
     ! segmentation over levels
-    do k = k_low,min(kmax,k_high)
+    do k = k_low2,min(kmax,k_high2)
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'sedim_ice3: d seq_qip / dk too large' &
+        write(6,*) 'sedim_ice3: seq_qip too large' &
                   ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'sedim_ice3: d sed_nip / dk too large' &
+        write(6,*) 'sedim_ice3: sed_nip too large' &
                   ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       nip_spl(k) = max(0.0, wvar)
 
-      !d -> check this part properly later
-      if (jn == 1) then
-        precep_ci(k) = sed_qip(k)/rhof(k)         ! kg kg-1 m s-1
-      endif
-
     enddo  ! second k loop
+
+    ! BUG: check this part properly later
+    if (jn == 1) then
+      precep_ci = sed_qip(1)/rhof(1)         ! kg kg-1 m s-1
+    endif
+
+    ! Adjust boundaries for the first k loop
+    k_low1 = k_low2
+    k_high1 = k_high2
+
   enddo ! time splitting loop
 
-  ! updates
-  n_cip = n_cip + (nip_spl - n_ci)/delt
-  q_cip = q_cip + (qip_spl - q_ci)/delt
+  do k=k_low2,k_high2
+    ! updates
+    n_cip(k) = n_cip(k) + (nip_spl(k) - n_ci(k))/delt
+    q_cip(k) = q_cip(k) + (qip_spl(k) - q_ci(k))/delt
 
-  ! BUG: also qtpmcr and thlpmcr change?
-  ! qtpmcr(k) = qtpmcr + 0.0
-  ! thlpmcr(k) = thlpmcr + 0.0
+    ! BUG: also qtpmcr and thlpmcr change?
+    ! qtpmcr(k) = qtpmcr + 0.0
+    ! thlpmcr(k) = thlpmcr + 0.0
 
-  if (l_tendencies) then
-    tend(idn_ci_se,:) = (nip_spl - n_ci)/delt
-    tend(idq_ci_se,:) = (qip_spl - q_ci)/delt
-  endif
+    if (l_tendencies) then
+      tend(idn_ci_se,k) = (nip_spl(k) - n_ci(k))/delt
+      tend(idq_ci_se,k) = (qip_spl(k) - q_ci(k))/delt
+    endif
+  enddo
 end subroutine sedim_ice3
 
 
@@ -683,11 +796,14 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
   real, intent(inout) :: qtpmcr(k1), thlpmcr(k1)
   real, intent(out)   :: tend(ntends, k1)
 
-  integer :: k, jn, n_spl, k_low, k_high
+  integer :: k, jn, n_spl
+  integer :: k_low1,k_high1  & ! Boundaries for the first k loop
+            ,k_low2,k_high2    ! Boundaries for the second k loop
+
   real :: qip_spl(k1), nip_spl(k1)
   real :: sed_qip(k1), sed_nip(k1)
-  real :: wvar, xip_spl
-  real :: dt_spl,wfall
+
+  real :: dt_spl, xip_spl, wvar, wfall
 
   qip_spl = q_cl
   nip_spl = n_cl
@@ -695,19 +811,23 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
   n_spl = ceiling(split_factor*wfallmax_cl*delt/(minval(dzf)))
   dt_spl = delt/real(n_spl)
 
+  ! First time for the first k loop, go over the full column
+  k_low1 = 1
+  k_high1 = k1
+
+  ! The boundaries for the second k loop are extended in the first loop
+  k_low2 = k1
+  k_high2 = 0
+
   do jn = 1 , n_spl ! time splitting loop
 
     sed_qip = 0.
     sed_nip = 0.
 
-    k_low = k1
-    k_high = 0
-
-    do k=1,k1
-      if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then
-        xip_spl = qip_spl(k)/(nip_spl(k)+eps0) ! JvdD Added eps0 to avoid division by zero
+    do k=k_low1,k_high1
+      if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+        xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_cl_bmin),x_cl_bmax) ! to ensure xr is within borders
-        ! Dvp_spl = a_cl*xip_spl**b_cl
 
         ! terminal fall velocity
         wfall = max(0.0,c_v_c1 * xip_spl**be_cl)
@@ -716,54 +836,57 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
         wfall = max(0.0,c_v_c0 * xip_spl**be_cl)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
 
-        k_low = min(k_low, k)
-        k_high = max(k_high, k)
-      endif
-    enddo
+        ! Adjust boundaries for the second k loop
+        k_low2 = min(k_low2, k)
+        k_high2 = max(k_high2, k)
+      endif ! qip_spl
+    enddo ! first k loop
 
-    if (k_high == 0 .and. jn == 1) return ! no sedimentation
+    if (k_high2 == 0 .and. jn == 1) return ! no sedimentation and no updates
 
-    ! segmentation over levels
-    do k = k_low,min(kmax,k_high)
+    ! As the graupel falls down, we need to adjust the lower boundary
+    k_low2 = max(1,k_low2 - 1)
+
+    do k = k_low2,min(kmax,k_high2)
       wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'sedim_cl3: d sed_qip / dk too large' &
+        write(6,*) 'sedim_cl3: sed_qip too large' &
                   ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       qip_spl(k) = max(0.0, wvar)
 
       wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       if (wvar.lt. 0.) then
-        write(6,*) 'sedim_cl3: d sed_nip / dk too large' &
+        write(6,*) 'sedim_cl3: sed_nip too large' &
                   ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
       end if
       nip_spl(k) = max(0.0, wvar)
-
-      ! BUG: no precep from cloud water?
     enddo  ! second k loop
 
-    if(any(q_cl < 0.0) .or. any(qip_spl < 0.)) then
-      write(*,*)'Sedim cloud negative issues', count(q_cl <0.), count(qip_spl <0.)
-    endif
+    ! Adjust boundaries for the first k loop
+    k_low1 = k_low2
+    k_high1 = k_high2
 
   enddo ! time splitting loop
 
-  ! updates
-  n_clp = n_clp + (nip_spl(:) - n_cl(:))/delt
-  q_clp = q_clp + (qip_spl(:) - q_cl(:))/delt
+  do k=k_low2,k_high2
+    ! updates
+    n_clp(k) = n_clp(k) + (nip_spl(k) - n_cl(k))/delt
+    q_clp(k) = q_clp(k) + (qip_spl(k) - q_cl(k))/delt
 
-  ! also qtpmcr and thlpmcr change
-  qtpmcr  = qtpmcr + (qip_spl(:) - q_cl(:))/delt
-  thlpmcr = thlpmcr - (rlv/(cp*exnf(k)))*(qip_spl(:) - q_cl(:))/delt
+    ! also qtpmcr and thlpmcr change
+    qtpmcr(k)  = qtpmcr(k) + (qip_spl(k) - q_cl(k))/delt
+    thlpmcr(k) = thlpmcr(k) - (rlv/(cp*exnf(k)))*(qip_spl(k) - q_cl(k))/delt
 
-  ! NOTE: moved here from recover_cc point process
-  ! recovery of ccn
-  n_ccp = n_ccp + (nip_spl(:) - n_cl(:))/delt
+    ! NOTE: moved here from recover_cc point process
+    ! recovery of ccn
+    n_ccp(k) = n_ccp(k) + (nip_spl(k) - n_cl(k))/delt
 
-  if (l_tendencies) then
-    tend(idn_cl_se,:) = (nip_spl(:) - n_cl(:))/delt
-    tend(idq_cl_se,:) = (qip_spl(:) - q_cl(:))/delt
-  endif
+    if (l_tendencies) then
+      tend(idn_cl_se,k) = (nip_spl(k) - n_cl(k))/delt
+      tend(idq_cl_se,k) = (qip_spl(k) - q_cl(k))/delt
+    endif
+  enddo
 end subroutine sedim_cl3
 
 
