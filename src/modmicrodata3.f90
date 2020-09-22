@@ -496,12 +496,6 @@
         ,eslt3       !< saturated vapour pressure over water at T_3
 
   ! pre-processed precipitation fields to output in bulkmicrostat3
-  real(dp), allocatable ::  precep_hr_colcnt(:)  &      !< count of gridpoints with precep_hr above threshold
-                       ,precep_hr_colcsm(:)  &      !< sum of gridpoints with precep_hr above threshold
-                       ,precep_hr_colsum(:)  &      !< precipitation of raindrops (precep_hr)
-                       ,precep_ci_colsum(:)  &      !< precipitation of ice crystals (precep_ci)
-                       ,precep_hs_colsum(:)  &      !< precipitation of snow (precep_hs)
-                       ,precep_hg_colsum(:)         !< precipitation of graupel (precep_hg)
   real(dp), allocatable ::  precep_l(:,:)        &      !< liquid surface precipitation (precep_hr)
                        ,precep_i(:,:)               !< forzen surface precipitation (precep_ci+precep_hs+precep_hg)
 

@@ -64,11 +64,8 @@ save
                                         qlpmn  , &
                                         qtpav  , &
                                         qtpmn
-  real, allocatable, dimension(:)    :: precav       , &  ! TODO: same as prec_r_av?
-                                        precmn       , &
-                                        preccountav  , &
+  real, allocatable, dimension(:)    :: precmn       , &
                                         preccountmn  , &
-                                        prec_prcav   , &
                                         prec_prcmn   , &
                                         cloudcountavl, &
                                         cloudcountav , &
@@ -89,7 +86,6 @@ save
     real, allocatable, dimension(:,:) :: tend  ! tend(ntends, k)
 real, allocatable, dimension(:) :: cl_countav, hr_countav, ci_countav, hs_countav, hg_countav
 real, allocatable, dimension(:) :: cl_countavl,hr_countavl,ci_countavl,hs_countavl,hg_countavl
-real, allocatable, dimension(:) :: prec_r_av, prec_i_av, prec_s_av, prec_g_av
 real, allocatable, dimension(:) :: cl_countmn,hr_countmn,ci_countmn,hs_countmn,hg_countmn 
 real, allocatable, dimension(:) :: prec_r_mn,prec_i_mn,prec_s_mn,prec_g_mn
 real, allocatable, dimension(:) :: cfrac_tot,cfrac_l,cfrac_i
@@ -165,11 +161,8 @@ subroutine initbulkmicrostat3
              ,qlpmn   (k1, nrfields)  &
              ,qtpav   (k1, nrfields)  &
              ,qtpmn   (k1, nrfields)  )
-    allocate( precav        (k1)      &
-             ,precmn        (k1)      &
-             ,preccountav   (k1)      &
+    allocate( precmn        (k1)      &
              ,preccountmn   (k1)      &
-             ,prec_prcav    (k1)      &
              ,prec_prcmn    (k1)      &
              ,cloudcountavl (k1)      &
              ,cloudcountav  (k1)      &
@@ -198,10 +191,6 @@ subroutine initbulkmicrostat3
              ,hr_countav    (k1)      &
              ,hs_countav    (k1)      &
              ,hg_countav    (k1)      &
-             ,prec_r_av     (k1)      &
-             ,prec_i_av     (k1)      &
-             ,prec_s_av     (k1)      &
-             ,prec_g_av     (k1)      &
              ,cl_countmn    (k1)      &
              ,ci_countmn    (k1)      &
              ,hr_countmn    (k1)      &
@@ -507,13 +496,7 @@ subroutine initbulkmicrostat3
     use modglobal,     only : i1, j1, k1, ijtot
     use modmicrodata,  only : Dvr, epscloud, epsqr, epsprec
     use modmicrodata3, only : eps_hprec
-    use modmicrodata3, only : precep_hr_colcnt                        &
-                             ,precep_hr_colcsm                        &
-                             ,precep_hr_colsum                        &
-                             ,precep_ci_colsum                        &
-                             ,precep_hs_colsum                        &
-                             ,precep_hg_colsum                        &
-                             ,precep_l,precep_i                       &
+    use modmicrodata3, only : precep_l,precep_i                       &
                              ,in_hr,in_cl,in_ci,in_hs,in_hg,in_cc     &
                              ,iq_hr,iq_cl,iq_ci,iq_hs,iq_hg
     use modfields,  only    : ql0, rhof, sv0
@@ -521,9 +504,6 @@ subroutine initbulkmicrostat3
 
     integer      :: k
 
-    precav        = 0.0
-    preccountav   = 0.0
-    prec_prcav    = 0.0
     cloudcountav  = 0.0
     raincountav   = 0.0
     Nrrainav      = 0.0
@@ -542,10 +522,6 @@ subroutine initbulkmicrostat3
     hr_countav    = 0.0
     hs_countav    = 0.0
     hg_countav    = 0.0
-    prec_r_av     = 0.0
-    prec_i_av     = 0.0
-    prec_s_av     = 0.0
-    prec_g_av     = 0.0
 
     ! calculating the values
     do k = 1,k1
@@ -568,30 +544,20 @@ subroutine initbulkmicrostat3
     ! transmitting to other processors
     call MPI_ALLREDUCE(cloudcountavl   ,cloudcountav,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(raincountavl    ,raincountav ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hr_colcnt,preccountav ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hr_colcsm,prec_prcav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(Dvravl          ,Dvrav       ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(Nrrainavl       ,Nrrainav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hr_colsum,precav      ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qravl           ,qrav        ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(cl_countavl     ,cl_countav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(ci_countavl     ,ci_countav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(hr_countavl     ,hr_countav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(hs_countavl     ,hs_countav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(hg_countavl     ,hg_countav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hr_colsum,prec_r_av   ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_ci_colsum,prec_i_av   ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hs_colsum,prec_s_av   ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precep_hg_colsum,prec_g_av   ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
     ! and normalising over all processors
     cloudcountmn = cloudcountmn  +  cloudcountav/ijtot
     raincountmn  = raincountmn   +  raincountav /ijtot
-    preccountmn  = preccountmn   +  preccountav /ijtot
-    prec_prcmn   = prec_prcmn    +  prec_prcav  /ijtot
     Dvrmn        = Dvrmn         +  Dvrav       /ijtot
     Nrrainmn     = Nrrainmn      +  Nrrainav    /ijtot
-    precmn       = precmn        +  precav      /ijtot
     qrmn         = qrmn          +  qrav        /ijtot
 
     ! extra stats normalising over all processors
@@ -600,12 +566,6 @@ subroutine initbulkmicrostat3
     hr_countmn = hr_countmn + hr_countav /ijtot
     hs_countmn = hs_countmn + hs_countav /ijtot
     hg_countmn = hg_countmn + hg_countav /ijtot
-
-    ! and precipitation
-    prec_r_mn  = prec_r_mn  + prec_r_av /ijtot
-    prec_i_mn  = prec_i_mn  + prec_i_av /ijtot
-    prec_s_mn  = prec_s_mn  + prec_s_av /ijtot
-    prec_g_mn  = prec_g_mn  + prec_g_av /ijtot
   end subroutine dobulkmicrostat3
 
 
@@ -1128,11 +1088,8 @@ subroutine initbulkmicrostat3
                qlpmn    , &
                qtpav    , &
                qtpmn      )
-    deallocate(precav       , &
-               precmn       , &
-               preccountav  , &
+    deallocate(precmn       , &
                preccountmn  , &
-               prec_prcav   , &
                prec_prcmn   , &
                cloudcountavl, &
                cloudcountav , &
@@ -1157,8 +1114,7 @@ subroutine initbulkmicrostat3
     deallocate( cl_countavl, hr_countavl                       &
                ,ci_countavl,hs_countavl,hg_countavl            )
     deallocate( cl_countav,hr_countav                          &
-               ,ci_countav,hs_countav,hg_countav               &
-               ,prec_r_av,prec_i_av,prec_s_av,prec_g_av        )
+               ,ci_countav,hs_countav,hg_countav               )
 
   end subroutine exitbulkmicrostat3
 
