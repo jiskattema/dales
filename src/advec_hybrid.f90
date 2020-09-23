@@ -26,6 +26,7 @@
 !
 module advec_hybrid
 implicit none
+integer :: k_low,k_high
 contains
 
 subroutine advecc_hybrid(pin,pout)
@@ -48,8 +49,28 @@ subroutine advecc_hybrid(pin,pout)
   integer :: jp2,jm3
   integer :: ip2,im3
 
-  ! Anelastic approx.
+  k_low = -1
   do k=1,k1
+    if (any(pin(:,:,k).ne.0.)) then
+      k_low = k
+      exit
+    endif
+  enddo
+  if (k_low == -1) then
+    ! putin == zero
+    return
+  endif
+
+  k_high = -1
+  do k=k1,1
+    if (any(pin(:,:,k).ne.0.)) then
+      k_high = k
+      exit
+    endif
+  enddo
+
+  ! Anelastic approx.
+  do k=max(1,k_low-3),min(k1,k_high+2)
     do j=2-jh,j1+jh
       do i=2-ih,i1+ih
         rhopin(i,j,k)=rhobf(k)*pin(i,j,k)
@@ -78,40 +99,40 @@ subroutine advecc_hybrid(pin,pout)
   pfacez(2:i1,2:j1,kmax:k1) = ( rhopin(2:i1,2:j1,kmax:k1)+rhopin(2:i1,2:j1,kmax-1:kmax) )/2
 
   ! Start looping over the remaining points
-  do j=2,j1+1
-    jp2=j+2;jm3=j-3
-    do i=2,i1+1
-      ip2=i+2;im3=i-3
-      ! Loop over first two height levels to do horizontal interpolation
-      do k=1,3
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
-      end do
-      ! Loop over last two height levels to do horizontal interpolation
-      do k=kmax,k1
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
-      end do
-      ! Loop over rest of levels, for horizontal and vertical faces
-      do k=4,kmax-1
-        kp2=k+2;km3=k-3
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
-        pfacez(i,j,k) = ip_hybrid(rhopin(i,j,km3:kp2),w0(i,j,k)>=0.,lsmz(i,j,k))
-      end do !Loop over k
-    end do !Loop over i
-  end do !Loop over j
+  do k=max(1,k_low-2),min(k1,k_high+3)
+    do j=2,j1+1
+      jp2=j+2;jm3=j-3
+      do i=2,i1+1
+        ip2=i+2;im3=i-3
+        ! The first two height levels to do horizontal interpolation
+        if (k <= 3) then
+          pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
+          pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
+        else if (k >= kmax) then
+        ! The last two height levels to do horizontal interpolation
+          pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
+          pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
+        else
+        ! The rest of the levels, for horizontal and vertical faces
+          kp2=k+2;km3=k-3
+          pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
+          pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
+          pfacez(i,j,k) = ip_hybrid(rhopin(i,j,km3:kp2),w0(i,j,k)>=0.,lsmz(i,j,k))
+        endif
+      end do !Loop over i
+    end do !Loop over j
+  enddo !Loop over k
 
   ! Calculate actual tendencies by multiplying matrices, accept in the vertical, since dzf(k)
   ! does not have the appropriate dimensions.
-  do k=1,kmax
+  do k=k_low,min(kmax,k_high)
     pout(2:i1,2:j1,k) = pout(2:i1,2:j1,k) - ( &
-                              (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -    &
-                               u0(2:i1,2:j1,k)*pfacex(2:i1,2:j1,k) )*dxi    &
-                             +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -    &
-                               v0(2:i1,2:j1,k)*pfacey(2:i1,2:j1,k) )*dyi    &
-                             +(1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -    &
-                               w0(2:i1,2:j1,k)*pfacez(2:i1,2:j1,k) )/dzf(k) &
+                              (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -                &
+                               u0(2:i1  ,2:j1,k)*pfacex(2:i1  ,2:j1,k) )*dxi            &
+                             +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -                &
+                               v0(2:i1,2:j1  ,k)*pfacey(2:i1,2:j1  ,k) )*dyi            &
+                      +(1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -         &
+                                      w0(2:i1,2:j1,k  )*pfacez(2:i1,2:j1,k  ) )/dzf(k)  &
                                             )
   end do
 
@@ -232,7 +253,7 @@ function smoothness(pin,dir)
 
   select case (dir)
   case (1) ! x-direction
-    do k=1,k1
+    do k=max(1,k_low-2),min(k1,k_high+3)
       do j=2,j1+1
         do i=2,i1+1
           ip2=i+2;ip1=i+1;im1=i-1;im2=i-2;im3=i-3
@@ -249,7 +270,7 @@ function smoothness(pin,dir)
       end do
     end do
   case (2) ! y-direction
-    do k=1,k1
+    do k=max(1,k_low-2),min(k1,k_high+3)
       do j=2,j1+1
         jp2=j+2;jp1=j+1;jm1=j-1;jm2=j-2;jm3=j-3
         do i=2,i1+1
@@ -266,7 +287,7 @@ function smoothness(pin,dir)
       end do
     end do
   case (3) ! z-direction
-    do k=4,kmax-2 ! Do not analyse bottom and top levels, because WENO cannot be used there anyway
+    do k=max(4,k_low-2),min(kmax-2,k_high+3) ! Do not analyse bottom and top levels, because WENO cannot be used there anyway
       kp2=k+2;kp1=k+1;km1=k-1;km2=k-2;km3=k-3
       do j=2,j1
         do i=2,i1

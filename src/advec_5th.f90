@@ -44,10 +44,30 @@ subroutine advecc_5th(putin, putout)
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
-  integer :: i,j,k
+  integer :: i,j,k,k_low,k_high
+
+  k_low = -1
+  do k=1,k1
+    if (any(putin(:,:,k).ne.0.)) then
+      k_low = k
+      exit
+    endif
+  enddo
+  if (k_low == -1) then
+    ! putin == zero
+    return
+  endif
+
+  k_high = -1
+  do k=k1,1
+    if (any(putin(:,:,k).ne.0.)) then
+      k_high = k
+      exit
+    endif
+  enddo
 
 
-  do k=1,kmax
+  do k=max(1,k_low-1),min(kmax,k_high)
      if(k==1) then
         do j=2,j1
            do i=2,i1
