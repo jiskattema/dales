@@ -30,6 +30,7 @@ contains
 ! update tendencies
 
 subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
+                            sv_start, sv_end, &
                             precep_hr,precep_ci,precep_hs,precep_hg,&
                             tend)
   use modglobal, only : k1
@@ -40,28 +41,34 @@ subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
   real, intent(inout), dimension(k1)        :: thlpmcr, qtpmcr
   real, intent(out)                         :: precep_hr, precep_ci, precep_hs, precep_hg
   real, intent(out),   dimension(ntends,k1) :: tend
+  real, intent(inout), dimension(ncols)     :: sv_start, sv_end
 
   ! sedimentation
   ! -----------------------------------------------------------------
   call sedim_rain3(sv0(iq_hr,1:k1), sv0(in_hr,1:k1) &
                   ,svp(iq_hr,1:k1), svp(in_hr,1:k1) &
+                  ,sv_start(iq_hr), sv_end(iq_hr),  &
                   ,precep_hr,tend)
 
   call sedim_cl3(sv0(iq_cl,1:k1), sv0(in_cl,1:k1) &
                 ,svp(iq_cl,1:k1), svp(in_cl,1:k1) &
-                ,svp(in_cc,1:k1)               &
+                ,svp(in_cc,1:k1)                  &
+                ,sv_start(iq_cl), sv_end(iq_cl),  &
                 ,qtpmcr,thlpmcr,tend)
 
   call sedim_ice3(sv0(iq_ci,1:k1), sv0(in_ci,1:k1) &
                  ,svp(iq_ci,1:k1), svp(in_ci,1:k1) &
+                 ,sv_start(iq_ci), sv_end(iq_ci),  &
                  ,precep_ci,tend)
 
   call sedim_snow3(sv0(iq_hs,1:k1), sv0(in_hs,1:k1) &
                   ,svp(iq_hs,1:k1), svp(in_hs,1:k1) &
+                  ,sv_start(iq_hs), sv_end(iq_hs),  &
                   ,precep_hs,tend)
 
   call sedim_graupel3(sv0(iq_hg,1:k1), sv0(in_hg,1:k1) &
                      ,svp(iq_hg,1:k1), svp(in_hg,1:k1) &
+                     ,sv_start(iq_hg), sv_end(iq_hg),  &
                      ,precep_hg,tend)
 
 end subroutine column_processes
@@ -395,7 +402,7 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
                 mur_spl = mur_cst
               else
                 ! SS08
-                ! BUG: Dvr_spl is unset
+                ! NOTE: Dvr_spl is unset
                 ! mur_spl = 10. * (1+tanh(1200.*(Dvr_spl(k)-0.0014)))
 
                 ! G09b
@@ -771,10 +778,6 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
     ! updates
     n_cip(k) = n_cip(k) + (nip_spl(k) - n_ci(k))/delt
     q_cip(k) = q_cip(k) + (qip_spl(k) - q_ci(k))/delt
-
-    ! BUG: also qtpmcr and thlpmcr change?
-    ! qtpmcr(k) = qtpmcr + 0.0
-    ! thlpmcr(k) = thlpmcr + 0.0
 
     if (l_tendencies) then
       tend(idn_ci_se,k) = (nip_spl(k) - n_ci(k))/delt

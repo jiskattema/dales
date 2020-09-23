@@ -515,7 +515,7 @@ subroutine bulkmicro3
 
   !  - Point processes at k-point
   ! ------------------------------------------------------------------
-    do k=1,k1 ! TODO: kmax?
+    do k=1,k1
       call point_processes(prg_t(k,1,i,j), prg_t(k,2,i,j), prg_t(k,3,i,j), prg_t(k,4,i,j) &
                           ,prg_t(k,5,i,j), prg_t(k,6,i,j)                                 &
                           ,exnf(k),rhof(k),presf(k)                          &
@@ -528,6 +528,7 @@ subroutine bulkmicro3
   ! Column processes
   ! ------------------------------------------------------------------
     call column_processes(sv0_t(:,:,i,j),svp_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j)  &
+                         ,sv_start, sv_end                                             &
                          ,precep_hr,precep_ci,precep_hs,precep_hg                      &
                          ,tend_col)
 
@@ -675,7 +676,7 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
-  do isv=1,12
+  do isv=1,ncols
       svm_t(isv,k,i+0,j) = max(svm(i+0,j,k,isv), 0.)
       svm_t(isv,k,i+1,j) = max(svm(i+1,j,k,isv), 0.)
       svm_t(isv,k,i+2,j) = max(svm(i+2,j,k,isv), 0.)
@@ -687,7 +688,7 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
-  do isv=1,12
+  do isv=1,ncols
       sv0_t(isv,k,i+0,j) = max(sv0(i+0,j,k,isv), 0.)
       sv0_t(isv,k,i+1,j) = max(sv0(i+1,j,k,isv), 0.)
       sv0_t(isv,k,i+2,j) = max(sv0(i+2,j,k,isv), 0.)
@@ -699,7 +700,7 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
-  do isv=1,12
+  do isv=1,ncols
     svp_t(isv,k,i+0,j) = svp(i+0,j,k,isv)
     svp_t(isv,k,i+1,j) = svp(i+1,j,k,isv)
     svp_t(isv,k,i+2,j) = svp(i+2,j,k,isv)
@@ -728,7 +729,7 @@ subroutine integrate_svs(svp_t,prg_t)
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
-  do isv=1,12
+  do isv=1,ncols
      svp(i+0,j,k,isv) = svp(i+0,j,k,isv) + svp_t(isv,k,i+0,j)
      svp(i+1,j,k,isv) = svp(i+1,j,k,isv) + svp_t(isv,k,i+1,j)
      svp(i+2,j,k,isv) = svp(i+2,j,k,isv) + svp_t(isv,k,i+2,j)

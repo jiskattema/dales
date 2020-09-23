@@ -367,7 +367,7 @@ subroutine integrals_bulk3
         else ! l_sb_classic
           ! #sb3 changing the variable name
           x_hr = q_hr/n_hr
-          ! TODO: limit x_hr?
+          ! BUG: limit x_hr?
           xr = min(max(x_hr,xrmin),xrmax) ! to ensure xr is within borders
           Dvr = (xr/pirhow)**(1./3.)
           !
@@ -386,7 +386,7 @@ subroutine integrals_bulk3
         endif !  l_sb_classic
       else !  l_sb
         x_hr = q_hr/n_hr
-        ! TODO: limit x_hr?
+        ! BUG: limit x_hr?
         Dvr = (x_hr/pirhow)**(1./3.)
 
         D_hr = a_hr *x_hr**b_hr
@@ -649,7 +649,7 @@ subroutine deposit_ice3
          ,viic_ci & ! v for ice cloud particles
          ,nrex_ci   ! reynolds number
 
-  q_avail = max(0.0, qt0 - q_cl - qvsi) ! BUG qvsi > qt0 gives negative q_avail
+  q_avail = qt0 - q_cl - qvsi ! NOTE: q_avail < 0 sublimation instead of deposition
   Si = q_avail/qvsi
 
   ! calculating G_iv
@@ -674,11 +674,11 @@ subroutine deposit_ice3
   ! k_depos = 4*pi/c_ci  for hexagonal plates - included
   dq_ci_dep = (4*pi/c_ci)*n_ci*G*Dvic_ci*F*Si
 
-  ! and limiting not to deposit more than available
-  ! ie. allows any negative dq_ci_dep but positive only smaller than amount of available water
   if (dq_ci_dep < 0.) then
+    ! limiting not to sublimate more than available
     dq_ci_dep = max(dq_ci_dep,-q_cim/delt-q_cip)
   else
+    ! limiting not to deposit more than available
     dq_ci_dep = min(dq_ci_dep,q_avail/delt)
   endif
 
@@ -687,18 +687,6 @@ subroutine deposit_ice3
 
   qtpmcr = qtpmcr - dq_ci_dep
   thlpmcr = thlpmcr + (rlvi/cp_exnf_k)*dq_ci_dep
-
-  if (l_sb_dbg) then
-    if((q_cim+delt*dq_ci_dep).lt.0.0) then
-      write(6,*) 'WARNING: ice_deposit3 too low', q_cim, delt*dq_ci_dep
-    endif
-    if((delt*dq_ci_dep).gt.q_avail) then ! BUG was qt0-qvsi-q_clm-q_cim-delt*dq_ci_dep
-      write(6,*) 'WARNING: ice_deposit3 depositing more ice than available' &
-                 ,delt*dq_ci_dep, '/', q_avail
-      ! too high:    ((qt0-qvsi-q_clm-q_cim-delt*dq_ci_dep).lt. 0.0)
-      ! negative qt: ((qt0-delt*dq_ci_dep).lt. 0.0)
-    endif
-  endif
 end subroutine deposit_ice3
 
 
@@ -724,7 +712,7 @@ subroutine deposit_snow3
          ,viic_hs & ! v for ice cloud particles
          ,nrex_hs   ! reynolds number
 
-  q_avail = max(0.0, qt0 - q_cl - qvsi) ! BUG qvsi > qt0 gives negative q_avail
+  q_avail = qt0 - q_cl - qvsi ! NOTE: q_avail < 0 sublimation instead of deposition
   Si = q_avail/qvsi
 
   ! calculating G_iv
@@ -749,8 +737,10 @@ subroutine deposit_snow3
   ! k_depos = 4*pi/c  for hexagonal plates - included
   dq_hs_dep = (4*pi/c_hs)*n_hs*G*Dvic_hs*F_hs*Si
 
-  ! and limiting not to deposit more than available
+  ! limiting not to sublimate more than available
   dq_hs_dep = max(dq_hs_dep,min(0.0,-q_hsm/delt-q_hsp))
+
+  ! limiting not to deposit more than available
   dq_hs_dep = min(dq_hs_dep,max(0.0,q_avail/delt))
 
   ! adds to outputs
@@ -758,19 +748,6 @@ subroutine deposit_snow3
 
   qtpmcr = qtpmcr - dq_hs_dep
   thlpmcr = thlpmcr + (rlvi/cp_exnf_k)*dq_hs_dep
-
-  if (l_sb_dbg) then
-    if((q_hsm+delt*dq_hs_dep).lt. 0.0) then
-      write(6,*) 'WARNING: deposit_snow3 too low'
-      write(6,*) '  sublimating more snow than available'
-    endif
-    if((((qt0-qvsi-q_clm-q_cim-delt*dq_hs_dep)).lt. 0.0)) then
-      write(6,*) 'WARNING: deposit_snow3 too high'
-      write(6,*) '  depositing more water than available'
-      ! count((qt0-qvsi-q_clm-q_cim-delt*dq_hs_dep).lt. 0.0)
-      ! getting negative q_t in count((qt0-delt*dq_hs_dep).lt. 0.0)
-    endif
-  endif
 end subroutine deposit_snow3
 
 
@@ -797,7 +774,7 @@ subroutine deposit_graupel3
          ,viic_hg & ! v for particles
          ,nrex_hg   ! reynolds number
 
-  q_avail = max(0.0, qt0 - q_cl - qvsi) ! BUG qvsi > qt0 gives negative q_avail
+  q_avail = qt0 - q_cl - qvsi ! NOTE: q_avail < 0 sublimation instead of deposition
   Si = q_avail/qvsi
 
   ! calculating G_iv
@@ -822,7 +799,10 @@ subroutine deposit_graupel3
   ! k_depos = 4*pi/c  for hexagonal plates - included
   dq_hg_dep = (4*pi/c_hg)*n_hg*G*Dvic_hg*F_hg*Si
 
+  ! limiting not to sublimate more than available
   dq_hg_dep = max(dq_hg_dep,min(0.0,-q_hgm/delt-q_hgp))
+
+  ! limiting not to deposit more than available
   dq_hg_dep = min(dq_hg_dep,max(0.0,q_avail/delt))
 
   ! adds to outputs
@@ -830,20 +810,6 @@ subroutine deposit_graupel3
 
   qtpmcr = qtpmcr - dq_hg_dep
   thlpmcr = thlpmcr + (rlvi/cp_exnf_k)*dq_hg_dep
-
-  if (l_sb_dbg) then
-    if((q_hgm+delt*dq_hg_dep).lt.0.) then
-      write(6,*) 'WARNING: deposit_graupel3 too low'
-      write(6,*) '  sublimating more snow than available'
-      ! count((q_hgm+delt*dq_hg_dep).lt. 0.0)
-    endif
-    if(((qt0-qvsi-q_clm-q_cim-delt*dq_hg_dep).lt. 0.0)) then
-      write(6,*) 'WARNING: deposit_graupel3 too high'
-      write(6,*) '  depositing more water than available'
-      ! count(qt0-qvsi-q_clm-q_cim-delt*dq_hg_dep .lt. 0.0)
-      ! getting negative q_t in  count((qt0-delt*dq_hg_dep).lt. 0.0)
-    endif
-  endif
 end subroutine deposit_graupel3
 
 
@@ -3039,7 +3005,7 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
   ! basic correction for number tendency in evaporation
   dn_ev = min(0.0,max(dn_ev,-n_e/delt))
 
-  ! prevent evaporation of all particles while leaving mass ?
+  ! NOTE: me_q and me_n have already been limited above
   dq_me = me_q ! min(0.0, me_q - dq_ev)
   dn_me = me_n ! min(0.0, me_n - dn_ev)
 end subroutine sb_evmelt3
