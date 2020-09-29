@@ -328,14 +328,6 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
   qr_spl = q_hr
   Nr_spl = n_hr
 
-  ! TODO: remove
-  if (any(qr_spl < 0.0)) then
-    write(6,*) 'sedim_rain3: negative values in qr_spl'
-  endif
-  if (any(Nr_spl < 0.0)) then
-    write(6,*) 'sedim_rain3: negative values in Nr_spl'
-  endif
-
   ! First time for the first k loop, go over the full column
   k_low1 = 1
   k_high1 = k1
@@ -354,12 +346,12 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
       if (qr_spl(k) > qrmin.and.(Nr_spl(k) > 0.0)) then  ! BUG: what is the correct limit for qr_spl?
         if (l_sb) then
           xr_spl   = qr_spl(k)/Nr_spl(k)
-          xr_spl   = max(xrmin,min(xrmax,xr_spl)) ! BUG: should be xr_spl?
+          xr_spl   = max(xrmin,min(xrmax,xr_spl))
           Dvr_spl  = (xr_spl/pirhow)**(1./3.)
 
           if (l_sb_classic) then
             ! limiting procedure (as per S&B)
-            N_r0     = rhof(k)*n_hr(k)/Dvr_spl ! rhof(k)*n_hr(k)/Dvr(k) ! BUG Dvr should be Dvr_spl?
+            N_r0     = rhof(k)*n_hr(k)/Dvr_spl ! rhof(k)*n_hr(k)/Dvr_spl(k)
             N_r0     = max(N_0min,min(N_0max,N_r0))
 
             lbdr_spl = (pirhow*N_r0/(rhof(k)*qr_spl(k)))**0.25

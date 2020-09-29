@@ -2609,7 +2609,6 @@ subroutine evap_rain3
   ! calculating  N_re Reynolds number
   nrex = Dvr*vihr/nu_a
 
-  ! BUG: where is eps0 required elsewhere?
   ! NOTE: eps0 is limiting here.
   ! x_hr it can lead in case of many big raindrops to removal of too many of them.
   x_hrf = q_hr/(n_hr + eps0)
