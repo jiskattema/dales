@@ -30,7 +30,6 @@ contains
 ! update tendencies
 
 subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
-                            sv_start, sv_end, &
                             precep_hr,precep_ci,precep_hs,precep_hg,&
                             tend)
   use modglobal, only : k1
@@ -41,34 +40,28 @@ subroutine column_processes(sv0, svp, thlpmcr, qtpmcr, &
   real, intent(inout), dimension(k1)        :: thlpmcr, qtpmcr
   real, intent(out)                         :: precep_hr, precep_ci, precep_hs, precep_hg
   real, intent(out),   dimension(ntends,k1) :: tend
-  real, intent(inout), dimension(ncols)     :: sv_start, sv_end
 
   ! sedimentation
   ! -----------------------------------------------------------------
   call sedim_rain3(sv0(iq_hr,1:k1), sv0(in_hr,1:k1) &
                   ,svp(iq_hr,1:k1), svp(in_hr,1:k1) &
-                  ,sv_start(iq_hr), sv_end(iq_hr),  &
                   ,precep_hr,tend)
 
   call sedim_cl3(sv0(iq_cl,1:k1), sv0(in_cl,1:k1) &
                 ,svp(iq_cl,1:k1), svp(in_cl,1:k1) &
                 ,svp(in_cc,1:k1)                  &
-                ,sv_start(iq_cl), sv_end(iq_cl),  &
                 ,qtpmcr,thlpmcr,tend)
 
   call sedim_ice3(sv0(iq_ci,1:k1), sv0(in_ci,1:k1) &
                  ,svp(iq_ci,1:k1), svp(in_ci,1:k1) &
-                 ,sv_start(iq_ci), sv_end(iq_ci),  &
                  ,precep_ci,tend)
 
   call sedim_snow3(sv0(iq_hs,1:k1), sv0(in_hs,1:k1) &
                   ,svp(iq_hs,1:k1), svp(in_hs,1:k1) &
-                  ,sv_start(iq_hs), sv_end(iq_hs),  &
                   ,precep_hs,tend)
 
   call sedim_graupel3(sv0(iq_hg,1:k1), sv0(in_hg,1:k1) &
                      ,svp(iq_hg,1:k1), svp(in_hg,1:k1) &
-                     ,sv_start(iq_hg), sv_end(iq_hg),  &
                      ,precep_hg,tend)
 
 end subroutine column_processes
@@ -77,15 +70,14 @@ end subroutine column_processes
 !> Cloud nucleation
 !! Written to prognostically evaluate the cloud water number content [ kg^{-1}]
 !! directly follows Seifert&Beheng scheme
-subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc &
-                      ,statistics,tend)
+subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc, statistics,tend)
   use modglobal, only : dzf,k1
   implicit none
   real, intent(in)    :: qt0(k1), qvsl(k1), w0(k1)
   real, intent(in)    :: q_cl(k1), n_cl(k1), n_cc(k1)
   real, intent(inout) :: q_clp(k1), n_clp(k1)
   real, intent(out)   :: tend(ntends, k1)
-  real, intent(inout)  :: statistics(nmphys,k1)
+  real, intent(inout) :: statistics(nmphys,k1)
 
   real    :: dn_cl_nu(k1)  !< droplet nucleation rate
   integer :: k
@@ -121,14 +113,16 @@ subroutine nucleation3(qt0, qvsl, w0, q_cl, q_clp, n_cl, n_clp, n_cc &
   ! or 0 to prevent condensation there
   wdssatdz(1) = w0(2)*(ssat(2)-ssat(1))/dzf(2)
   do k=2,k1 - 1
-      wdssatdz = 0.5*(w0(k+1)+w0(k))*(ssat(k+1) - ssat(k-1))/(dzf(k)+dzf(k-1))
+    wdssatdz = 0.5*(w0(k+1)+w0(k))*(ssat(k+1) - ssat(k-1))/(dzf(k)+dzf(k-1))
   enddo
   ! first order approximation of the difference
   wdssatdz(k1) = w0(k1)*(ssat(k1) - ssat(k1-1)) / dzf(k1-1)
 
   do k=1,k1
-    ! BUG: original code went out of bounds for k=1 and k=k1
-    !      for now, take d ssat / dz = 0 at boundaries
+    ! NOTE: original code went out of bounds for k=1 and k=k1
+    !       for now, take d ssat / dz = 0 at boundaries
+    !       Altough we dont expect nucleation at top and or lowest level,
+    !       to be consistent, just process them anyways.
     if (k.gt.1) then
       ssat_d = ssat(k-1)
     else

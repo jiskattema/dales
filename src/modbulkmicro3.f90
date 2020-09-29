@@ -440,8 +440,7 @@ end subroutine exitbulkmicro3
 !> Calculates the microphysical source term.
 ! ---------------------------------------------------------------------------------
 subroutine bulkmicro3
-  use modglobal, only : i1,j1,k1,rdt,rk3step,imax,jmax,ih,jh
-
+  use modglobal, only : i1,j1,k1,rdt,rk3step
   use modfields, only : exnf,rhof,presf
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
   use modmicrodata3, only : in_cl
@@ -449,17 +448,26 @@ subroutine bulkmicro3
   use modbulkmicro_point, only : point_processes
   use modbulkmicro_column, only : nucleation3, column_processes
   implicit none
-  integer :: i,j,k,isv
+  integer :: i,j,k,ks,ke
 
+  integer :: k_low(ncols)    & ! lowest k with non-zero values for svp(:,:,k,i)
+            ,k_high(ncols)     ! highest k with non-zero values for svp(:,:,k,i)
+
+  ! transposed arrays with optimized memory layout
   real :: sv0_t   (ncols,k1,i1+3,j1) &
          ,svp_t   (ncols,k1,i1+3,j1) &
          ,svm_t   (ncols,k1,i1+3,j1) &
-         ,prg_t   (   k1, 9,i1+3,j1)
+         ,prg_t   (nprgs,k1,i1+3,j1) &
+         ,thlp_t  (      k1,i1  ,j1) &
+         ,qtp_t   (      k1,i1  ,j1)
 
-  real :: precep_hr,precep_ci,precep_hs,precep_hg
-
+  ! column variables
   real :: tend_col      (ntends, k1)  &
          ,statistics_col(nmphys, k1)
+
+  ! and variables as the surface (k=1) of the column
+  real :: precep_hr,precep_ci,precep_hs,precep_hg
+
 
   ! check if ccn and clouds were already initialised
   ! ------------------------------------------------
@@ -478,81 +486,126 @@ subroutine bulkmicro3
     endif
   endif
 
-  ! Zero the 2D precipitation fields, and summed statistics and tendencies
-  precep_l = 0.
-  precep_i = 0.
+  ! Zero the summed statistics and tendencies
+  ! no need to zero:
+  ! thlp_t, qtp_t      : they are set in point_processes
+  ! precep_i, precep_l : they are set at the end of the column loop
   if (l_tendencies) then
     tend_patch = 0.
+    tend_col = 0.
   endif
   if (l_statistics) then
     statistics_patch = 0.
+    statistics_col = 0.
   endif
 
   delt = rdt / (4. - dble(rk3step))
 
-  ! Re-order the data in column (isv,k,i,j) format
-  ! ----------------------------------------------
+  ! Re-order the data in column format
+  ! NOTE: svp is also adjusted by advection and canopy routines,
+  !       so we cannot assume they are zero here.
+  !       For qtp and thlp this is not an issue, as the microphysics scheme
+  !       does not use those, but only adds to them.
+  !
+  ! BUG: how to treat existing values in svp, wrt. limiting and removing low values?
+  !      Current code works on *total* tendencies, which means we include interactions
+  !      with fi. the canopy.
+  ! --------------------------------------------------------------------
   call transpose_svs(sv0_t, svm_t, svp_t, prg_t)
+
+  ! Prevent doing unnecessary calculations (updating tendencies etc.)
+  ! for levels without any non-zero values for svp.
+  ! Reset the values here to all-levels-zero, and update them when
+  ! removing negative and low values, below.
+  k_low = k1
+  k_high = 1
 
   ! loop over all (i,j) columns
   do i=2,i1
   do j=2,j1
-    ! Zero the column outputs
-    if (l_tendencies) then
-      tend_col = 0.
-    endif
-    if (l_statistics) then
-      statistics_col = 0.
-    endif
 
   ! Column processes
   ! ------------------------------------------------------------------
-    call nucleation3(prg_t(:,1,i,j), prg_t(:,5,i,j), prg_t(:,7,i,j)  &
-                    ,sv0_t(iq_cl,:,i,j), svp_t(iq_cl,:,i,j)          &
-                    ,sv0_t(in_cl,:,i,j), svp_t(in_cl,:,i,j)          &
-                    ,sv0_t(in_cc,:,i,j)                              &
-                    ,statistics_col, tend_col                        )
+    call nucleation3(prg_t(n_qt0,:,i,j), prg_t(n_qvsl,:,i,j), prg_t(n_w0,:,i,j)  &
+                    ,sv0_t(iq_cl,:,i,j), svp_t(iq_cl,:,i,j)                      &
+                    ,sv0_t(in_cl,:,i,j), svp_t(in_cl,:,i,j)                      &
+                    ,sv0_t(in_cc,:,i,j)                                          &
+                    ,statistics_col, tend_col                                    )
 
   !  - Point processes at k-point
   ! ------------------------------------------------------------------
-    do k=1,k1
-      call point_processes(prg_t(k,1,i,j), prg_t(k,2,i,j), prg_t(k,3,i,j), prg_t(k,4,i,j) &
-                          ,prg_t(k,5,i,j), prg_t(k,6,i,j)                                 &
-                          ,exnf(k),rhof(k),presf(k)                          &
-                          ,sv0_t(:,k,i,j), svp_t(:,k,i,j), svm_t(:,k,i,j)    &
-                          ,prg_t(k,8,i,j), prg_t(k,9,i,j)                    &
-                          ,statistics_col(:,k), tend_col(:,k)                )
-    enddo
+    if (rk3step /= 1) then
+      do k=1,k1
+        call point_processes(prg_t(:,k,i,j),exnf(k),rhof(k),presf(k)         &
+                            ,sv0_t(:,k,i,j),svp_t(:,k,i,j),svm_t(:,k,i,j)    &
+                            ,thlp_t(k,i,j),qtp_t(k,i,j)                      &
+                            ,statistics_col(:,k), tend_col(:,k)              )
+      enddo
+    else ! rk3step
+      ! use svm == sv0
+      do k=1,k1
+        call point_processes(prg_t(:,k,i,j),exnf(k),rhof(k),presf(k)         &
+                            ,sv0_t(:,k,i,j),svp_t(:,k,i,j),sv0_t(:,k,i,j)    &
+                            ,thlp_t(k,i,j),qtp_t(k,i,j)                      &
+                            ,statistics_col(:,k), tend_col(:,k)              )
+      enddo
+    endif ! rk3step
 
 
   ! Column processes
   ! ------------------------------------------------------------------
-    call column_processes(sv0_t(:,:,i,j),svp_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j)  &
-                         ,sv_start, sv_end                                             &
-                         ,precep_hr,precep_ci,precep_hs,precep_hg                      &
-                         ,tend_col)
+    call column_processes(sv0_t(:,:,i,j),svp_t(:,:,i,j)            &
+                         ,thlp_t(:,i,j),qtp_t(:,i,j)               &
+                         ,precep_hr,precep_ci,precep_hs,precep_hg  &
+                         ,tend_col                                 )
 
-  ! remove negative values and non physical low values
-  ! ------------------------------------------------------------------
-    call correct_neg_qt(svp_t(:,:,i,j),svm_t(:,:,i,j),prg_t(:,8,i,j),prg_t(:,9,i,j))
+  ! Remove negative values and non physical low values
+  ! -----------------------------------------------------------------
+  if (rk3step /= 1)  then
+    call correct_neg_qt(svp_t(:,:,i,j),svm_t(:,:,i,j)            &
+                       ,thlp_t(:,i,j),qtp_t(:,i,j),k_low,k_high  )
+  else
+    ! use svm == sv0
+    call correct_neg_qt(svp_t(:,:,i,j),sv0_t(:,:,i,j)            &
+                       ,thlp_t(:,i,j),qtp_t(:,i,j),k_low,k_high  )
+  endif ! rk3step
 
-
-    ! Keep track of output
+  ! Keep track of output
+  ! -----------------------------------------------------------------
     precep_l(i,j) = precep_hr
     precep_i(i,j) = precep_ci + precep_hs + precep_hg
 
+    ! Accumulate non-zero tendencies and statistics, and reset to zero.
+    ! NOTE BUG: can we have tendencies while all svp() are exactly zero,
+    !       but that seems extremely unlikely.
     if (l_tendencies) then
-      tend_patch = tend_patch + tend_col
+      ks = minval(k_low(:))
+      ke = maxval(k_high(:))
+      if (ks <= ke) then
+        do k=ks,ke
+          tend_patch(:,k) = tend_patch(:,k) + tend_col(:,k)
+        enddo
+        tend_col(:,ks:ke) = 0.
+      endif
     endif
     if (l_statistics) then
-      statistics_patch = statistics_patch + statistics_col
+      ks = minval(k_low(:))
+      ke = maxval(k_high(:))
+      if (ks <= ke) then
+        do k=ks,ke
+          statistics_patch(:,k) = statistics_patch(:,k) + statistics_col(:,k)
+        enddo
+        statistics_col(:,ks:ke) = 0.
+      endif
     endif
+
   enddo ! loop over i
   enddo ! loop over j
 
+
   ! update main prognostic variables by contribution from mphys processes
-  ! ----------------------------------------------------------------------
-  call integrate_svs(svp_t,prg_t)
+  ! ------------------------------------------------------------------
+  call untranspose_svs(svp_t,thlp_t,qtp_t,k_low,k_high)
 
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
@@ -572,131 +625,70 @@ end subroutine bulkmicro3
 ! The transpose itself also accesses a lot of memory, but the total amount of
 ! cache misses is reduced because of the cache-friendly(er) access pattern.
 !
-! tmp0,qt0,ql0,esl,qvsl,qvsi,w0,thlpmcr,qtmpcr (i,j,k)  => prg_t (k,iprg,j)
-!  1   2   3    4   5   6    7   8      9
+! tmp0,qt0,ql0,esl,qvsl,qvsi,w0  (i,j,k)  => prg_t (iprg,k,j)
 !
 ! sv0,svm,svp0 (i,j,k,isv)  =>  sv0_t, svm_t, svp_t (isv,k,i,j)
 !
 ! NOTE: Loop ordering and partial unrolling to improve performance
 !       Total performance is quite sensitive, please test before making any changes
+!       We cant do the dont-copy-zeros trick, as we need to initialize the arrays anyways
 ! ----------------------------------------------
 subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0
   use modfields, only : sv0, svm, svp
-  use modglobal, only : i1,j1,k1,imax
+  use modglobal, only : i1,j1,k1,rk3step
   implicit none
   real, intent(out) ::  sv0_t   (ncols,k1,i1+3,j1) &
                        ,svp_t   (ncols,k1,i1+3,j1) &
                        ,svm_t   (ncols,k1,i1+3,j1) &
-                       ,prg_t   (   k1, 9,i1+3,j1)
+                       ,prg_t   (nprgs,k1,i1+3,j1)
 
   integer :: i,j,k,isv
+
   do j=2,j1
-  do i=2,i1,4
   do k=1,k1
-    prg_t(k,1,i+0,j) = tmp0(i+0,j,k)
-    prg_t(k,1,i+1,j) = tmp0(i+1,j,k)
-    prg_t(k,1,i+2,j) = tmp0(i+2,j,k)
-    prg_t(k,1,i+3,j) = tmp0(i+3,j,k)
+  do i=2,i1
+    prg_t(n_tmp0,k,i,j) = tmp0(i,j,k)
+    prg_t(n_qt0 ,k,i,j) = qt0 (i,j,k)
+    prg_t(n_ql0 ,k,i,j) = ql0 (i,j,k)
+    prg_t(n_esl ,k,i,j) = esl (i,j,k)
+    prg_t(n_qvsl,k,i,j) = qvsl(i,j,k)
+    prg_t(n_qvsi,k,i,j) = qvsi(i,j,k)
+    prg_t(n_w0  ,k,i,j) = w0  (i,j,k)
   enddo
   enddo
   enddo
 
+  ! BUG: check rk3step details
+  ! for rk3step == 1 we have sv0 = svm, so no need for to transpose it too
+  if (rk3step /= 1) then
   do j=2,j1
-  do i=2,i1,4
   do k=1,k1
-    prg_t(k,2,i+0,j) = qt0 (i+0,j,k)
-    prg_t(k,2,i+1,j) = qt0 (i+1,j,k)
-    prg_t(k,2,i+2,j) = qt0 (i+2,j,k)
-    prg_t(k,2,i+3,j) = qt0 (i+3,j,k)
-  enddo
-  enddo
-  enddo
-
-  do j=2,j1
   do i=2,i1,4
-  do k=1,k1
-    prg_t(k,3,i+0,j) = ql0 (i+0,j,k)
-    prg_t(k,3,i+1,j) = ql0 (i+1,j,k)
-    prg_t(k,3,i+2,j) = ql0 (i+2,j,k)
-    prg_t(k,3,i+3,j) = ql0 (i+3,j,k)
+  do isv=1,ncols
+    svm_t(isv,k,i+0,j) = max(svm(i+0,j,k,isv), 0.)
+    svm_t(isv,k,i+1,j) = max(svm(i+1,j,k,isv), 0.)
+    svm_t(isv,k,i+2,j) = max(svm(i+2,j,k,isv), 0.)
+    svm_t(isv,k,i+3,j) = max(svm(i+3,j,k,isv), 0.)
   enddo
   enddo
   enddo
-
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    prg_t(k,4,i+0,j) = esl (i+0,j,k)
-    prg_t(k,4,i+1,j) = esl (i+1,j,k)
-    prg_t(k,4,i+2,j) = esl (i+2,j,k)
-    prg_t(k,4,i+3,j) = esl (i+3,j,k)
   enddo
-  enddo
-  enddo
-
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    prg_t(k,5,i+0,j) = qvsl(i+0,j,k)
-    prg_t(k,5,i+1,j) = qvsl(i+1,j,k)
-    prg_t(k,5,i+2,j) = qvsl(i+2,j,k)
-    prg_t(k,5,i+3,j) = qvsl(i+3,j,k)
-  enddo
-  enddo
-  enddo
-
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    prg_t(k,6,i+0,j) = qvsi(i+0,j,k)
-    prg_t(k,6,i+1,j) = qvsi(i+1,j,k)
-    prg_t(k,6,i+2,j) = qvsi(i+2,j,k)
-    prg_t(k,6,i+3,j) = qvsi(i+3,j,k)
-  enddo
-  enddo
-  enddo
-
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    prg_t(k,7,i+0,j) = w0  (i+0,j,k)
-    prg_t(k,7,i+1,j) = w0  (i+1,j,k)
-    prg_t(k,7,i+2,j) = w0  (i+2,j,k)
-    prg_t(k,7,i+3,j) = w0  (i+3,j,k)
-  enddo
-  enddo
-  enddo
-
-  ! thlpmcr = 8
-  prg_t(:,8,:,:) = 0.
-  ! qtpmcr  = 9
-  prg_t(:,9,:,:) = 0.
+  endif
 
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
   do isv=1,ncols
-      svm_t(isv,k,i+0,j) = max(svm(i+0,j,k,isv), 0.)
-      svm_t(isv,k,i+1,j) = max(svm(i+1,j,k,isv), 0.)
-      svm_t(isv,k,i+2,j) = max(svm(i+2,j,k,isv), 0.)
-      svm_t(isv,k,i+3,j) = max(svm(i+3,j,k,isv), 0.)
+    sv0_t(isv,k,i+0,j) = max(sv0(i+0,j,k,isv), 0.)
+    sv0_t(isv,k,i+1,j) = max(sv0(i+1,j,k,isv), 0.)
+    sv0_t(isv,k,i+2,j) = max(sv0(i+2,j,k,isv), 0.)
+    sv0_t(isv,k,i+3,j) = max(sv0(i+3,j,k,isv), 0.)
   enddo
   enddo
   enddo
   enddo
-  do j=2,j1
-  do k=1,k1
-  do i=2,i1,4
-  do isv=1,ncols
-      sv0_t(isv,k,i+0,j) = max(sv0(i+0,j,k,isv), 0.)
-      sv0_t(isv,k,i+1,j) = max(sv0(i+1,j,k,isv), 0.)
-      sv0_t(isv,k,i+2,j) = max(sv0(i+2,j,k,isv), 0.)
-      sv0_t(isv,k,i+3,j) = max(sv0(i+3,j,k,isv), 0.)
-  enddo
-  enddo
-  enddo
-  enddo
+
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
@@ -709,58 +701,75 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   enddo
   enddo
   enddo
-endsubroutine
+
+endsubroutine transpose_svs
 
 
-! update main prognostic variables by contribution from mphys processes,
-! by copying from the column to the full 3d fields.
+! copying from the columns to the full 3d fields
 !
 ! NOTE: this will be slow when the arrays are large,
 !       as we have a memory-bandwidth bottleneck
 ! ----------------------------------------------
-subroutine integrate_svs(svp_t,prg_t)
-  use modfields, only : svp, thlp, qtp
-  use modglobal, only : i1,j1,k1,imax
+subroutine untranspose_svs(svp_t,thlp_t,qtp_t,k_low,k_high)
+  use modfields, only : svp,thlp,qtp
+  use modglobal, only : i1,j1,k1
   implicit none
-  real, intent(in) ::  svp_t   (ncols,k1,i1+3,j1)
-  real, intent(in) ::  prg_t   (   k1, 9,i1+3,j1)
+  real, intent(in) ::  svp_t(ncols,k1,i1+3,j1) &
+                      ,thlp_t(k1,i1,j1)        &
+                      ,qtp_t (k1,i1,j1)
+  integer, intent(in) :: k_low(ncols), k_high(ncols)
 
-  integer :: i,j,k,isv
-  do j=2,j1
-  do k=1,k1
-  do i=2,i1,4
-  do isv=1,ncols
-     svp(i+0,j,k,isv) = svp(i+0,j,k,isv) + svp_t(isv,k,i+0,j)
-     svp(i+1,j,k,isv) = svp(i+1,j,k,isv) + svp_t(isv,k,i+1,j)
-     svp(i+2,j,k,isv) = svp(i+2,j,k,isv) + svp_t(isv,k,i+2,j)
-     svp(i+3,j,k,isv) = svp(i+3,j,k,isv) + svp_t(isv,k,i+3,j)
-  enddo
-  enddo
-  enddo
-  enddo
+  integer :: i,j,k,isv,ks,ke
 
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    thlp(i+0,j,k) = thlp(i+0,j,k) + prg_t(k,8,i+0,j)
-    thlp(i+1,j,k) = thlp(i+1,j,k) + prg_t(k,8,i+1,j)
-    thlp(i+2,j,k) = thlp(i+2,j,k) + prg_t(k,8,i+2,j)
-    thlp(i+3,j,k) = thlp(i+3,j,k) + prg_t(k,8,i+3,j)
-  enddo
-  enddo
-  enddo
+  ! We initialized svp_t from svp, so now we can replace the svp values.
+  ! To be a bit more efficient, go over the isv in pairs,
+  ! which should be the in_XX and iq_XX fields.
 
-  do j=2,j1
-  do i=2,i1,4
-  do k=1,k1
-    qtp(i+0,j,k)  = qtp(i+0,j,k)  + prg_t(k,9,i+0,j)
-    qtp(i+1,j,k)  = qtp(i+1,j,k)  + prg_t(k,9,i+1,j)
-    qtp(i+2,j,k)  = qtp(i+2,j,k)  + prg_t(k,9,i+2,j)
-    qtp(i+3,j,k)  = qtp(i+3,j,k)  + prg_t(k,9,i+3,j)
-  enddo
-  enddo
-  enddo
-endsubroutine
+  do isv=1,ncols,2 ! NOTE: ncols should be even!
+
+  ks = min(k_low(isv),k_low(isv+1))
+  ke = max(k_high(isv),k_high(isv+1))
+  if(ks.le.ke) then
+    do k=ks,ke
+    do j=2,j1
+    do i=2,i1
+       svp(i,j,k,isv+0) = svp_t(isv+0,k,i,j)
+       svp(i,j,k,isv+1) = svp_t(isv+1,k,i,j)
+    enddo ! j
+    enddo ! i
+    if (ks.gt. 1) svp(:,:,1:ks ,isv:isv+1) = 0.
+    if (ke.lt.k1) svp(:,:,ke:k1,isv:isv+1) = 0.
+    enddo ! k
+  else
+    svp(:,:,:,isv:isv+1) = 0.
+  endif
+  enddo ! isv
+
+  ! Add the microphysics tendencies to the total tendencies
+  ks = minval(k_low)
+  ke = maxval(k_high)
+  if (ks.le.ke) then
+    do j=1,j1
+    do i=2,i1 - 1,2 ! careful not to go out-of-array
+    do k=ks,ke
+      thlp(i+0,j,k) = thlp(i+0,j,k) + thlp_t(k,i+0,j)
+      thlp(i+1,j,k) = thlp(i+1,j,k) + thlp_t(k,i+1,j)
+
+      qtp (i+0,j,k) = qtp (i+0,j,k) + qtp_t (k,i+0,j)
+      qtp (i+1,j,k) = qtp (i+1,j,k) + qtp_t (k,i+1,j)
+    enddo ! k
+    enddo ! i
+
+    ! Do corner case i = i1 and i1 is odd
+    if (mod(i1,2) == 1) then
+      do k=ks,ke
+        thlp(i1,j,k) = thlp(i1,j,k) + thlp_t(k,i1,j)
+        qtp (i1,j,k) = qtp (i1,j,k) + qtp_t (k,i1,j)
+      enddo ! k
+    endif
+    enddo ! j
+  endif
+endsubroutine untranspose_svs
 
 
 !  cloud initialisation
@@ -864,12 +873,16 @@ enddo
 end subroutine initccn3
 
 
-subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
+! remove negative values and non physical low values
+! also set k_low/k_high to contain only the levels with non-zero svp() values
+! --------------------------------------------------
+subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
   use modglobal, only : cp, rlv, k1
   use modfields, only : exnf
   implicit none
   real, intent(in)    :: svm_col(ncols,k1)
-  real, intent(inout) :: svp_col(ncols,k1),thlpmcr_col(k1),qtpmcr_col(k1)
+  real, intent(inout) :: svp_col(ncols,k1),thlp_col(k1),qtp_col(k1)
+  integer, intent(inout) :: k_low(ncols), k_high(ncols)
 
   integer :: k
   real :: nrtest, qrtest
@@ -891,6 +904,10 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
       svp_col(iq_hr,k) = - svm_col(iq_hr,k)/delt
       svp_col(in_hr,k) = - svm_col(in_hr,k)/delt
     end if
+    if (svp_col(iq_hr,k).ne.0.) then
+      k_low( iq_hr) = max(k_low(iq_hr),k)
+      k_high(iq_hr) = min(k_high(iq_hr),k)
+    endif
 
     ! == snow ==
     qrtest=svm_col(iq_hs,k)+svp_col(iq_hs,k)*delt
@@ -902,16 +919,24 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
       svp_col(iq_hs,k) = - svm_col(iq_hs,k)/delt
       svp_col(in_hs,k) = - svm_col(in_hs,k)/delt
     endif
+    if (svp_col(iq_hs,k).ne.0.) then
+      k_low( iq_hs) = max(k_low(iq_hs),k)
+      k_high(iq_hs) = min(k_high(iq_hs),k)
+    endif
 
     ! == graupel ==
     qrtest=svm_col(iq_hg,k)+svp_col(iq_hg,k)*delt
     nrtest=svm_col(in_hg,k)+svp_col(in_hg,k)*delt
     if ((qrtest .lt. qgrmin) .or. (nrtest < 0.0) ) then
-      qtp_cor(k) = qtp_cor(k) + qrtest * delt
+      qtp_cor(k) = qtp_cor(k) + qrtest
       thlp_cor(k) = thlp_cor(k) - (rlvi/(cp*exnf(k))) * qrtest
 
       svp_col(iq_hg,k) = - svm_col(iq_hg,k)/delt
       svp_col(in_hg,k) = - svm_col(in_hg,k)/delt
+    endif
+    if (svp_col(iq_hg,k).ne.0.) then
+      k_low( iq_hg) = max(k_low(iq_hg),k)
+      k_high(iq_hg) = min(k_high(iq_hg),k)
     endif
 
     ! == cloud ice ==
@@ -924,6 +949,10 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
       svp_col(iq_ci,k) = - svm_col(iq_ci,k)/delt
       svp_col(in_ci,k) = - svm_col(in_ci,k)/delt
     endif
+    if (svp_col(iq_ci,k).ne.0.) then
+      k_low( iq_ci) = max(k_low(iq_ci),k)
+      k_high(iq_ci) = min(k_high(iq_ci),k)
+    endif
 
     ! == cloud liquid water ==
     qrtest=svm_col(iq_cl,k)+svp_col(iq_cl,k)*delt
@@ -932,12 +961,16 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
       svp_col(iq_cl,k) = - svm_col(iq_cl,k)/delt
       svp_col(in_cl,k) = - svm_col(in_cl,k)/delt
     endif
+    if (svp_col(iq_cl,k).ne.0.) then
+      k_low( iq_cl) = max(k_low(iq_cl),k)
+      k_high(iq_cl) = min(k_high(iq_cl),k)
+    endif
   enddo
 
   ! apply correction
   if (l_corr_neg_qt) then
-    qtpmcr_col = qtpmcr_col + qtp_cor / delt
-    thlpmcr_col = thlpmcr_col + thlp_cor / delt
+    qtp_col = qtp_col + qtp_cor / delt
+    thlp_col = thlp_col + thlp_cor / delt
   endif
 
   ! == CCN checking ==
@@ -948,6 +981,10 @@ subroutine correct_neg_qt(svp_col,svm_col,thlpmcr_col,qtpmcr_col)
         svp_col(in_cc,k) = - svm_col(in_cc,k)/delt
       end if
     enddo
+    if (svp_col(in_cc,k).ne.0.) then
+      k_low( in_cc) = max(k_low(in_cc),k)
+      k_high(in_cc) = min(k_high(in_cc),k)
+    endif
   endif ! not l_c_ccn
 end subroutine correct_neg_qt
 

@@ -571,9 +571,29 @@ contains
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
-    integer i,j,k,jm,jp,km,kp
+    integer i,j,k,jm,jp,km,kp,k_low,k_high
 
-    do k=2,kmax
+    k_low = -1
+    do k=1,k1
+      if (any(putin(:,:,k).ne.0.)) then
+        k_low = k
+        exit
+      endif
+    enddo
+    if (k_low == -1) then
+      ! putin == zero
+      return
+    endif
+
+    k_high = -1
+    do k=k1,1
+      if (any(putin(:,:,k).ne.0.)) then
+        k_high = k
+        exit
+      endif
+    enddo
+
+    do k=max(2,k_low-1),min(kmax,k_high+1)
       kp=k+1
       km=k-1
 
@@ -584,11 +604,11 @@ contains
         do i=2,i1
           putout(i,j,k) = putout(i,j,k) &
                     +  0.5 * ( &
-                  ( (ekh(i+1,j,k)+ekh(i,j,k))*(putin(i+1,j,k)-putin(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i-1,j,k))*(putin(i,j,k)-putin(i-1,j,k)))*dx2i &
+                  ( (ekh(i+1,j,k)+ekh(i  ,j,k))*(putin(i+1,j,k)-putin(i  ,j,k)) &
+                   -(ekh(i  ,j,k)+ekh(i-1,j,k))*(putin(i  ,j,k)-putin(i-1,j,k)))*dx2i &
                     + &
-                  ( (ekh(i,jp,k)+ekh(i,j,k)) *(putin(i,jp,k)-putin(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i,jm,k)) *(putin(i,j,k)-putin(i,jm,k)) )*dy2i &
+                  ( (ekh(i,jp,k)+ekh(i,j ,k)) *(putin(i,jp,k)-putin(i,j ,k)) &
+                   -(ekh(i,j ,k)+ekh(i,jm,k)) *(putin(i,j ,k)-putin(i,jm,k)) )*dy2i &
                   + &
                   ( rhobh(kp)/rhobf(k) * (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
                     *  (putin(i,j,kp)-putin(i,j,k)) / dzh(kp)**2 &

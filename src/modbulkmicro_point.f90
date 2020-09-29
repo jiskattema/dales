@@ -4,7 +4,8 @@ module modbulkmicro_point
                            k_br,k_l,k_r,k_rr,kappa_r, phi, pirhow, &
                            k_1,k_2,k_au,k_c, &
                            x_s,xrmax,xrmin,&
-                           l_sb,l_mur_cst,mur_cst,l_rain
+                           l_sb,l_mur_cst,mur_cst,l_rain, &
+                           eps0, qcmin
   use modmicrodata3
   implicit none
   private
@@ -78,23 +79,21 @@ module modbulkmicro_point
 
 contains
 ! TODO:  * removed warnings when throwing away too much negative moisture
-!        * debug / NaN output
-!        * make all variables local, so we can use OpenMP if needed.
-!        * have a look if all constants are parameters (pre-calculate if not?)
-  subroutine point_processes( tmp0_in,qt0_in,ql0_in,esl_in,qvsl_in,qvsi_in  &
-                             ,exnf_k_in,rhof_k_in,presf_k_in                &
-                             ,sv0,svp,svm,thlpmcr_out,qtpmcr_out            &
-                             ,statistics_out,tend_out                       )
+
+! NOTES: deposition tendencies are the tendencies after correction from cor_deposit3
+
+  subroutine point_processes(prg,exnf_k_in,rhof_k_in,presf_k_in   &
+                            ,sv0,svp,svm,thlpmcr_out,qtpmcr_out   &
+                            ,statistics_out,tend_out  )
 
     use modglobal, only     : cp
     use modmicrodata3, only : in_hr,iq_hr,in_cl,iq_cl,in_cc, &
                               in_ci,iq_ci,in_hs,iq_hs,in_hg,iq_hg
     implicit none
-    real, intent(in)    :: tmp0_in,qt0_in,ql0_in,esl_in,qvsl_in,qvsi_in
     real, intent(in)    :: exnf_k_in, rhof_k_in,presf_k_in
-    real, intent(in)    :: sv0(ncols),svm(ncols)
+    real, intent(in)    :: sv0(ncols),svm(ncols),prg(nprgs)
     real, intent(inout) :: svp(ncols)
-    real, intent(inout) :: thlpmcr_out,qtpmcr_out
+    real, intent(out)   :: thlpmcr_out,qtpmcr_out
     real, intent(out)   :: tend_out(ntends),statistics_out(nmphys)
 
     if (l_statistics) then
@@ -105,12 +104,12 @@ contains
     endif
 
     ! base variables
-    tmp0 = tmp0_in
-    qt0  = qt0_in
-    ql0  = ql0_in
-    esl  = esl_in
-    qvsl = qvsl_in
-    qvsi = qvsi_in
+    tmp0 = prg(n_tmp0)
+    qt0  = prg(n_qt0)
+    ql0  = prg(n_ql0)
+    esl  = prg(n_esl)
+    qvsl = prg(n_qvsl)
+    qvsi = prg(n_qvsi)
 
     cp_exnf_k = exnf_k_in * cp
     rhof_k = rhof_k_in
@@ -268,19 +267,31 @@ contains
       if (q_hg_mask) call coll_gsg3              ! snow selfcollection g+s -> g
     endif
     if (q_cl_mask) then
-      if (q_ci_mask) call coll_ici3              ! riming i+c -> i
-      if (q_hs_mask) call coll_scs3              ! riming s+c -> s
-      if (q_hg_mask) call coll_gcg3              ! riming g+c -> g
+      if (q_ci_mask) then
+        if ((D_cl.gt.D_c_a).and.(D_ci.gt.D_i0)) then
+          call coll_ici3                         ! riming i+c -> i
+        endif
+      endif
+      if (q_hs_mask) then
+        if ((D_cl.gt.D_c_a).and.(D_hs.gt.D_i0)) then
+          call coll_scs3                         ! riming s+c -> s
+        endif
+      endif
+      if (q_hg_mask) then
+        if((D_cl.gt.D_c_a).and.(D_hg.gt.D_i0)) then
+          call coll_gcg3                         ! riming g+c -> g
+        endif
+      endif
     endif
     if (q_hg_mask.and.q_hr_mask) call coll_grg3  ! riming g+r -> g
 
     ! raindrop freezing
     ! -----------------------------------------------------------------
-    if (q_hr_mask.and.(tmp0.lt.T_3)) call rainhetfreez3     ! heterogeneous freezing
+    if (q_hr_mask) then
+      if (tmp0.lt.T_3) call rainhetfreez3       ! heterogeneous freezing
 
     ! collision with conversion
     ! -----------------------------------------------------------------
-    if (q_hr_mask) then
       if (q_ci_mask) call coll_rig3         ! riming r+i -> g
       if (q_hs_mask) call coll_rsg3         ! riming r+i -> g
     endif
@@ -290,11 +301,12 @@ contains
     if (tmp0.lt.T_3) then
       call ice_multi3                                      ! ice multiplication of Hallet and Mossop
       if (l_sb_conv_par.and.q_cl_mask) call conv_partial3  ! partial conversion
-    endif
+    else ! tmp0.gt.T_3
 
     ! melting and evaporation of ice particles
     ! -----------------------------------------------------------------
-    if (tmp0.gt.T_3) call evapmelting3      ! melting of ice particles
+      call evapmelting3                                    ! melting of ice particles
+    endif
 
     ! basic warm processes
     ! -----------------------------------------------------------------
@@ -302,8 +314,10 @@ contains
       call autoconversion3
       call cloud_self3
     endif
-    call accretion3
-    if (q_hr_mask) call evap_rain3
+    if (q_hr_mask) then
+      call accretion3
+      call evap_rain3
+    endif
 
     ! saturation adjustment
     ! -----------------------------------------------------------------
@@ -344,17 +358,17 @@ end subroutine point_processes
 subroutine integrals_bulk3
   implicit none
 
-  real :: xr, N_r0, mur
+  real :: N_r0, mur
 
   if (q_hr_mask) then
     ! NOTE: code is duplicated in subroutine sedim_rain3
     if (l_rain) then
+      ! limiting procedure (as per S&B)
+      x_hr    = q_hr/n_hr
+      x_hr    = max(xrmin,min(xrmax,x_hr))
+
       if (l_sb) then
         if(l_sb_classic) then
-          ! limiting procedure (as per S&B)
-          x_hr    = q_hr/n_hr
-          x_hr    = max(xrmin,min(xrmax,x_hr))  ! same as above, for cold mphys
-
           D_hr = a_hr *x_hr**b_hr
           v_hr = al_hr*x_hr**be_hr*(rho0s/rhof_k)**ga_hr
 
@@ -365,28 +379,21 @@ subroutine integrals_bulk3
           lbdr = (pirhow*N_r0/(rhof_k*q_hr))**0.25  ! c_lbdr*x_hr**(-mu_hr_cst)
           lbdr = max(lbdr_min, min(lbdr_max,lbdr))
         else ! l_sb_classic
-          ! #sb3 changing the variable name
-          x_hr = q_hr/n_hr
-          ! BUG: limit x_hr?
-          xr = min(max(x_hr,xrmin),xrmax) ! to ensure xr is within borders
-          Dvr = (xr/pirhow)**(1./3.)
-          !
+          Dvr = (x_hr/pirhow)**(1./3.)
+
           D_hr = a_hr *x_hr**b_hr
           v_hr = al_hr*x_hr**be_hr*(rho0s/rhof_k)**ga_hr
 
           if (l_mur_cst) then
             ! mur = cst
             mur  = mur_cst
-            lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
           else
             ! mur = f(Dv)
             mur  = min(mur0_G09b,- 1. + c_G09b/ (q_hr*rhof_k)**exp_G09b)  ! G09b
-            lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
           endif ! l_mur_cst
+          lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
         endif !  l_sb_classic
       else !  l_sb
-        x_hr = q_hr/n_hr
-        ! BUG: limit x_hr?
         Dvr = (x_hr/pirhow)**(1./3.)
 
         D_hr = a_hr *x_hr**b_hr
@@ -867,7 +874,6 @@ subroutine cor_deposit3
     dq_hg_dep = dq_hg_dep + cor_dqhg_dep
   endif
   if (l_tendencies) then
-    ! BUG: using the tendencies after correction
     tend(idq_ci_dep) = dq_ci_dep
     tend(idq_hs_dep) = dq_hs_dep
     tend(idq_hg_dep) = dq_hg_dep
@@ -939,7 +945,7 @@ subroutine ice_aggr3
           E_ab = (E_ee_m*E_stick /dif_D_10)* (D_ci - D_i_a)
         endif
       else
-        E_ab = 0. ! BUG
+        E_ab = 0.
       endif
     else ! l_sb_lim_aggr
       E_ab = E_ee_m*E_stick
@@ -1190,6 +1196,10 @@ end subroutine coll_gsg3
 !    - ice riming by cloud ice
 !    - enhanced melting
 !
+! conditions: (D_cl.gt.D_c_a).and.(D_ci.gt.D_i0)
+!    q_cl_mask = .true.
+!    q_ci_mask = .true.
+!
 !****************************************
 subroutine coll_ici3
   use modglobal, only : pi
@@ -1205,19 +1215,15 @@ subroutine coll_ici3
   real :: dn_ci_eme_ic = 0.   !< number tendency enhanced melting of cloud ice by cloud water
   real :: dq_ci_eme_ic = 0.   !< mass tendency enhanced melting of cloud ice by cloud water
 
-  ! checking whether sufficient size
-  if( (D_cl.gt.D_c_a).and.(D_ci.gt.D_i0)) then
-    if( D_cl.gt.D_c_b ) then
-      E_ab = E_i_m
-    else
-      ! denominator in calculationg collision efficiency
-      dif_D_10  = D_c_b-D_c_a
-
-      E_ab = (E_i_m /dif_D_10)* (D_cl - D_c_a)
-    endif
+  if( D_cl.gt.D_c_b ) then
+    E_ab = E_i_m
   else
-    E_ab = 0. ! BUG: should the process happen at all?
+    ! denominator in calculationg collision efficiency
+    dif_D_10  = D_c_b-D_c_a
+
+    E_ab = (E_i_m /dif_D_10)* (D_cl - D_c_a)
   endif
+
   dq_col_ici = (rhof_k*pi/4)*E_ab*n_ci      &
        *q_cl*(dlt_i0*D_ci**2                &
          +dlt_i1c*D_ci*D_cl+dlt_c1*D_cl**2) &
@@ -1298,6 +1304,8 @@ end subroutine coll_ici3
 
 ! ****************************************
 !  riming of snow
+!
+! conditions: (D_cl.gt.D_c_a).and.(D_hs.gt.D_i0)
 ! ****************************************
 subroutine coll_scs3
   use modglobal, only : pi
@@ -1310,17 +1318,12 @@ subroutine coll_scs3
   real :: dn_hs_eme_sc = 0.   !< number tendency enhanced melting of snow by cloud water
   real :: dq_hs_eme_sc = 0.   !< mass tendency enhanced melting of snow by cloud water
 
-  ! checking whether sufficient size
-  if( (D_cl.gt.D_c_a).and.(D_hs.gt.D_i0)) then
-    if( D_cl.gt.D_c_b ) then
-      E_ab = E_s_m
-    else
-      ! denominator in calculationg collision efficiency
-      dif_D_10  = D_c_b-D_c_a
-      E_ab = (E_s_m/dif_D_10)* (D_cl - D_c_a)
-    endif
+  if( D_cl.gt.D_c_b ) then
+    E_ab = E_s_m
   else
-      E_ab = 0. ! BUG: should riming happen at all?
+    ! denominator in calculationg collision efficiency
+    dif_D_10  = D_c_b-D_c_a
+    E_ab = (E_s_m/dif_D_10)* (D_cl - D_c_a)
   endif
 
   dq_col_a = (rhof_k*pi/4)*E_ab*n_hs                         &
@@ -1364,7 +1367,7 @@ subroutine coll_scs3
 
     ! change in th_l - freezing and removal
     thlpmcr = thlpmcr+ (rlvi/cp_exnf_k)*dq_hs_rime
-  else ! tmp0.ge.T_3) then ! BUG: should be plain else
+  else
     ! not riming, but enhanced melting and scheding
 
     ! enhanced melting
@@ -1448,6 +1451,10 @@ end subroutine coll_scs3
 !  riming of graupel by cloud droplets
 !
 !
+! conditions: (D_cl.gt.D_c_a).and.(D_hg.gt.D_i0)
+!             q_hg_mask = .true.
+!             q_cl_mask = .true.
+!
 ! ****************************************
 subroutine coll_gcg3
   use modglobal, only : pi
@@ -1462,16 +1469,11 @@ subroutine coll_gcg3
   real :: dq_hg_eme_gc = 0.  !< mass tendency enhanced melting of graupel
 
   ! collision efficiency
-  ! checking whether sufficient size
-  if( (D_cl.gt.D_c_a).and.(D_hg.gt.D_i0)) then
-    if( D_cl.gt.D_c_b ) then
-      E_ab = E_g_m
-    else
-      dif_D_10 = D_c_b-D_c_a
-      E_ab = (E_g_m/dif_D_10)* (D_cl- D_c_a)
-    endif
+  if( D_cl.gt.D_c_b ) then
+    E_ab = E_g_m
   else
-    E_ab = 0. ! BUG: should riming happen at all?
+    dif_D_10 = D_c_b-D_c_a
+    E_ab = (E_g_m/dif_D_10)* (D_cl- D_c_a)
   endif
 
   dq_col_a = (rhof_k*pi/4)*E_ab*n_hg    &
@@ -2000,6 +2002,9 @@ end subroutine coll_rsg3
 
 ! Ice multiplication
 !   - calls separately H-M process for each of the riming processes
+!
+! conditions: tmp0.lt.T_3
+!
 ! ------------------
 subroutine ice_multi3
   implicit none
@@ -2183,6 +2188,7 @@ end subroutine conv_partial3
 ! - wrapper
 !   - calls separately melting processes for each of species
 !
+! conditions: (tmp0.gt.T_3)
 !
 ! ***************************************************************
 subroutine evapmelting3
@@ -2209,7 +2215,8 @@ subroutine evapmelting3
   ! ice
   if (q_ci.gt.qicemin) then
     call sb_evmelt3(aven_0i,aven_1i,bven_0i,bven_1i,x_ci_bmin        &
-                   ,n_ci,q_ci,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
+                   ,n_ci,n_cip,n_cim,q_ci,q_cip,q_cim                &
+                   ,x_ci,D_ci,v_ci,dq_ci_me,dn_ci_me,dq_ci_ev,dn_ci_ev)
 
     ! loss of ice
     n_cip  = n_cip + dn_ci_me + dn_ci_ev
@@ -2226,9 +2233,10 @@ subroutine evapmelting3
   endif
 
   ! snow
-  if (q_hs.gt.qicemin) then ! BUG? should this not be something like q_hs_min?
+  if (q_hs.gt.qsnowmin) then
     call sb_evmelt3(aven_0s,aven_1s,bven_0s,bven_1s,x_hs_bmin        &
-                   ,n_hs,q_hs,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
+                   ,n_hs,n_hsp,n_hsm,q_hs,q_hsp,q_hsm                &
+                   ,x_hs,D_hs,v_hs,dq_hs_me,dn_hs_me,dq_hs_ev,dn_hs_ev)
 
     ! loss of snow
     n_hsp = n_hsp + dn_hs_me +dn_hs_ev
@@ -2244,9 +2252,10 @@ subroutine evapmelting3
   endif
 
   ! graupel
-  if (q_hg.gt.qicemin) then ! BUG? should this not be something like q_hg_min?
+  if (q_hg.gt.qgrmin) then
     call sb_evmelt3(aven_0g,aven_1g,bven_0g,bven_1g,x_hg_bmin         &
-                   ,n_hg,q_hg,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
+                   ,n_hg,n_hgp,n_hgm,q_hg,q_hgp,q_hgm                 &
+                   ,x_hg,D_hg,v_hg,dq_hg_me,dn_hg_me,dq_hg_ev,dn_hg_ev)
 
     ! loss of graupel
     n_hgp = n_hgp + dn_hg_me + dn_hg_ev
@@ -2429,6 +2438,8 @@ end subroutine cloud_self3
 !*********************************************************************
 ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
 ! base don S&B
+!
+! conditions : q_hr_mask
 !*********************************************************************
 subroutine accretion3
   use modglobal, only : rlv
@@ -2441,110 +2452,102 @@ subroutine accretion3
   real :: dn_hr_sc = 0.
 
   if (l_sb) then
+
+    ! SB accretion
     if (l_sb_classic) then
 
-      ! SB accretion
-      if (q_hr_mask) then
+      if (q_cl_mask) then
+        ! since it is forming only where rain
+        tau = 1.0 - q_cl/(q_cl + q_hr) ! NOTE: was qltot
+        phi = (tau/(tau + k_l))**4.
+        dq_hr_ac = k_cr *rhof_k*q_cl*q_hr * phi * &
+                         (rho0s/rhof_k)**0.5  ! rho*rho / rho  = rho
 
-        if (q_cl_mask) then
-          ! since it is forming only where rain
-          tau = 1.0 - q_cl/(q_cl + q_hr) ! NOTE: was qltot
-          phi = (tau/(tau + k_l))**4.
-          dq_hr_ac = k_cr *rhof_k*q_cl*q_hr * phi * &
-                           (rho0s/rhof_k)**0.5  ! rho*rho / rho  = rho
+        ! basic ac correction
+        dq_hr_ac = min(dq_hr_ac,q_cl/delt) ! min(dq_hr_ac,q_clm/delt)
 
-          ! basic ac correction
-          dq_hr_ac = min(dq_hr_ac,q_cl/delt) ! min(dq_hr_ac,q_clm/delt)
+        ! number of cloud droplets
+        ! remain coefficient for clouds #sb3
+        rem_cf = (1.0-rem_n_cl_min)/delt
 
-          ! number of cloud droplets
-          ! remain coefficient for clouds #sb3
-          rem_cf = (1.0-rem_n_cl_min)/delt
+        dn_cl_ac = -dq_hr_ac/x_cl
+        dn_cl_ac = max(dn_cl_ac,&
+                       min(0.0, &
+                       -rem_cf*n_clm-n_clp))
 
-          dn_cl_ac = -dq_hr_ac/x_cl
-          dn_cl_ac = max(dn_cl_ac,&
-                         min(0.0, &
-                         -rem_cf*n_clm-n_clp))
+        ! update
+        q_hrp = q_hrp + dq_hr_ac
 
-          ! update
-          q_hrp = q_hrp + dq_hr_ac
+        ! no change n_hrp
+        ! and changes in water number for clouds
+        q_clp = q_clp - dq_hr_ac
+        n_clp = n_clp + dn_cl_ac !o: n_clp - rhof_k*ac/x_cl
 
-          ! no change n_hrp
-          ! and changes in water number for clouds
-          q_clp = q_clp - dq_hr_ac
-          n_clp = n_clp + dn_cl_ac !o: n_clp - rhof_k*ac/x_cl
+        qtpmcr = qtpmcr - dq_hr_ac
+        thlpmcr = thlpmcr + (rlv/cp_exnf_k)*dq_hr_ac
+      endif ! qcl_mask
 
-          qtpmcr = qtpmcr - dq_hr_ac
-          thlpmcr = thlpmcr + (rlv/cp_exnf_k)*dq_hr_ac
-        endif ! qcl_mask
+      ! SB self-collection & Break-up
+      dn_hr_sc = -k_rr *rhof_k* q_hr * n_hr  &
+        * (1.0 + kappa_r/lbdr)**(-9.)*(rho0s/rhof_k)**0.5
 
-        ! SB self-collection & Break-up
-        dn_hr_sc = -k_rr *rhof_k* q_hr * n_hr  &
-          * (1.0 + kappa_r/lbdr)**(-9.)*(rho0s/rhof_k)**0.5
-
-        ! and calculating size of droplets - adjusted
-        Dvrf = Dvr ! for now leaving the same
-        if (Dvrf.gt.dvrlim) then
-          if (Dvrf.gt.dvrbiglim) then
-            ! for big drops
-            phi = 2.0*exp(kappa_br*(Dvrf-D_eq))-1.0
-          else
-            ! for smaller drops
-            phi = k_br * (Dvrf-D_eq)
-          endif
-          dn_hr_br = -(phi + 1.) * dn_hr_sc
-        !else
-        !  dn_hr_br = 0. ! (phi = -1)
+      ! and calculating size of droplets - adjusted
+      Dvrf = Dvr ! for now leaving the same
+      if (Dvrf.gt.dvrlim) then
+        if (Dvrf.gt.dvrbiglim) then
+          ! for big drops
+          phi = 2.0*exp(kappa_br*(Dvrf-D_eq))-1.0
+        else
+          ! for smaller drops
+          phi = k_br * (Dvrf-D_eq)
         endif
-      endif ! q_hr_mask
+        dn_hr_br = -(phi + 1.) * dn_hr_sc
+      endif
 
     else ! l_sb_classic
-      ! BUG: should this run even when qr_mask = .false. ?
       !*********************************************************************
       ! determine accr. rate and adjust qrp and Nrp
       ! accordingly. Break-up : Seifert (2007), a
       !*********************************************************************
-      tau = 1.0 - ql0/(q_cl + q_hr) ! NOTE: was qltot
-      phi = (tau/(tau + k_l))**4.
+      ! BUG: not sure about if statements!
+      if (q_cl > qcmin) then
+        tau = 1.0 - ql0/(q_cl + q_hr) ! NOTE: was qltot
+        phi = (tau/(tau + k_l))**4.
 
-      dq_hr_ac = k_r *rhof_k*ql0 * q_hr * phi * (1.225/rhof_k)**0.5
-      q_hrp = q_hrp + dq_hr_ac
+        dq_hr_ac = k_r *rhof_k*ql0 * q_hr * phi * (1.225/rhof_k)**0.5
+        q_hrp = q_hrp + dq_hr_ac
 
-      ! no change n_hrp
-      q_clp  = q_clp - dq_hr_ac
-      qtpmcr  = qtpmcr  - dq_hr_ac
-      thlpmcr = thlpmcr + (rlv/cp_exnf_k)*dq_hr_ac
+        ! no change n_hrp
+        q_clp  = q_clp - dq_hr_ac
+        qtpmcr  = qtpmcr  - dq_hr_ac
+        thlpmcr = thlpmcr + (rlv/cp_exnf_k)*dq_hr_ac
 
-      ! and update on cloud water number
-      dn_cl_ac = -dq_hr_ac/x_cl
-      n_clp = n_clp + dn_cl_ac
+        ! and update on cloud water number
+        dn_cl_ac = -dq_hr_ac/x_cl
+        n_clp = n_clp + dn_cl_ac
+      endif
 
-      if (q_hr_mask) then
-        dn_hr_sc = -k_rr *rhof_k* q_hr * n_hr  &
-          * (1.0 + kappa_r/lbdr*pirhow**(1./3.))**(-9.)*(rho0s/rhof_k)**0.5
+      dn_hr_sc = -k_rr *rhof_k* q_hr * n_hr  &
+        * (1.0 + kappa_r/lbdr*pirhow**(1./3.))**(-9.)*(rho0s/rhof_k)**0.5
 
-        if (Dvr .gt. dvrlim) then
-          if (Dvr .gt. dvrbiglim) then
-            ! for big drops
-            phi = 2.0*exp(kappa_br*(Dvr-D_eq))-1.0
-          else
-            ! for smaller drops
-            phi = k_br* (Dvr-D_eq)
-          endif
-          dn_hr_br = -(phi + 1.) * dn_hr_sc
-        !else
-        !  dn_hr_br = 0. ! (phi = -1)
+      if (Dvr .gt. dvrlim) then
+        if (Dvr .gt. dvrbiglim) then
+          ! for big drops
+          phi = 2.0*exp(kappa_br*(Dvr-D_eq))-1.0
+        else
+          ! for smaller drops
+          phi = k_br* (Dvr-D_eq)
         endif
-      endif ! q_hr_mask
+        dn_hr_br = -(phi + 1.) * dn_hr_sc
+      endif
     endif ! l_sb_classic
   endif ! l_sb
 
-  if (q_hr_mask) then
-    ! correcting for low values
-    ! calculating coef for ratio for minimal remaing number of droplets #sb3
-    rem_cf = (1.0-rem_n_hr_min)/delt
+  ! correcting for low values
+  ! calculating coef for ratio for minimal remaing number of droplets #sb3
+  rem_cf = (1.0-rem_n_hr_min)/delt
 
-    n_hrp = n_hrp +max(min(0.0,-rem_cf*n_hrm-n_hrp),dn_hr_sc+dn_hr_br)
-  endif
+  n_hrp = n_hrp +max(min(0.0,-rem_cf*n_hrm-n_hrp),dn_hr_sc+dn_hr_br)
 
   if (l_sb_dbg) then
     if(q_clm/delt-dq_hr_ac.lt. 0.) then
@@ -2580,7 +2583,7 @@ end subroutine accretion3
 ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
 !*********************************************************************
 subroutine evap_rain3
-  use modglobal, only : rv,rlv,pi
+  use modglobal, only    : rv,rlv,pi
   implicit none
 
   real :: f0    & ! ventilation factor - moment 0
@@ -2601,12 +2604,15 @@ subroutine evap_rain3
   G = 1./G
 
   ! terminal velocity  (from mixed scheme)
-  ! xr in this calculation !!
   vihr = al_hr*((rho0s/rhof_k)**0.5)*x_hr**be_hr
 
   ! calculating  N_re Reynolds number
   nrex = Dvr*vihr/nu_a
-  x_hrf = q_hr/n_hr
+
+  ! BUG: where is eps0 required elsewhere?
+  ! NOTE: eps0 is limiting here.
+  ! x_hr it can lead in case of many big raindrops to removal of too many of them.
+  x_hrf = q_hr/(n_hr + eps0)
 
   f0 = aven_0r+bven_0r*Sc_num**(1.0/3.0)*nrex**0.5
   f1 = aven_1r+bven_1r*Sc_num**(1.0/3.0)*nrex**0.5
@@ -2614,7 +2620,7 @@ subroutine evap_rain3
 
   dq_hr_ev = 2*pi*n_hr*G*Dvr*f1*S
 
-  dn_hr_ev = 2*pi*n_hr*G*Dvr*f0*S/x_hrf ! BUG: x_hr here, not xr?
+  dn_hr_ev = 2*pi*n_hr*G*Dvr*f0*S/x_hrf
 
   ! and limiting it
   dn_hr_ev = min(dn_hr_ev, 0.0)
@@ -2658,6 +2664,7 @@ end subroutine evap_rain3
 !   In addition, check the average size of cloud droplets
 !   and evaporates droplets that proportionally
 !
+! BUG: threshold is probably incorrect, the comments do not match the code
 subroutine satadj3
   implicit none
 
@@ -2665,10 +2672,11 @@ subroutine satadj3
   real :: dq_cl_sa = 0.  !< saturation adjustment
   real :: dn_cl_sa = 0.  !< change in n_cl due to saturation adjustment
 
+  ! BUG: check threshold vs. q_cl_mask in these if statements
   if (l_sb_all_or) then
     ! NOTE: threshold might be lower then threshold for cloud computations, obviously
     ntest = n_clm + n_clp*delt
-    if (ntest.gt.0.0) then
+    if (ntest.gt.0.0) then ! BUG limit?
       !
       ! remaining water =
       !    + condesable water available
@@ -2688,7 +2696,7 @@ subroutine satadj3
     if (l_sb_dumpall) then
       ! dump all water
       ! NOTE: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask) then
+      if (q_cl_mask) then ! BUG: limit?
         ntest = n_clm+n_clp*delt ! #t1
         if (ntest.gt.0.0) then
           !
@@ -2715,12 +2723,12 @@ subroutine satadj3
           dn_cl_sa = min(0.0, n_bmax-ntest)/delt
 
           ! limit change so not in negative numbers
-          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa) ! BUG? was svp, but we now init n_clp from svp
+          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
         endif ! ntest
       endif ! q_cl_mask
     else ! l_sb_dumpall
       ! note: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask) then
+      if (q_cl_mask) then ! BUG: limit?
         ntest=n_clm+n_clp*delt !#t1
         if (ntest.gt.0.0) then
           !
@@ -2748,7 +2756,7 @@ subroutine satadj3
           dn_cl_sa = min(0.0, n_bmax-ntest)/delt
 
           ! limit change so not in negative numbers
-          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa) ! BUG? was svp, but we init n_clp from svp
+          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
 
           !-------------------------------------
           !! cloud water mixing ratio
@@ -2822,6 +2830,8 @@ end subroutine recover_cc
 !    dq_i_hm  - change in mass content during the process
 !    dn_i_hm  - number of newly produced ice particles
 !
+! conditions : t0.lt.T_3
+!
 ! ***************************************************************
 subroutine hallet_mossop3(t0,dq_rime,q_e,dq_i_hm,dn_i_hm)
 
@@ -2846,7 +2856,7 @@ subroutine hallet_mossop3(t0,dq_rime,q_e,dq_i_hm,dn_i_hm)
          ,dn_try,dq_try,rem_cf              ! trial variables
 
   ! only if riming going on temperature below 0
-  if ((dq_rime.gt.0).and.(t0.lt.T_3)) then
+  if (dq_rime.gt.0) then
 
      ! setting coefficient for reminder
      rem_cf  = (1.0-rem_q_e_hm)/delt
@@ -2896,8 +2906,8 @@ end subroutine hallet_mossop3
 !    dn_ev  - number content evaporation tendency
 !
 ! ***************************************************************
-subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
-                     ,q_e,x_e,D_e,v_e,dq_me,dn_me,dq_ev,dn_ev)
+subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e,n_ep,n_em &
+                     ,q_e,q_ep,q_em,x_e,D_e,v_e,dq_me,dn_me,dq_ev,dn_ev)
 
   use modglobal, only : rv,rlv,pi,cp
 
@@ -2905,7 +2915,11 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
 
   ! inputs -------------------------------------------------------------
   real, intent(in)  :: n_e       ! number density of ice particles
+  real, intent(in)  :: n_ep      !   and its tendency
+  real, intent(in)  :: n_em      !   and the svm value
   real, intent(in)  :: q_e       ! mass density of ice particles
+  real, intent(in)  :: q_ep      !   and its tendency
+  real, intent(in)  :: q_em      !   and the svm value
   real, intent(in)  :: x_e       ! mean size of the ice particles
   real, intent(in)  :: D_e       ! mean diameter of particles
   real, intent(in)  :: v_e       ! mean terminal velocity of particles
@@ -2994,20 +3008,19 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e   &
 
   ! and limiting so not removing more than available
   ! basic correction of melting rate
-  me_q = min(0.0,max(me_q,-q_e/delt)) ! BUG: should the correction include me_qp (q_hgp)?
+  me_q = min(0.0,max(me_q,-q_em/delt - q_ep))
 
   ! basic correction for number tendency in melting
-  me_n = min(0.0,max(me_n,-n_e/delt)) ! BUG: should the correction include mn_qp (n_hgp)?
+  me_n = min(0.0,max(me_n,-n_em/delt - n_ep))
 
   ! and prevent melting of all particles while leaving mass ?
-  dq_ev = min(0.0,max(dq_ev,-q_e/delt))
+  dq_ev = min(0.0,max(dq_ev,-q_em/delt - q_ep))
 
   ! basic correction for number tendency in evaporation
-  dn_ev = min(0.0,max(dn_ev,-n_e/delt))
+  dn_ev = min(0.0,max(dn_ev,-n_em/delt - n_ep))
 
-  ! NOTE: me_q and me_n have already been limited above
-  dq_me = me_q ! min(0.0, me_q - dq_ev)
-  dn_me = me_n ! min(0.0, me_n - dn_ev)
+  dq_me = me_q
+  dn_me = me_n
 end subroutine sb_evmelt3
 
 end module modbulkmicro_point

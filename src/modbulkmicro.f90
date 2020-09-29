@@ -46,10 +46,13 @@ module modbulkmicro
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
   implicit none
+  private
+  public initbulkmicro, exitbulkmicro, bulkmicro
+
   real :: gamma25
   real :: gamma3
   real :: gamma35
-  integer :: qrroof, qcroof
+  integer :: qrbase, qrroof, qcbase, qcroof
   contains
 
 !> Initializes and allocates the arrays
@@ -99,30 +102,22 @@ module modbulkmicro
   end subroutine exitbulkmicro
 
 !> Calculates rain DSD integral properties & parameters xr, Dvr, lbdr, mur
-  subroutine calculate_rain_parameters(Nr, qr, mask)
+  subroutine calculate_rain_parameters(Nr, qr)
     use modmicrodata, only : xr, Dvr, lbdr, mur, &
                              l_sb, l_mur_cst, mur_cst, pirhow, &
-                             xrmin, xrmax, xrmaxkk, eps0
+                             qrmask, xrmin, xrmax, xrmaxkk, eps0
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
     implicit none
-    logical, intent(in) :: mask(2:i1, 2:j1, 1:k1)
     real, intent(in)    :: Nr  (2:i1, 2:j1, 1:k1) &
                           ,qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
-    do k=k1,2,-1
-      if (any(mask(:,:,k))) then
-        qrroof = max(qrroof, min(k1, k+1))
-        exit
-      endif
-    enddo
-
     if (l_sb) then
-      do k=1,qrroof
+      do k=qrbase,qrroof
         do j=2,j1
           do i=2,i1
-            if (mask(i,j,k)) then
+            if (qrmask(i,j,k)) then
               ! JvdD Added eps0 to avoid floating point exception
               xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
 
@@ -139,10 +134,10 @@ module modbulkmicro
 
       if (l_mur_cst) then
         mur = mur_cst
-        do k=1,qrroof
+        do k=qrbase,qrroof
           do j=2,j1
             do i=2,i1
-              if (mask(i,j,k)) then
+              if (qrmask(i,j,k)) then
                 lbdr = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr
               !else
               !  lbdr = 0.
@@ -152,10 +147,10 @@ module modbulkmicro
         enddo
       else
         ! mur = f(Dv)
-        do k=1,qrroof
+        do k=qrbase,qrroof
           do j=2,j1
             do i=2,i1
-              if (mask(i,j,k)) then
+              if (qrmask(i,j,k)) then
                 mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
                 lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
               !else
@@ -167,10 +162,10 @@ module modbulkmicro
         enddo
       endif
     else ! l_sb
-       do k=1,qrroof
+       do k=qrbase,qrroof
          do j=2,j1
            do i=2,i1
-             if (mask(i,j,k)) then
+             if (qrmask(i,j,k)) then
                ! JvdD Added eps0 to avoid floating point exception
                xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k) + eps0)
 
@@ -199,7 +194,7 @@ module modbulkmicro
                              mur_cst, inr, iqr
     implicit none
     integer :: i,j,k
-    real :: qrtest,nrtest,qr_cor
+    real :: qrtest,nr_cor,qr_cor
 
     Nr = sv0(2:i1,2:j1,1:k1,inr)
     qr = sv0(2:i1,2:j1,1:k1,iqr)
@@ -231,27 +226,62 @@ module modbulkmicro
 
        Nr = max(0.,Nr)
        qr = max(0.,qr)
+
+       ! BUG: why write back these values here?
+       !      negative values in svm + svp are corrected for at the end
+       !      of bulkmicro, and tstep integrate does svm + svp
+       ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
+       ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
     end if   ! l_rain
+
+    !*********************************************************************
+    ! Find gridpoints where the microphysics scheme should run
+    !*********************************************************************
+    qrmask = qr.gt.qrmin.and.Nr.gt.0
+    qrbase = k1 + 1
+    qrroof = 1 - 1
+    do k=1,k1
+      if (any(qrmask(:,:,k))) then
+        qrbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qrbase.le.k1) then
+      do k=k1,qcbase,-1
+        if (any(qrmask(:,:,k))) then
+          qrroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+
+    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    do k=1,k1
+      if (any(qcmask(:,:,k))) then
+        qcbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qcbase.le.k1) then
+      do k=k1,qcbase,-1
+        if (any(qcmask(:,:,k))) then
+          qcroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+
+    ! if there is nothing to do, we can return at this point
+    if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     !*********************************************************************
     ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
     !*********************************************************************
-    qrmask = qr.gt.qrmin.and.Nr.gt.0
     if (l_rain) then
-      ! the calculate_rain_parameters will only raise the roof,
-      ! so on the first call, set it to 0
-      qrroof = 0
-      call calculate_rain_parameters(Nr, qr, qrmask)
+      call calculate_rain_parameters(Nr, qr)
     end if   ! l_rain
-
-    ! there is no timestepping using qcmask, so just set the qcroof here
-    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
-    do k=k1,2,-1
-      if (any(qcmask(:,:,k))) then
-        qcroof = min(k1, k+1)
-        exit
-      endif
-    enddo
 
     !*********************************************************************
     ! call microphysical processes subroutines
@@ -272,26 +302,33 @@ module modbulkmicro
       call bulkmicrotend
     endif
 
-    sv0(2:i1,2:j1,1:k1,inr) = Nr
-    sv0(2:i1,2:j1,1:k1,iqr) = qr
-
     !*********************************************************************
     ! remove negative values and non physical low values
     !*********************************************************************
-    do k=1,max(qrroof, qcroof)
+    ! qcbase/qcroof are based on ql0.gt.qcmin and
+    ! qrbase/qrroof are based on qr.gt.qrmin
+    ! but we need boundaries to update qtp/thlp.
+    !
+    ! The difference between them comes from:
+    !  * sedimentation_cloud updated qtpmcr/thlpmcr at qcbase-1
+    !  * sedimentation_rain updated qrbase/qrroof,
+    !    but at those levels qtmpcr/thlpmcr are either zero or
+    !    already in the qc boundaries.
+    if (qcbase.le.k1) qcbase = max(1, qcbase - 1)
+
+    do k=min(qrbase,qcbase),max(qrroof, qcroof)
     do j=2,j1
     do i=2,i1
       qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
       qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
-
-      nrtest=min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
+      nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
 
       ! correction, after Jerome's implementation in Gales
       qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
       thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
 
       svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
-      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nrtest
+      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nr_cor
       ! adjust negative qr tendencies at the end of the time-step
     enddo
     enddo
@@ -311,7 +348,7 @@ module modbulkmicro
     use modfields, only : exnf,rhof,ql0
     use modmicrodata, only : qrp, Nrp, qtpmcr, thlpmcr, &
                              qr, qcmask, pirhow, x_s, &
-                             d0_kk, delt, k_1, k_2, k_au, k_c, Nc_0, &
+                             D0_kk, delt, k_1, k_2, k_au, k_c, Nc_0, &
                              l_sb
     implicit none
     integer i,j,k
@@ -321,6 +358,7 @@ module modbulkmicro
     real :: xc   !  mean mass of cloud water droplets
     real :: nuc  !  width parameter of cloud DSD
 
+    if (qcbase.gt.qcroof) return
 
     if (l_sb) then
       !
@@ -328,7 +366,7 @@ module modbulkmicro
       !
       k_au = k_c/(20*x_s)
 
-      do k=1,qcroof
+      do k=qcbase,qcroof
       do j=2,j1
       do i=2,i1
          if (qcmask(i,j,k)) then
@@ -357,7 +395,7 @@ module modbulkmicro
       !
       ! KK00 autoconversion
       !
-      do k=1,qcroof
+      do k=qcbase,qcroof
       do j=2,j1
       do i=2,i1
          if (qcmask(i,j,k)) then
@@ -403,7 +441,10 @@ module modbulkmicro
       !
       ! SB accretion
       !
-      do k=1,min(qrroof, qcroof)
+
+      if (max(qrbase,qcbase).gt.min(qrroof,qcroof)) return
+
+      do k=max(qrbase,qcbase),min(qrroof, qcroof)
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
@@ -426,7 +467,9 @@ module modbulkmicro
       !
       ! SB self-collection & Break-up
       !
-      do k=1,qrroof
+      if (qrbase.gt.qrroof) return
+
+      do k=qrbase,qrroof
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k)) then
@@ -448,7 +491,9 @@ module modbulkmicro
       !
       ! KK00 accretion
       !
-      do k=1,min(qcroof, qrroof)
+      if (max(qrbase,qcbase).gt.min(qcroof,qcroof)) return
+
+      do k=max(qrbase,qcbase),min(qcroof,qrroof)
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
@@ -485,9 +530,11 @@ module modbulkmicro
     integer :: i,j,k
     real :: sedc
 
+    if (qcbase.gt.qcroof) return
+
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
-    do k=1,qcroof
+    do k=qcbase,qcroof
     do j=2,j1
     do i=2,i1
       if (qcmask(i,j,k)) then
@@ -533,13 +580,13 @@ module modbulkmicro
     real :: sed_qr
     real :: sed_Nr
     real, allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
-    logical, allocatable  :: qrmask_spl(:,:,:)
 
     real,save :: dt_spl,wfallmax
 
+    if (qrbase.gt.qrroof) return
+
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
-    allocate(qrmask_spl(2:i1,2:j1,1:k1))
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
@@ -548,21 +595,27 @@ module modbulkmicro
     do jn=1,n_spl ! time splitting loop
 
       if (jn .eq. 1) then
-        qrmask_spl = qrmask
         qr_spl = qr
         Nr_spl = Nr
       else
         ! update parameters after the first iteration
-        qrmask_spl = qr_spl .gt. qrmin
-        call calculate_rain_parameters(Nr_spl, qr_spl, qrmask_spl)
+
+        ! a new mask
+        qrmask = (qr_spl .gt. qrmin).and.(Nr_spl .gt. 0) ! BUG: added Nr_spl
+
+        ! lower the rain base by one level to include the rain fall
+        ! from the previous step
+        qrbase = max(1, qrbase - 1)
+
+        call calculate_rain_parameters(Nr_spl, qr_spl)
       endif
 
       if (l_sb) then
         if (l_lognormal) then
-          do k = 1,qrroof
+          do k = qrbase,qrroof
           do j = 2,j1
           do i = 2,i1
-            if (qrmask_spl(i,j,k)) then
+            if (qrmask(i,j,k)) then
               ! correction for width of DSD
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
               sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
@@ -587,7 +640,7 @@ module modbulkmicro
                   write(6,*)'sed_qr too large', myid,i,j,k
                 endif
               endif
-              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then ! BUG why k?
                   write(6,*)'sed_qr too large', myid,i,j,k
               endif
 
@@ -602,10 +655,10 @@ module modbulkmicro
           !
           ! SB rain sedimentation
           !
-          do k=1,qrroof
+          do k=qrbase,qrroof
           do j=2,j1
           do i=2,i1
-            if (qrmask_spl(i,j,k)) then
+            if (qrmask(i,j,k)) then
               wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
               wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
               sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
@@ -638,10 +691,10 @@ module modbulkmicro
         !
         ! KK00 rain sedimentation
         !
-        do k=1,qrroof
+        do k=qrbase,qrroof
         do j=2,j1
         do i=2,i1
-          if (qrmask_spl(i,j,k)) then
+          if (qrmask(i,j,k)) then
             sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
             sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
 
@@ -671,10 +724,17 @@ module modbulkmicro
 
     enddo ! time splitting loop
 
-    Nrp(:,:,1:qrroof) = Nrp(:,:,1:qrroof) + (Nr_spl(:,:,1:qrroof) - Nr(:,:,1:qrroof))/delt
-    qrp(:,:,1:qrroof) = qrp(:,:,1:qrroof) + (qr_spl(:,:,1:qrroof) - qr(:,:,1:qrroof))/delt
+    ! the last time splitting step lowered the base level
+    ! and we still need to adjust for it
+    qrbase = max(1,qrbase-1)
 
-    deallocate(qr_spl, Nr_spl, qrmask_spl)
+    Nrp(:,:,qrbase:qrroof) = Nrp(:,:,qrbase:qrroof) + &
+      (Nr_spl(:,:,qrbase:qrroof) - Nr(:,:,qrbase:qrroof))/delt
+
+    qrp(:,:,qrbase:qrroof) = qrp(:,:,qrbase:qrroof) + &
+      (qr_spl(:,:,qrbase:qrroof) - qr(:,:,qrbase:qrroof))/delt
+
+    deallocate(qr_spl, Nr_spl)
 
   end subroutine sedimentation_rain
 
@@ -707,8 +767,11 @@ module modbulkmicro
 
     real :: evap, Nevap
 
+    if (qrbase.gt.qrroof) return
+
     if (l_sb) then
-       do k=1,qrroof
+
+       do k=qrbase,qrroof
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
@@ -730,7 +793,7 @@ module modbulkmicro
              Nevap = - svm(i,j,k,inr)/delt
              evap  = - svm(i,j,k,iqr)/delt
            endif
-       
+
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
            qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
@@ -740,7 +803,7 @@ module modbulkmicro
        enddo
        enddo
     else ! l_sb
-       do k=1,qrroof
+       do k=qrbase,qrroof
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
@@ -755,7 +818,7 @@ module modbulkmicro
              Nevap = - svm(i,j,k,inr)/delt
              evap  = - svm(i,j,k,iqr)/delt
            endif
-       
+
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
            qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
