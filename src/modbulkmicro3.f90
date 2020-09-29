@@ -445,8 +445,8 @@ subroutine bulkmicro3
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
   use modmicrodata3, only : in_cl
   use modmpi,    only : myid
-  use modbulkmicro_point, only : point_processes
-  use modbulkmicro_column, only : nucleation3, column_processes
+  use modbulkmicro3_point, only : point_processes
+  use modbulkmicro3_column, only : nucleation3, column_processes
   implicit none
   integer :: i,j,k,ks,ke
 

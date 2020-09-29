@@ -1,4 +1,4 @@
-module modbulkmicro_column
+module modbulkmicro3_column
   use modmicrodata
   use modmicrodata3
   implicit none
@@ -1012,4 +1012,4 @@ real function erfint3(beta, D, D_min, D_max, sig2,nnn )
   if (erfint3 < 0.) erfint3 = 0.
 end function erfint3
 
-end module modbulkmicro_column
+end module modbulkmicro3_column

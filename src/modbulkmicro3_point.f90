@@ -1,4 +1,4 @@
-module modbulkmicro_point
+module modbulkmicro3_point
   use modglobal, only :    rdt,rk3step
   use modmicrodata, only : Dv,Kt,delt,nu_a,Sc_num,D_eq, &
                            k_br,k_l,k_r,k_rr,kappa_r, phi, pirhow, &
@@ -142,7 +142,7 @@ contains
 
     ! TODO: remove
     if (any(sv0.lt.0).or.any(svm.lt.0)) then
-      write (6,*) 'modbulkmicro_point: negative values in sv0 or svm'
+      write (6,*) 'modbulkmicro3_point: negative values in sv0 or svm'
     endif
 
     n_ccp  = svp(in_cc)
@@ -3022,4 +3022,4 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e,n_ep,n_em &
   dn_me = me_n
 end subroutine sb_evmelt3
 
-end module modbulkmicro_point
+end module modbulkmicro3_point
