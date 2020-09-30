@@ -343,7 +343,7 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
 
     do k=k_low1,k_high1
       ! NOTE: code is a duplicate from subroutine integrals_bulk3
-      if (qr_spl(k) > qrmin.and.(Nr_spl(k) > 0.0)) then  ! BUG: what is the correct limit for qr_spl?
+      if (qr_spl(k) > q_hr_min.and.(Nr_spl(k) > 0.0)) then
         if (l_sb) then
           xr_spl   = qr_spl(k)/Nr_spl(k)
           xr_spl   = max(xrmin,min(xrmax,xr_spl))
@@ -511,7 +511,7 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, precep_hs, tend)
 
     do k=k_low1,k_high1
       ! terminal fall velocity
-      if ((qip_spl(k) > q_hs_min).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+      if ((qip_spl(k) > qsnowmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_hs_bmin),x_hs_bmax) ! to ensure xr is within borders
 
@@ -610,14 +610,14 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, precep_hg, tend)
     sed_nip = 0.
 
     do k=k_low1,k_high1
-      if ((qip_spl(k) > qgrmin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+      if ((qip_spl(k) > qgrmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_hg_bmin),x_hg_bmax) ! to ensure xr is within borders
 
-        wfall = max(0.0,c_v_g1 * xip_spl**be_hg) ! BUG: hs should be be_hg?
+        wfall = max(0.0,c_v_g1 * xip_spl**be_hg)
         sed_qip(k) = wfall*qip_spl(k)*rhof(k)
 
-        wfall = max(0.0,c_v_g0 * xip_spl**be_hg) ! BUG: hs should be be_hg?
+        wfall = max(0.0,c_v_g0 * xip_spl**be_hg)
         sed_nip(k) = wfall*nip_spl(k)*rhof(k)
 
         ! Adjust boundaries for the second k loop
@@ -709,7 +709,7 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
     sed_nip = 0.
 
     do k=k_low1,k_high1
-      if ((qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+      if ((qip_spl(k) > qicemin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_ci_bmin),x_ci_bmax) ! to ensure xr is within borders
 
@@ -814,7 +814,7 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
     sed_nip = 0.
 
     do k=k_low1,k_high1
-      if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then ! BUG: what is the correct limit for qip_spl?
+      if ((qip_spl(k) > qcliqmin).and.(nip_spl(k) > 0.0)) then
         xip_spl = qip_spl(k)/nip_spl(k)
         xip_spl = min(max(xip_spl,x_cl_bmin),x_cl_bmax) ! to ensure xr is within borders
 

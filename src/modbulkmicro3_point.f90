@@ -2447,7 +2447,7 @@ subroutine accretion3
 
   real :: phi, Dvrf, tau
   real :: rem_cf
-  real :: dq_hr_ac = 0.  !< change in mass of raindrops due to accretion
+  real :: dq_hr_ac = 0.
   real :: dn_hr_br = 0.
   real :: dn_hr_sc = 0.
 
@@ -2509,8 +2509,7 @@ subroutine accretion3
       ! determine accr. rate and adjust qrp and Nrp
       ! accordingly. Break-up : Seifert (2007), a
       !*********************************************************************
-      ! BUG: not sure about if statements!
-      if (q_cl > qcmin) then
+      if (q_cl_mask) then
         tau = 1.0 - ql0/(q_cl + q_hr) ! NOTE: was qltot
         phi = (tau/(tau + k_l))**4.
 
