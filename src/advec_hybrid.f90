@@ -26,6 +26,9 @@
 !
 module advec_hybrid
 implicit none
+private
+public advecc_hybrid
+
 integer :: k_low,k_high
 contains
 

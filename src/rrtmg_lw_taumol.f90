@@ -25,6 +25,8 @@
       use rrlw_vsn, only: hvrtau, hnamtau
 
       implicit none
+      private
+      public taumol
 
       contains
 

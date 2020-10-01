@@ -263,7 +263,7 @@ contains
     use mpi
     use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
-    use modsubgrid, only : ekm, ekh
+    use modsubgriddata, only : ekm, ekh
     use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh, itot
 

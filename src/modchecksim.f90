@@ -137,7 +137,7 @@ contains
   subroutine calcpeclet
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
-    use modsubgrid,only : ekm
+    use modsubgriddata,only : ekm
     use mpi
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none

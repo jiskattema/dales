@@ -22,6 +22,8 @@
       use rrtmg_sw_setcoef, only: swatmref
 
       implicit none
+      private
+      public rrtmg_sw_ini
 
       contains
 

@@ -29,6 +29,8 @@
 
 module modsimpleice
   implicit none
+  private
+  public initsimpleice, exitsimpleice, simpleice
   real :: gamb1r
   real :: gambd1r
   real :: gamb1s

@@ -19,6 +19,8 @@
 !
 module modcanopy
   implicit none
+  private
+  public initcanopy,exitcanopy,canopy
   save
 
   ! Namoptions

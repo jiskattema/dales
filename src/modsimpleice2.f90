@@ -38,6 +38,8 @@
 module modsimpleice2
   use modfields, only : rhobf
   implicit none
+  private
+  public initsimpleice2, exitsimpleice2, simpleice2
   real :: gamb1r
   real :: gambd1r
   real :: gamb1s

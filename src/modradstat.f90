@@ -30,7 +30,7 @@ module modradstat
   use modglobal, only : longint
 
 implicit none
-!private
+private
 PUBLIC :: initradstat, radstat, exitradstat
 save
 !NetCDF variables

@@ -25,6 +25,8 @@
       use rrsw_vsn, only: hvrtau, hnamtau
 
       implicit none
+      private
+      public taumol_sw
 
       contains
 

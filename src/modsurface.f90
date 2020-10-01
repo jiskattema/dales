@@ -63,7 +63,9 @@
 module modsurface
   use modsurfdata
   implicit none
-  !public  :: initsurface, surface, exitsurface
+  private
+  public  :: initsurface, surface, exitsurface &
+            ,patchxnr, patchynr, qtsurf
 
 save
 

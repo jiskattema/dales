@@ -383,11 +383,11 @@ contains
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint
-    use modsubgrid,        only : ekm,ekh
-    use modsurfdata,       only : wsvsurf, &
+    use modsubgriddata,    only : ekm,ekh
+    use modsurfdata,       only : wsvsurf, dthldz, ps, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
-    use modsurface,        only : surface,qtsurf,dthldz,ps
+    use modsurface,        only : surface,qtsurf
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev

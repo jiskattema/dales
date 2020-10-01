@@ -38,6 +38,8 @@
 !      use rrlw_kgb16
 
       implicit none
+      private
+      public rrtmg_lw_ini
 
       contains
 

@@ -30,7 +30,7 @@ module modlsmstat
   use modglobal, only : longint
 
 implicit none
-!private
+private
 PUBLIC :: initlsmstat, lsmstat, exitlsmstat
 save
 !NetCDF variables

@@ -23,6 +23,9 @@
 module modfftw
 use, intrinsic  :: iso_c_binding
 implicit none
+private
+public fftwinit, fftwexit, fftwf, fftwb
+
 include 'fftw3.f03'
 
 save

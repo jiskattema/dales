@@ -28,6 +28,8 @@
 !
 module advec_hybrid_f
 implicit none
+private
+public advecc_hybrid_f
 contains
 
 subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)

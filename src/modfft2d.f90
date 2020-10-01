@@ -25,6 +25,8 @@
 module modfft2d
 
 implicit none
+private
+public fft2dinit, fft2dexit, fft2df, fft2db
 
 save
   integer                             :: nkonx, nkony

@@ -29,8 +29,8 @@ module modstattend
   use modglobal, only : longint
 
   implicit none
-!   private
-!   public :: initstattend, stattend, exitstattend
+  private
+  public :: initstattend, stattend, exitstattend
   save
 !NetCDF variables
   integer,parameter :: nvar = 43

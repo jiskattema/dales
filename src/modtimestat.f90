@@ -36,8 +36,9 @@ module modtimestat
   use modglobal, only : longint
 
 implicit none
-! private
-! PUBLIC :: inittimestat, timestat
+private
+PUBLIC :: inittimestat, exittimestat, timestat &
+         ,we, zi, ziold, calcblheight
 save
 !NetCDF variables
   !integer,parameter :: nvar = 28

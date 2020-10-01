@@ -32,6 +32,7 @@ module modsubgrid
 use modsubgriddata
 implicit none
 save
+  private
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
 
 contains
