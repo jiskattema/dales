@@ -33,15 +33,6 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI, NLeSC
 !
 
-! TODO:
-! subroutine check_sizes
-! subroutine check_updates
-!     compare updates to limit
-! subroutine check_ssat(flag_dbg)
-!     ssat(i,j,k) = (100.0/qvsl(i,j,k))*((qt0(i,j,k)-q_cl(i,j,k))-qvsl(i,j,k)) > max_sat
-!     ssice(i,j,k) =(100.0/qvsi(i,j,k))*((qt0(i,j,k)-q_cl(i,j,k))-qvsi(i,j,k)) > max_sat
-
-
 module modbulkmicro3
 !*********************************************************************
 !
@@ -441,7 +432,7 @@ end subroutine exitbulkmicro3
 ! ---------------------------------------------------------------------------------
 subroutine bulkmicro3
   use modglobal, only : i1,j1,k1,rdt,rk3step
-  use modfields, only : exnf,rhof,presf
+  use modfields, only : exnf,rhof,presf,sv0
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
   use modmicrodata3, only : in_cl
   use modmpi,    only : myid
@@ -485,6 +476,9 @@ subroutine bulkmicro3
       write(6,*) ' modbulkmicro3: clouds initialised by initcloud3'
     endif
   endif
+
+  ! sv0 can contain negative values caused by the advection, fix them here
+  sv0 = max(sv0, 0.)
 
   ! Zero the summed statistics and tendencies
   ! no need to zero:
@@ -652,10 +646,10 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   do k=1,k1
   do i=2,i1,4
   do isv=1,ncols
-    svm_t(isv,k,i+0,j) = max(svm(i+0,j,k,isv), 0.)
-    svm_t(isv,k,i+1,j) = max(svm(i+1,j,k,isv), 0.)
-    svm_t(isv,k,i+2,j) = max(svm(i+2,j,k,isv), 0.)
-    svm_t(isv,k,i+3,j) = max(svm(i+3,j,k,isv), 0.)
+    svm_t(isv,k,i+0,j) = svm(i+0,j,k,isv)
+    svm_t(isv,k,i+1,j) = svm(i+1,j,k,isv)
+    svm_t(isv,k,i+2,j) = svm(i+2,j,k,isv)
+    svm_t(isv,k,i+3,j) = svm(i+3,j,k,isv)
   enddo
   enddo
   enddo
@@ -665,10 +659,10 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   do k=1,k1
   do i=2,i1,4
   do isv=1,ncols
-    sv0_t(isv,k,i+0,j) = max(sv0(i+0,j,k,isv), 0.)
-    sv0_t(isv,k,i+1,j) = max(sv0(i+1,j,k,isv), 0.)
-    sv0_t(isv,k,i+2,j) = max(sv0(i+2,j,k,isv), 0.)
-    sv0_t(isv,k,i+3,j) = max(sv0(i+3,j,k,isv), 0.)
+    sv0_t(isv,k,i+0,j) = sv0(i+0,j,k,isv)
+    sv0_t(isv,k,i+1,j) = sv0(i+1,j,k,isv)
+    sv0_t(isv,k,i+2,j) = sv0(i+2,j,k,isv)
+    sv0_t(isv,k,i+3,j) = sv0(i+3,j,k,isv)
   enddo
   enddo
   enddo
