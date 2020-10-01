@@ -534,22 +534,12 @@ subroutine bulkmicro3
 
   !  - Point processes at k-point
   ! ------------------------------------------------------------------
-    if (rk3step /= 1) then
       do k=1,k1
         call point_processes(prg_t(:,k,i,j),exnf(k),rhof(k),presf(k)         &
                             ,sv0_t(:,k,i,j),svp_t(:,k,i,j),svm_t(:,k,i,j)    &
                             ,thlp_t(k,i,j),qtp_t(k,i,j)                      &
                             ,statistics_col(:,k), tend_col(:,k)              )
       enddo
-    else ! rk3step
-      ! use svm == sv0
-      do k=1,k1
-        call point_processes(prg_t(:,k,i,j),exnf(k),rhof(k),presf(k)         &
-                            ,sv0_t(:,k,i,j),svp_t(:,k,i,j),sv0_t(:,k,i,j)    &
-                            ,thlp_t(k,i,j),qtp_t(k,i,j)                      &
-                            ,statistics_col(:,k), tend_col(:,k)              )
-      enddo
-    endif ! rk3step
 
 
   ! Column processes
@@ -561,14 +551,8 @@ subroutine bulkmicro3
 
   ! Remove negative values and non physical low values
   ! -----------------------------------------------------------------
-  if (rk3step /= 1)  then
     call correct_neg_qt(svp_t(:,:,i,j),svm_t(:,:,i,j)            &
                        ,thlp_t(:,i,j),qtp_t(:,i,j),k_low,k_high  )
-  else
-    ! use svm == sv0
-    call correct_neg_qt(svp_t(:,:,i,j),sv0_t(:,:,i,j)            &
-                       ,thlp_t(:,i,j),qtp_t(:,i,j),k_low,k_high  )
-  endif ! rk3step
 
   ! Keep track of output
   ! -----------------------------------------------------------------
@@ -632,6 +616,11 @@ end subroutine bulkmicro3
 ! NOTE: Loop ordering and partial unrolling to improve performance
 !       Total performance is quite sensitive, please test before making any changes
 !       We cant do the dont-copy-zeros trick, as we need to initialize the arrays anyways
+!
+!       For rk3step == 1 we have sv0 = svm; we could save work by skipping a transpose.
+!       every 3rd call, we could save 12 fields, so: (3 * 43 - 12) / (3 * 43) ~= 90%
+!       If transposing is 20% of the run, that is a 2% speedup.
+!       For now, i'm skipping this optimization because the code gets too complex.
 ! ----------------------------------------------
 subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0
@@ -659,9 +648,6 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   enddo
   enddo
 
-  ! BUG: check rk3step details
-  ! for rk3step == 1 we have sv0 = svm, so no need for to transpose it too
-  if (rk3step /= 1) then
   do j=2,j1
   do k=1,k1
   do i=2,i1,4
@@ -674,7 +660,6 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
   enddo
   enddo
   enddo
-  endif
 
   do j=2,j1
   do k=1,k1
