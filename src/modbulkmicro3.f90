@@ -477,7 +477,14 @@ subroutine bulkmicro3
     endif
   endif
 
-  ! sv0 can contain negative values caused by the advection, fix them here
+  ! BUG: remove code below
+  ! sv0 can contain negative values,
+  ! but negative values from advection would show up in svp and in sv0+svp
+  ! it is unclear to me where the negative values would come from,
+  ! but fix them here
+  if (any(sv0(2:i1,2:j1,1:k1,:).lt.0.)) then
+    write(*,*) 'Negative values in sv0.'
+  endif
   sv0 = max(sv0, 0.)
 
   ! Zero the summed statistics and tendencies
