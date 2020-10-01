@@ -148,6 +148,17 @@ subroutine tstep_update
     end if
   end if
 
+  ! Zero all the tendencies at the start of the timestep
+  ! all processes will add their contributions, until
+  ! tstep_integrate will add them up.
+  up=0.
+  vp=0.
+  wp=0.
+  thlp=0.
+  qtp=0.
+  svp=0.
+  e12p=0.
+
   deallocate(courtotl,courtot)
 
 end subroutine tstep_update
@@ -168,18 +179,16 @@ end subroutine tstep_update
 !! \endlatexonly
 !! \see Wicker and Skamarock, 2002
 subroutine tstep_integrate
-
-
   use modglobal, only : rdt,rk3step,e12min
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
+  use modsampling, only : tnext
   implicit none
 
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
-  wp_store = wp
 
   if(rk3step /= 3) then
      u0   = um   + rk3coef * up
@@ -204,16 +213,11 @@ subroutine tstep_integrate
      sv0 = svm
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
-
   end if
 
-  up=0.
-  vp=0.
-  wp=0.
-  thlp=0.
-  qtp=0.
-  svp=0.
-  e12p=0.
+  ! NOTE: moved zero-ing of the the ..p variables to tstep_update
+  !       this way, they are available for the diagnostics output;
+  !       currently wp is used in sampling.
 
 end subroutine tstep_integrate
 end module tstep

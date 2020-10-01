@@ -48,7 +48,6 @@ save
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
   real, allocatable :: wp(:,:,:)        !<   tendency of wm
-  real, allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
   real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
@@ -165,7 +164,6 @@ subroutine initfields
     allocate(up(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(vp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(wp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wp_store(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thlp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12p(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtp(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -254,7 +252,7 @@ subroutine initfields
 
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
-    wm=0.;w0=0.;wp=0.;wp_store=0.
+    wm=0.;w0=0.;wp=0.
     thlm=0.;thl0=0.;thlp=0.
     qtm=0.;qt0=0.;qtp=0.
     e12m=0.;e120=0.;e12p=0.
@@ -284,7 +282,7 @@ subroutine initfields
   subroutine exitfields
   implicit none
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
-    deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
+    deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)

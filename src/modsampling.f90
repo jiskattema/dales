@@ -312,22 +312,28 @@ contains
   subroutine sampling
     use modglobal, only : rk3step,timee,dt_lim
     implicit none
-   if (isamptot<2) return
+
+    if (isamptot<2) return
+
     if (rk3step/=3) return
+
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
     end if
+
     if (timee>=tnext) then
       tnext = tnext+idtav
       do isamp = 1,isamptot
         call dosampling
       end do
     end if
+
     if (timee>=tnextwrite) then
       tnextwrite = tnextwrite+itimeav
       call writesampling
     end if
+
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
 
   return
@@ -338,7 +344,7 @@ contains
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
                           grav,om22,cu,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
-                          sv0,wp_store
+                          sv0,wp
     use modsubgriddata,only : ekh,ekm
     use mpi
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
@@ -652,9 +658,8 @@ contains
       uwthavl    (k,isamp) = uwthavl    (k,isamp) + sum(uwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       vwthavl    (k,isamp) = vwthavl    (k,isamp) + sum(vwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       wwrhavl    (k,isamp) = wwrhavl    (k,isamp) + sum(wwrh (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
-      ! there may be some numerical noise in wp_store due to the Runge Kutta time integration scheme
-      dwdthavl   (k,isamp) = dwdthavl   (k,isamp) + sum(wp_store(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
-
+      ! there may be some numerical noise in wp due to the Runge Kutta time integration scheme
+      dwdthavl   (k,isamp) = dwdthavl   (k,isamp) + sum(wp (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       wh_el      (k,isamp) =                        sum(w0 (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       sigh_el    (k,isamp) =                        count(maskh(2:i1,2:j1,k))
 
