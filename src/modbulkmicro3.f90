@@ -904,9 +904,12 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       svp_col(iq_hr,k) = - svm_col(iq_hr,k)/delt
       svp_col(in_hr,k) = - svm_col(in_hr,k)/delt
     end if
-    if (svp_col(iq_hr,k).ne.0.) then
-      k_low( iq_hr) = max(k_low(iq_hr),k)
+    if ((svp_col(iq_hr,k).ne.0.).or.(svp_col(in_hr,k).ne.0.)) then
+      k_low(iq_hr) = max(k_low(iq_hr),k)
+      k_low(in_hr) = max(k_low(in_hr),k)
+
       k_high(iq_hr) = min(k_high(iq_hr),k)
+      k_high(in_hr) = min(k_high(in_hr),k)
     endif
 
     ! == snow ==
@@ -919,9 +922,12 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       svp_col(iq_hs,k) = - svm_col(iq_hs,k)/delt
       svp_col(in_hs,k) = - svm_col(in_hs,k)/delt
     endif
-    if (svp_col(iq_hs,k).ne.0.) then
-      k_low( iq_hs) = max(k_low(iq_hs),k)
+    if ((svp_col(iq_hs,k).ne.0.).or.(svp_col(in_hs,k).ne.0.)) then
+      k_low(iq_hs) = max(k_low(iq_hs),k)
+      k_low(in_hs) = max(k_low(in_hs),k)
+
       k_high(iq_hs) = min(k_high(iq_hs),k)
+      k_high(in_hs) = min(k_high(in_hs),k)
     endif
 
     ! == graupel ==
@@ -934,9 +940,12 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       svp_col(iq_hg,k) = - svm_col(iq_hg,k)/delt
       svp_col(in_hg,k) = - svm_col(in_hg,k)/delt
     endif
-    if (svp_col(iq_hg,k).ne.0.) then
-      k_low( iq_hg) = max(k_low(iq_hg),k)
+    if ((svp_col(iq_hg,k).ne.0.).or.(svp_col(in_hg,k).ne.0.)) then
+      k_low(iq_hg) = max(k_low(iq_hg),k)
+      k_low(in_hg) = max(k_low(in_hg),k)
+
       k_high(iq_hg) = min(k_high(iq_hg),k)
+      k_high(in_hg) = min(k_high(in_hg),k)
     endif
 
     ! == cloud ice ==
@@ -949,9 +958,12 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       svp_col(iq_ci,k) = - svm_col(iq_ci,k)/delt
       svp_col(in_ci,k) = - svm_col(in_ci,k)/delt
     endif
-    if (svp_col(iq_ci,k).ne.0.) then
-      k_low( iq_ci) = max(k_low(iq_ci),k)
+    if ((svp_col(iq_ci,k).ne.0.).or.(svp_col(in_ci,k).ne.0.)) then
+      k_low(iq_ci) = max(k_low(iq_ci),k)
+      k_low(in_ci) = max(k_low(in_ci),k)
+
       k_high(iq_ci) = min(k_high(iq_ci),k)
+      k_high(in_ci) = min(k_high(in_ci),k)
     endif
 
     ! == cloud liquid water ==
@@ -961,9 +973,12 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       svp_col(iq_cl,k) = - svm_col(iq_cl,k)/delt
       svp_col(in_cl,k) = - svm_col(in_cl,k)/delt
     endif
-    if (svp_col(iq_cl,k).ne.0.) then
-      k_low( iq_cl) = max(k_low(iq_cl),k)
+    if ((svp_col(iq_cl,k).ne.0.).or.(svp_col(in_cl,k).ne.0.)) then
+      k_low(iq_cl) = max(k_low(iq_cl),k)
+      k_low(in_cl) = max(k_low(in_cl),k)
+
       k_high(iq_cl) = min(k_high(iq_cl),k)
+      k_high(in_cl) = min(k_high(in_cl),k)
     endif
   enddo
 
@@ -982,7 +997,7 @@ subroutine correct_neg_qt(svp_col,svm_col,thlp_col,qtp_col,k_low,k_high)
       end if
     enddo
     if (svp_col(in_cc,k).ne.0.) then
-      k_low( in_cc) = max(k_low(in_cc),k)
+      k_low(in_cc) = max(k_low(in_cc),k)
       k_high(in_cc) = min(k_high(in_cc),k)
     endif
   endif ! not l_c_ccn
