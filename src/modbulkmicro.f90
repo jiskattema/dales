@@ -105,7 +105,7 @@ module modbulkmicro
   subroutine calculate_rain_parameters(Nr, qr)
     use modmicrodata, only : xr, Dvr, lbdr, mur, &
                              l_sb, l_mur_cst, mur_cst, pirhow, &
-                             qrmask, xrmin, xrmax, xrmaxkk, eps0
+                             qrmask, xrmin, xrmax, xrmaxkk
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
     implicit none
@@ -118,8 +118,7 @@ module modbulkmicro
         do j=2,j1
           do i=2,i1
             if (qrmask(i,j,k)) then
-              ! JvdD Added eps0 to avoid floating point exception
-              xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+              xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
 
               ! to ensure xr is within borders
               xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
@@ -166,8 +165,7 @@ module modbulkmicro
          do j=2,j1
            do i=2,i1
              if (qrmask(i,j,k)) then
-               ! JvdD Added eps0 to avoid floating point exception
-               xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k) + eps0)
+               xr(i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
 
                ! to ensure x_pw is within borders
                xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
@@ -624,7 +622,9 @@ module modbulkmicro
               ! actually in this way for every grid box a fall velocity is determined
               pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
               if (pwcont > eps1) then
-                sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+                sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
+                ! or:
+                ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
               else
                 sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
               endif
@@ -635,15 +635,7 @@ module modbulkmicro
               if (k .gt. 1) then
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
                 Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
-
-                if (qr_spl(i,j,k-1) .lt. 0.) then
-                  write(6,*)'sed_qr too large', myid,i,j,k
-                endif
               endif
-              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then ! BUG why k?
-                  write(6,*)'sed_qr too large', myid,i,j,k
-              endif
-
               if (jn==1) then
                 precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
               endif
@@ -659,8 +651,9 @@ module modbulkmicro
           do j=2,j1
           do i=2,i1
             if (qrmask(i,j,k)) then
-              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
-              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+              wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+              wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+
               sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
               sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
 
@@ -670,15 +663,7 @@ module modbulkmicro
               if (k .gt. 1) then
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
                 Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
-
-                if (qr_spl(i,j,k-1) .lt. 0.) then
-                  write(6,*)'sed_qr too large', myid,i,j,k
-                endif
               endif
-              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
-                  write(6,*)'sed_qr too large', myid,i,j,k
-              endif
-
               if (jn==1) then
                 precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
               endif
@@ -704,15 +689,7 @@ module modbulkmicro
             if (k .gt. 1) then
               qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
               Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
-
-              if (qr_spl(i,j,k-1) .lt. 0.) then
-                write(6,*)'sed_qr too large', myid,i,j,k
-              endif
             endif
-            if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
-                write(6,*)'sed_qr too large', myid,i,j,k
-            endif
-
             if (jn==1) then
               precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
             endif
@@ -796,6 +773,7 @@ module modbulkmicro
 
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+
            qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
          endif
@@ -821,6 +799,7 @@ module modbulkmicro
 
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+
            qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
          endif
