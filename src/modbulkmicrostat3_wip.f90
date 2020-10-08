@@ -37,19 +37,14 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
-  integer,parameter                 :: nvar = 23
+  integer,parameter                 :: nvar = 11
   character(80),dimension(nvar,4)   :: ncname
   character(80),dimension(1,4)      :: tncname
   real                              :: dtav, timeav
   integer(kind=longint)             :: idtav, itimeav, tnext, tnextwrite
   integer                           :: nsamples
   logical                           :: lmicrostat = .false.
-  integer, parameter                :: nrfields = 5 &
-                                      ,iauto    = 2 &
-                                      ,iaccr    = 3 &
-                                      ,ievap    = 4 &
-                                      ,ised     = 5
-  real, allocatable, dimension(:,:) :: Npav  &
+  real, allocatable, dimension(:)   :: Npav  &
                                       ,Npmn  &
                                       ,qlpav &
                                       ,qlpmn &
@@ -128,14 +123,14 @@ subroutine initbulkmicrostat3
       stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
     end if
 
-    allocate(Npav    (k1, nrfields) &
-            ,Npmn    (k1, nrfields) &
-            ,qlpav   (k1, nrfields) &
-            ,qlpmn   (k1, nrfields) &
-            ,qtpav   (k1, nrfields) &
-            ,qtpmn   (k1, nrfields) )
+    allocate(Npav    (k1) &
+            ,Npmn    (k1) &
+            ,qlpav   (k1) &
+            ,qlpmn   (k1) &
+            ,qtpav   (k1) &
+            ,qtpmn   (k1) )
 
-    allocate(precavl      (k1) &
+    allocate(precavl       (k1) &
             ,precav        (k1) &
             ,precmn        (k1) &
             ,preccountavl  (k1) &
@@ -175,12 +170,6 @@ subroutine initbulkmicrostat3
     if (myid == 0 .and. .not. lwarmstart) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
       close(ifoutput)
-      open (ifoutput,file = 'nptend.'//cexpnr ,status = 'replace')
-      close(ifoutput)
-      open (ifoutput,file = 'qlptend.'//cexpnr,status = 'replace')
-      close(ifoutput)
-      open (ifoutput,file = 'qtptend.'//cexpnr,status = 'replace')
-      close(ifoutput)
     end if
 
     if (lnetcdf) then
@@ -199,21 +188,9 @@ subroutine initbulkmicrostat3
         call ncinfo(ncname( 6,:),'precmn','precmn','W/m^2','tt')
         call ncinfo(ncname( 7,:),'dvrmn','dvrmn','W/m^2','tt')
         call ncinfo(ncname( 8,:),'qrmn','qrmn','W/m^2','tt')
-        call ncinfo(ncname( 9,:),'npauto','Autoconversion rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(10,:),'npaccr','Accretion rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(11,:),'npsed','Sedimentation rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(12,:),'npevap','Evaporation rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(13,:),'nptot','Total rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(14,:),'qrpauto','Autoconversion rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(15,:),'qrpaccr','Accretion rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(16,:),'qrpsed','Sedimentation rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(17,:),'qrpevap','Evaporation rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(18,:),'qrptot','Total rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(19,:),'qtpauto','Autoconversion total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(20,:),'qtpaccr','Accretion total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(22,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(23,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname( 9,:),'nptot','Total rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(10,:),'qrptot','Total rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(11,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
         call define_nc( ncid_prof, NVar, ncname)
       end if
 
@@ -309,9 +286,6 @@ subroutine initbulkmicrostat3
 !> Npav  : Nrp
 !> qlpav : qrp
 !> qtpav : qtp
-!>
-!> NOTE: this routine was called nrfields=5 times per timestep,
-!>       ie. before and after the physical processes in bulkmicro
   subroutine bulkmicrotend3
     use modmpi,       only  : slabsum
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
@@ -320,10 +294,6 @@ subroutine initbulkmicrostat3
     implicit none
 
     real, dimension(:), allocatable :: avfield
-
-    ! NOTE: the initialization the in declaration automatically adds 
-    !       a 'save' attribute
-    integer :: ifield = 0
 
     if (.not. lmicrostat) return
     if (rk3step /= 3) return
@@ -337,28 +307,24 @@ subroutine initbulkmicrostat3
 
     allocate(avfield(k1))
 
-    ifield    = mod(ifield, nrfields) + 1
-
     avfield    = 0.0
     call slabsum(avfield  ,1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
-    Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
+    Npav(:)  = avfield
 
     avfield    = 0.0
     call slabsum(avfield  ,1,k1,qrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
-    qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
+    qlpav(:) = avfield
 
     avfield    = 0.0
     call slabsum(avfield  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    qtpav(:,ifield) = avfield - sum(qtpav  (:,1:ifield-1),2)
+    qtpav(:) = avfield
 
-    if (ifield == nrfields) then
-      Npmn  = Npmn  + Npav  / nsamples / ijtot
-      qlpmn = qlpmn + qlpav / nsamples / ijtot
-      qtpmn = qtpmn + qtpav / nsamples / ijtot
-      Npav  = 0.0
-      qlpav = 0.0
-      qtpav = 0.0
-    end if
+    Npmn  = Npmn  + Npav  / nsamples / ijtot
+    qlpmn = qlpmn + qlpav / nsamples / ijtot
+    qtpmn = qtpmn + qtpav / nsamples / ijtot
+    Npav  = 0.0
+    qlpav = 0.0
+    qtpav = 0.0
 
     deallocate(avfield)
   end subroutine bulkmicrotend3
@@ -406,123 +372,40 @@ subroutine initbulkmicrostat3
     end where
 
     if (myid == 0) then
-    open (ifoutput,file='precep.'//cexpnr,position='append')
-    write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
-      '#-------------------------------------------------------------'   &
-      ,'---------------------------------)'           &
-      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
-      ,nhrs,':',nminut,':',nsecs             &
-      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-    write (ifoutput,'(2A/A/A/2A/2A/2A)')             &
-      '#------------------------------------------------------------'     &
-      ,'------------'                 &
-      ,'#               --------   PRECIPITATION ------    '       &
-      ,'#                                                           '     &
-      ,'# LEV HEIGHT   RHO(k)  PRES  |CLOUDCOVER  ECHORAINRATE  PRECCOUNT '   &
-      ,'    NRRAIN      RAINCOUNT     PREC(k)     <Dvr(k)>     <qr(k)>'   &
-      ,'#      (M)             (MB)  |----------  ---W/M2----   --------- '   &
-      ,'    ------      ---------     -------     --------    ---------'   &
-      ,'#-----------------------------------------------------------------'   &
-      ,'---------------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F8.3,F7.1,8E13.5)') &
-      (k          , &
-      zf    (k)      , &
-      rhof    (k)      , &
-      presf    (k)/100.    , &
-      cloudcountmn  (k)      , &
-      prec_prcmn  (k)*rhof(k)*rlv  , &
-      preccountmn  (k)      , &
-      Nrrainmn  (k)      , &
-      raincountmn  (k)      , &
-      precmn    (k)*rhof(k)*rlv  , &
-      Dvrmn    (k)      , &
-      qrmn    (k)      , &
-      k=1,kmax)
-    close(ifoutput)
-
-    open (ifoutput,file='nptend.'//cexpnr,position='append')
-    write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
-      '#-------------------------------------------------------------'   &
-      ,'---------------------------------)'           &
-      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
-      ,nhrs,':',nminut,':',nsecs             &
-      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-    write (ifoutput,'(2A/A/A/2A/A/A)')             &
-      '#------------------------------------------------------------'     &
-      , '------------'               &
-      ,'#               --------   T E N D E N C I E S NRAIN ------    '     &
-      ,'#                                                           '     &
-      ,'# LEV HEIGHT   PRES  |  AUTO         ACCR          SEDIM    '     &
-      ,'     EVAP         TOT '             &
-      ,'#      (M)   (MB)  |  ---------   (#/M3/S)      ----------'     &
-      ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
-      (k                     , &
-      zf      (k)            , &
-      presf   (k)/100.       , &
-      Npmn    (k,iauto)      , &
-      Npmn    (k,iaccr)      , &
-      Npmn    (k,ised)       , &
-      Npmn    (k,ievap)      , &
-      sum(Npmn(k,2:nrfields)), &
-      k=1,kmax)
-    close(ifoutput)
-
-    open (ifoutput,file='qlptend.'//cexpnr,position='append')
-    write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
-      '#-------------------------------------------------------------'   &
-      ,'---------------------------------)'           &
-      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
-      ,nhrs,':',nminut,':',nsecs             &
-      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-    write (ifoutput,'(2A/A/A/2A/A/A)')             &
-      '#------------------------------------------------------------'     &
-      , '------------'               &
-      ,'#               --------   T E N D E N C I E S QRAIN ------    '   &
-      ,'#                                                           '     &
-      ,'# LEV HEIGHT   PRES  |  AUTO         ACCR          SEDIM    '     &
-      ,'     EVAP         TOT '             &
-      ,'#      (M)   (MB)  |  ---------   (KG/KG/S)      ----------'     &
-      ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
-      (k          , &
-      zf    (k)      , &
-      presf    (k)/100.    , &
-      qlpmn    (k,iauto)    , &
-      qlpmn    (k,iaccr)    , &
-      qlpmn    (k,ised)    , &
-      qlpmn    (k,ievap)    , &
-      sum(qlpmn  (k,2:nrfields))    , &
-                        k=1,kmax)
-    close(ifoutput)
-
-    open (ifoutput,file='qtptend.'//cexpnr,position='append')
-    write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
-      '#-------------------------------------------------------------'   &
-      ,'---------------------------------)'           &
-      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
-      ,nhrs,':',nminut,':',nsecs             &
-      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-    write (ifoutput,'(2A/A/A/2A/A/A)')             &
-      '#------------------------------------------------------------'     &
-      , '------------'               &
-      ,'#               --------   T E N D E N C I E S QTP ------    '   &
-      ,'#                                                           '     &
-      ,'# LEV HEIGHT   PRES  |  AUTO         ACCR          SEDIM    '     &
-      ,'     EVAP         TOT '             &
-      ,'#      (M)   (MB)  |  ---------   (KG/KG/S)      ----------'     &
-      ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
-      (k                 , &
-      zf    (k)          , &
-      presf    (k)/100.  , &
-      qtpmn    (k,iauto) , &
-      qtpmn    (k,iaccr) , &
-      qtpmn    (k,ised)  , &
-      qtpmn    (k,ievap) , &
-      sum    (qtpmn(k,2:nrfields))  , &
-      k=1,kmax)
+      open (ifoutput,file='precep.'//cexpnr,position='append')
+      write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
+        '#-------------------------------------------------------------'   &
+        ,'---------------------------------)'           &
+        ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
+        ,nhrs,':',nminut,':',nsecs             &
+        ,'   HRS:MIN:SEC AFTER INITIALIZATION '
+      write (ifoutput,'(2A/A/A/2A/2A/2A)')             &
+        '#------------------------------------------------------------'     &
+        ,'------------'                 &
+        ,'#               --------   PRECIPITATION ------    '       &
+        ,'#                                                           '     &
+        ,'# LEV HEIGHT   RHO(k)  PRES  |CLOUDCOVER  ECHORAINRATE  PRECCOUNT '   &
+        ,'    NRRAIN      RAINCOUNT     PREC(k)     <Dvr(k)>     <qr(k)>'   &
+        ,'#      (M)             (MB)  |----------  ---W/M2----   --------- '   &
+        ,'    ------      ---------     -------     --------    ---------'   &
+        ,'#-----------------------------------------------------------------'   &
+        ,'---------------------------------------------------------------'
+      write(ifoutput,'(I4,F10.2,F8.3,F7.1,8E13.5)') &
+        (k                           , &
+        zf           (k)             , &
+        rhof         (k)             , &
+        presf        (k)/100.        , &
+        cloudcountmn (k)             , &
+        prec_prcmn   (k)*rhof(k)*rlv , &
+        preccountmn  (k)             , &
+        Nrrainmn     (k)             , &
+        raincountmn  (k)             , &
+        precmn       (k)*rhof(k)*rlv , &
+        Dvrmn        (k)             , &
+        qrmn         (k)             , &
+        k=1,kmax)
       close(ifoutput)
+
       if (lnetcdf) then
         vars(:, 1) = cloudcountmn
         vars(:, 2) = prec_prcmn  (:)*rhof(:)*rlv
@@ -532,27 +415,9 @@ subroutine initbulkmicrostat3
         vars(:, 6) = precmn      (:)*rhof(:)*rlv
         vars(:, 7) = Dvrmn       (:)
         vars(:, 8) = qrmn        (:)
-        vars(:, 9) = Npmn        (:,iauto)
-        vars(:,10) = Npmn        (:,iaccr)
-        vars(:,11) = Npmn        (:,ised)
-        vars(:,12) = Npmn        (:,ievap)
-        do k=1,k1
-        vars(k,13) = sum(Npmn(k,2:nrfields))
-        enddo
-        vars(:,14) =qlpmn(:,iauto)
-        vars(:,15) =qlpmn(:,iaccr)
-        vars(:,16) =qlpmn(:,ised)
-        vars(:,17) =qlpmn(:,ievap)
-        do k=1,k1
-        vars(k,18) =sum(qlpmn(k,2:nrfields))
-        enddo
-        vars(:,19) =qtpmn    (:,iauto)
-        vars(:,20) =qtpmn    (:,iaccr)
-        vars(:,21) =qtpmn    (:,ised)
-        vars(:,22) =qtpmn    (:,ievap)
-        do k=1,k1
-        vars(k,23) =sum(qtpmn  (k,2:nrfields))
-        enddo
+        vars(k, 9) = Npmn        (:)
+        vars(k,10) = qlpmn       (:)
+        vars(k,11) = qtpmn       (:)
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
 
