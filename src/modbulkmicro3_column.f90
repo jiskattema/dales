@@ -429,25 +429,8 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
     k_low2 = max(1,k_low2 - 1)
 
     do k = k_low2,min(kmax,k_high2) ! second k loop
-      !wvar = qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt.0.) then
-      !  write(6,*) 'sedim_rain3: sed_qr too large', &
-      !    k, qr_spl(k), '/', (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k)), &
-      !    jn, k_low1, k_high1, k_low2, k_high2
-      !end if
-      !qr_spl(k) = max(0.0, wvar)
-
-      !wvar = Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt.0.) then
-      !  write(6,*) 'sedim_rain3: sed_Nr too large', &
-      !    Nr_spl(k), '/',  (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k)), &
-      !    jn, k_low1, k_high1, k_low2, k_high2
-      !end if
-      !Nr_spl(k) = max(0.0, wvar)
-
       qr_spl(k) = max(0.0, qr_spl(k) + (sed_qr(k+1) - sed_qr(k))*dt_spl/(dzf(k)*rhof(k)))
       Nr_spl(k) = max(0.0, Nr_spl(k) + (sed_Nr(k+1) - sed_Nr(k))*dt_spl/(dzf(k)*rhof(k)))
-
     enddo  ! second k loop
 
     ! BUG: check this part properly later
@@ -537,18 +520,6 @@ subroutine sedim_snow3(q_hs, n_hs, q_hsp, n_hsp, precep_hs, tend)
     k_low2 = max(1,k_low2 - 1)
 
     do k = k_low2,min(kmax,k_high2) ! second k loop
-      !wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*)'sedim_snow3: seq_qip too large'
-      !end if
-      !qip_spl(k) = max(0.0, wvar)
-
-      !wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*)'sedim_snow3: sed_nip too large'
-      !end if
-      !nip_spl(k) = max(0.0, wvar)
-
       qip_spl(k) = max(0.0, qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k)))
       nip_spl(k) = max(0.0, nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k)))
     enddo  ! second k loop
@@ -639,18 +610,6 @@ subroutine sedim_graupel3(q_hg, n_hg, q_hgp, n_hgp, precep_hg, tend)
     k_low2 = max(1,k_low2 - 1)
 
     do k = k_low2,min(kmax,k_high2)
-      !wvar       = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt.0.) then
-      !  write(6,*)'sedim_graupel3 sed_qip too large'
-      !end if
-      !qip_spl(k) = max(0.0, wvar)
-
-      !wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt.0.) then
-      !  write(6,*)'sedim_graupel3 sed_nip too large'
-      !end if
-      !nip_spl(k) = max(0.0, wvar)
-
       qip_spl(k) = max(0.0, qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k)))
       nip_spl(k) = max(0.0, nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k)))
     enddo  ! second k loop
@@ -742,23 +701,8 @@ subroutine sedim_ice3(q_ci, n_ci, q_cip, n_cip, precep_ci, tend)
 
     ! segmentation over levels
     do k = k_low2,min(kmax,k_high2)
-      !wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*) 'sedim_ice3: seq_qip too large' &
-      !            ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !end if
-      !qip_spl(k) = max(0.0, wvar)
-
-      !wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*) 'sedim_ice3: sed_nip too large' &
-      !            ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !end if
-      !nip_spl(k) = max(0.0, wvar)
-
       qip_spl(k) = max(0.0, qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k)))
       nip_spl(k) = max(0.0, nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k)))
-
     enddo  ! second k loop
 
     ! BUG: check this part properly later
@@ -849,23 +793,8 @@ subroutine sedim_cl3(q_cl, n_cl, q_clp, n_clp, n_ccp, qtpmcr, thlpmcr, tend)
     k_low2 = max(1,k_low2 - 1)
 
     do k = k_low2,min(kmax,k_high2)
-      !wvar = qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*) 'sedim_cl3: sed_qip too large' &
-      !            ,qip_spl(k), '/', (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k))
-      !end if
-      !qip_spl(k) = max(0.0, wvar)
-
-      !wvar = nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !if (wvar.lt. 0.) then
-      !  write(6,*) 'sedim_cl3: sed_nip too large' &
-      !            ,nip_spl(k), '/', (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k))
-      !end if
-      !nip_spl(k) = max(0.0, wvar)
-
       qip_spl(k) = max(0.0, qip_spl(k) + (sed_qip(k+1) - sed_qip(k))*dt_spl/(dzf(k)*rhof(k)))
       nip_spl(k) = max(0.0, nip_spl(k) + (sed_nip(k+1) - sed_nip(k))*dt_spl/(dzf(k)*rhof(k)))
-
     enddo  ! second k loop
 
     ! Adjust boundaries for the first k loop

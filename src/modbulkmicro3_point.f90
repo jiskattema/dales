@@ -2666,15 +2666,33 @@ end subroutine evap_rain3
 subroutine satadj3
   implicit none
 
-  real :: ntest, n_bmax, cogr_max, ql_res
+  real :: n_bmax, cogr_max, ql_res
   real :: dq_cl_sa = 0.  !< saturation adjustment
   real :: dn_cl_sa = 0.  !< change in n_cl due to saturation adjustment
 
-  ! BUG: check threshold vs. q_cl_mask in these if statements
+  ! NOTE: threshold for adjustment might be lower then threshold for cloud computations, obviously.
+  ! The reason is that we want to perform saturation adjustment even for newly nucleated clouds.
+  ! However for shorter timesteps (~0.1 s), we should consider a different approach (future plans)
+  if (n_clm + n_clp*delt .gt. 0.0) return
+
   if (l_sb_all_or) then
-    ! NOTE: threshold might be lower then threshold for cloud computations, obviously
-    ntest = n_clm + n_clp*delt
-    if (ntest.gt.0.0) then ! BUG limit?
+    !
+    ! remaining water =
+    !    + condesable water available
+    !    - already condensed
+    !    - newly condendsed
+    !    - removed by mphys processed
+    !
+    !  calculating amount of available water
+    ql_res=(qt0 - qvsl - q_clm)+delt*(qtpmcr - q_clp)
+    dq_cl_sa = ql_res/delt
+    if ((q_clm+delt*(q_clp+dq_cl_sa)).lt.0.0) then
+      dn_cl_sa = -n_clm/delt-n_clp
+      dq_cl_sa = -q_clm/delt-q_clp
+    endif
+  else ! l_sb_all_or
+    if (l_sb_dumpall) then
+      ! dump all water
       !
       ! remaining water =
       !    + condesable water available
@@ -2682,103 +2700,73 @@ subroutine satadj3
       !    - newly condendsed
       !    - removed by mphys processed
       !
+
       !  calculating amount of available water
       ql_res=(qt0 - qvsl - q_clm)+delt*(qtpmcr - q_clp)
-      dq_cl_sa = ql_res/delt
-      if ((q_clm+delt*(q_clp+dq_cl_sa)).lt.0.0) then
-        dn_cl_sa = -n_clm/delt-n_clp
-        dq_cl_sa = -q_clm/delt-q_clp
-      endif
-    endif
-  else ! l_sb_all_or
-    if (l_sb_dumpall) then
-      ! dump all water
-      ! NOTE: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask) then ! BUG: limit?
-        ntest = n_clm+n_clp*delt ! #t1
-        if (ntest.gt.0.0) then
-          !
-          ! remaining water =
-          !    + condesable water available
-          !    - already condensed
-          !    - newly condendsed
-          !    - removed by mphys processed
-          !
 
-          !  calculating amount of available water
-          ql_res=(qt0 - qvsl - q_clm)+delt*(qtpmcr - q_clp)
+      ! limiting so it does not remove more water than in clouds
+      dq_cl_sa = max((-q_clm/delt)-q_clp,ql_res/delt)
 
-          ! limiting so it does not remove more water than in clouds
-          dq_cl_sa = max((-q_clm/delt)-q_clp,ql_res/delt)
+      ! adjusting number of cloud droplets
+      ! - calculate min size with this amount of water
+      n_bmax = (q_clm+delt*(q_clp+dq_cl_sa))/(0.1*x_cl_bmin)
+      n_bmax = max(n_bmax, 0.0)
 
-          ! adjusting number of cloud droplets
-          ! - calculate min size with this amount of water
-          n_bmax = (q_clm+delt*(q_clp+dq_cl_sa))/(0.1*x_cl_bmin)
-          n_bmax = max(n_bmax, 0.0)
+      ! of course we do not want negative values - but that is alread sorted above
+      ! - remove droplets so that mean size in not less than
+      dn_cl_sa = min(0.0, (n_bmax-n_clm)/delt-n_clp)
 
-          ! of course we do not want negative values - but that is alread sorted above
-          ! - remove droplets so that mean size in not less than
-          dn_cl_sa = min(0.0, n_bmax-ntest)/delt
-
-          ! limit change so not in negative numbers
-          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
-        endif ! ntest
-      endif ! q_cl_mask
+      ! limit change so not in negative numbers
+      dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
     else ! l_sb_dumpall
-      ! note: threshold might be lower then threshold for cloud computations, obviously
-      if (q_cl_mask) then ! BUG: limit?
-        ntest=n_clm+n_clp*delt !#t1
-        if (ntest.gt.0.0) then
-          !
-          ! and now if we want to enforce limit on cloud droplet size
-          !
-          ql_res=(qt0 - qvsl - q_clm)+delt*(qtpmcr - q_clp)
+      !
+      ! and now if we want to enforce limit on cloud droplet size
+      !
+      ql_res=(qt0 - qvsl - q_clm)+delt*(qtpmcr - q_clp)
 
-          ! calculate maximal available update
-          cogr_max =(1.0/delt)*(x_cogr_max*(n_clm+delt*n_clp)-q_clm)
+      ! calculate maximal available update
+      cogr_max =(1.0/delt)*(x_cogr_max*(n_clm+delt*n_clp)-q_clm)
 
-          ! dump just what is below max size by condensation growth
-          dq_cl_sa = min(cogr_max-q_clp,ql_res/delt)
+      ! dump just what is below max size by condensation growth
+      dq_cl_sa = min(cogr_max-q_clp,ql_res/delt)
 
-          ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max
-          ! other possibility: require it to be larger than 0
-          ! and prevent negative values of svm + delt *svp
-          dq_cl_sa = max((-q_clm/delt)-q_clp,dq_cl_sa)
+      ! ie. either whole amount, or only that much that droplet size will be: xc_cogr_max
+      ! other possibility: require it to be larger than 0
+      ! and prevent negative values of svm + delt *svp
+      dq_cl_sa = max((-q_clm/delt)-q_clp,dq_cl_sa)
 
-          ! adjusting number of cloud droplets
-          ! - calculate min size with this amount of water
-          n_bmax = (q_clm+delt*(q_clp+dq_cl_sa))/(0.5*x_cl_bmin)
-          n_bmax = max(n_bmax, 0.0)
+      ! adjusting number of cloud droplets
+      ! - calculate min size with this amount of water
+      n_bmax = (q_clm+delt*(q_clp+dq_cl_sa))/(0.5*x_cl_bmin)
+      n_bmax = max(n_bmax, 0.0)
 
-          ! - remove droplets so that mean size in not by order of magnitude less than x_cl_bmin
-          dn_cl_sa = min(0.0, n_bmax-ntest)/delt
+      ! - remove droplets so that mean size in not by order of magnitude less than x_cl_bmin
+      dn_cl_sa = min(0.0, (n_bmax-n_clm)/delt - n_clp)
 
-          ! limit change so not in negative numbers
-          dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
+      ! limit change so not in negative numbers
+      dn_cl_sa = max((-n_clm/delt)-n_clp,dn_cl_sa)
 
-          !-------------------------------------
-          !! cloud water mixing ratio
-          ! + mphys changes in cloud water
-          ! + remaining water:
-          !    + condesable water available
-          !    - already condensed
-          !    - newly condendsed
-          !      ( {change in cloud water} = {newly condendsed or deposited}
-          !                                         {removed by cloud processes}  )
-          !      ( - {newly condendsed or deposited} =
-          !          - ({change in liquid cloud water}+{change in ice cloud water})
-          !          + {removed by cloud processes}
-          !      )
-          ! -----------------------------
-        endif
-      endif
-    endif
-
-    ! and update
-    q_clp  = q_clp + dq_cl_sa
-    n_clp  = n_clp + dn_cl_sa
-
+      !-------------------------------------
+      !! cloud water mixing ratio
+      ! + mphys changes in cloud water
+      ! + remaining water:
+      !    + condesable water available
+      !    - already condensed
+      !    - newly condendsed
+      !      ( {change in cloud water} = {newly condendsed or deposited}
+      !                                  {removed by cloud processes}
+      !      )
+      !      ( - {newly condendsed or deposited} =
+      !          - ({change in liquid cloud water}+{change in ice cloud water})
+      !          + {removed by cloud processes}
+      !      )
+      ! -----------------------------
+    endif ! l_sb_dumpall
   endif ! l_sb_all_or
+
+  ! and update
+  q_clp  = q_clp + dq_cl_sa
+  n_clp  = n_clp + dn_cl_sa
 
   if (l_tendencies) then
     tend(idq_cl_sa) = dq_cl_sa

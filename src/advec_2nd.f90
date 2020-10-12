@@ -89,7 +89,7 @@ subroutine advecc_2nd(putin,putout)
     end do
     endif
 
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=max(2,k_low-1),min(kmax,k_high)
     do j=2,j1
     do i=2,i1
       putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
@@ -112,7 +112,7 @@ subroutine advecc_2nd(putin,putout)
     end do
     endif
 
-    do k=k_low,min(kmax,k_high)
+    do k=max(2,k_low-1),min(kmax,k_high)
     do j=2,j1
     do i=2,i1
       putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
