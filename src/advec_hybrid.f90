@@ -65,7 +65,7 @@ subroutine advecc_hybrid(pin,pout)
   endif
 
   k_high = -1
-  do k=k1,1
+  do k=k1,1,-1
     if (any(pin(:,:,k).ne.0.)) then
       k_high = k
       exit

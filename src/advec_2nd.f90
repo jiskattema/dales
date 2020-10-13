@@ -54,7 +54,7 @@ subroutine advecc_2nd(putin,putout)
   endif
 
   k_high = -1
-  do k=k1,1
+  do k=k1,1,-1
     if (any(putin(:,:,k).ne.0.)) then
       k_high = k
       exit
@@ -138,29 +138,8 @@ subroutine advecu_2nd(putin, putout)
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
-  integer :: k_low, k_high
 
-  k_low = -1
-  do k=1,k1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_low = k
-      exit
-    endif
-  enddo
-  if (k_low == -1) then
-    ! putin == zero
-    return
-  endif
-
-  k_high = -1
-  do k=k1,1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_high = k
-      exit
-    endif
-  enddo
-
-  do k=k_low,min(kmax, k_high)
+  do k=1,kmax
     km=k-1
     kp=k+1
 
@@ -186,21 +165,19 @@ subroutine advecu_2nd(putin, putout)
 
   if (leq) then
 
-    if (k_low == 1) then
-      do j=2,j1
-      jm=j-1
-      jp=j+1
-        do i=2,i1
-        im=i-1
-        ip=i+1
-          putout(i,j,1)  = putout(i,j,1)-(1./rhobf(1))*( &
-              ( rhobf(2) * putin(i,j,2) + rhobf(1) * putin(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
-              ) *dziq
-        end do
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
+        putout(i,j,1)  = putout(i,j,1)-(1./rhobf(1))*( &
+            ( rhobf(2) * putin(i,j,2) + rhobf(1) * putin(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
+            ) *dziq
       end do
-    endif
+    end do
 
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1
@@ -219,21 +196,19 @@ subroutine advecu_2nd(putin, putout)
 
   else
 
-    if (k_low == 1) then
-      do j=2,j1
-        jm=j-1
-        jp=j+1
-        do i=2,i1
-          im=i-1
-          ip=i+1
-          putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
-                ( rhobf(2) * putin(i,j,2)*dzf(1) + rhobf(1) * putin(i,j,1)*dzf(2) ) / dzh(2) &
-                  *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
-        end do
+    do j=2,j1
+      jm=j-1
+      jp=j+1
+      do i=2,i1
+        im=i-1
+        ip=i+1
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+              ( rhobf(2) * putin(i,j,2)*dzf(1) + rhobf(1) * putin(i,j,1)*dzf(2) ) / dzh(2) &
+                *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
       end do
-    endif
+    end do
 
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1
@@ -268,29 +243,8 @@ subroutine advecv_2nd(putin, putout)
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
-  integer :: k_low, k_high
 
-  k_low = -1
-  do k=1,k1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_low = k
-      exit
-    endif
-  enddo
-  if (k_low == -1) then
-    ! putin == zero
-    return
-  endif
-
-  k_high = -1
-  do k=k1,1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_high = k
-      exit
-    endif
-  enddo
-
-  do k=k_low,k_high
+  do k=1,kmax
     km=k-1
     kp=k+1
     do j=2,j1
@@ -315,21 +269,19 @@ subroutine advecv_2nd(putin, putout)
 
   if (leq) then
 
-    if (k_low == 1) then
-      do j=2,j1
-        jm=j-1
-        jp=j+1
-        do i=2,i1
-          im=i-1
-          ip=i+1
-          putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
-             (w0(i,j,2)+w0(i,jm,2))*(rhobf(2) * putin(i,j,2)+rhobf(1) * putin(i,j,1)) &
-              )*dziq
-        end do
+    do j=2,j1
+      jm=j-1
+      jp=j+1
+      do i=2,i1
+        im=i-1
+        ip=i+1
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+           (w0(i,j,2)+w0(i,jm,2))*(rhobf(2) * putin(i,j,2)+rhobf(1) * putin(i,j,1)) &
+            )*dziq
       end do
-    endif
+    end do
 
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1
@@ -348,22 +300,20 @@ subroutine advecv_2nd(putin, putout)
 
   else
 
-    if (k_low == 1) then
-      do j=2,j1
-        jm=j-1
-        jp=j+1
-        do i=2,i1
-          im=i-1
-          ip=i+1
-          putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
-            (w0(i,j,2)+w0(i,jm,2)) &
-            *(rhobf(2) * putin(i,j,2)*dzf(1) + rhobf(1) * putin(i,j,1)*dzf(2) )/ dzh(2) &
-            ) / (4. * dzf(1))
-        end do
+    do j=2,j1
+      jm=j-1
+      jp=j+1
+      do i=2,i1
+        im=i-1
+        ip=i+1
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+          (w0(i,j,2)+w0(i,jm,2)) &
+          *(rhobf(2) * putin(i,j,2)*dzf(1) + rhobf(1) * putin(i,j,1)*dzf(2) )/ dzh(2) &
+          ) / (4. * dzf(1))
       end do
-    endif
+    end do
 
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1
@@ -399,30 +349,9 @@ subroutine advecw_2nd(putin,putout)
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
-  integer :: k_low, k_high
-
-  k_low = -1
-  do k=1,k1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_low = k
-      exit
-    endif
-  enddo
-  if (k_low == -1) then
-    ! putin == zero
-    return
-  endif
-
-  k_high = -1
-  do k=k1,1
-    if (any(putin(:,:,k).ne.0.)) then
-      k_high = k
-      exit
-    endif
-  enddo
 
   if (leq) then
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1
@@ -452,7 +381,7 @@ subroutine advecw_2nd(putin,putout)
       end do
     end do
   else
-    do k=max(2,k_low),min(kmax,k_high)
+    do k=2,kmax
       km=k-1
       kp=k+1
       do j=2,j1

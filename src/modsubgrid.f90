@@ -587,7 +587,7 @@ contains
     endif
 
     k_high = -1
-    do k=k1,1
+    do k=k1,1,-1
       if (any(putin(:,:,k).ne.0.)) then
         k_high = k
         exit
