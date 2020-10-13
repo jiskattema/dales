@@ -50,6 +50,7 @@ subroutine tstep_update
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
+  use modfields, only : up,vp,wp,thlp,qtp,svp,e12p
   use modsubgriddata, only : ekm,ekh
   use mpi
   use modmpi,    only : comm3d,mpierr,mpi_max,my_real
@@ -183,7 +184,6 @@ subroutine tstep_integrate
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
-  use modsampling, only : tnext
   implicit none
 
   real rk3coef
