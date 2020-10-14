@@ -414,8 +414,26 @@ module modbulkmicro3
 
    allocate(precep_l     (2-ih:i1+ih,2-jh:j1+jh) &
            ,precep_i     (2-ih:i1+ih,2-jh:j1+jh) )
-   allocate(statistics_patch(nmphys,k1) &
-           ,tend_patch(ntends,k1)       )
+   allocate(statistic_mphys(nmphys,k1)    &
+           ,statistic_sv0_fsum(ncols,k1)  &
+           ,statistic_sv0_count(ncols,k1) &
+           ,statistic_sv0_csum(ncols,k1)  &
+           ,statistic_svp_fsum(ncols,k1)  &
+           ,statistic_svp_csum(ncols,k1)  &
+           ,tend_fsum(ntends,k1)          )
+
+  ! Zero the summed statistics and tendencies
+  if (l_tendencies) then
+    tend_fsum = 0.
+  endif
+  if (l_statistics) then
+    statistic_mphys = 0.
+    statistic_sv0_fsum = 0.
+    statistic_sv0_count = 0.
+    statistic_sv0_csum = 0.
+    statistic_svp_fsum = 0.
+    statistic_svp_csum = 0.
+  endif
   end subroutine initbulkmicro3
 
 
@@ -424,7 +442,10 @@ module modbulkmicro3
 subroutine exitbulkmicro3
   implicit none
   deallocate(precep_l, precep_i)
-  deallocate(statistics_patch,tend_patch)
+  deallocate(statistic_mphys)
+  deallocate(statistic_sv0_fsum,statistic_sv0_count,statistic_sv0_csum)
+  deallocate(statistic_svp_fsum,statistic_svp_csum)
+  deallocate(tend_fsum)
 end subroutine exitbulkmicro3
 
 
@@ -434,8 +455,7 @@ subroutine bulkmicro3
   use modglobal, only : i1,j1,k1,rdt,rk3step
   use modfields, only : exnf,rhof,presf,sv0
   use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
-  use modmicrodata3, only : in_cl
-  use modmpi,    only : myid
+  use modmpi, only : myid
   use modbulkmicro3_point, only : point_processes
   use modbulkmicro3_column, only : nucleation3, column_processes
   implicit none
@@ -444,7 +464,6 @@ subroutine bulkmicro3
   integer :: k_low(ncols)    & ! lowest k with non-zero values for svp(:,:,k,i)
             ,k_high(ncols)     ! highest k with non-zero values for svp(:,:,k,i)
 
-  ! transposed arrays with optimized memory layout
   real :: sv0_t   (ncols,k1,i1+3,j1) &
          ,svp_t   (ncols,k1,i1+3,j1) &
          ,svm_t   (ncols,k1,i1+3,j1) &
@@ -453,8 +472,9 @@ subroutine bulkmicro3
          ,qtp_t   (      k1,i1  ,j1)
 
   ! column variables
-  real :: tend_col      (ntends, k1)  &
-         ,statistics_col(nmphys, k1)
+  ! TODO: move to microdata3?
+  real :: tend_col (ntends, k1)  &
+         ,mphys_col(nmphys, k1)
 
   ! and variables as the surface (k=1) of the column
   real :: precep_hr,precep_ci,precep_hs,precep_hg
@@ -482,23 +502,23 @@ subroutine bulkmicro3
   ! but negative values from advection would show up in svp and in sv0+svp
   ! it is unclear to me where the negative values would come from,
   ! but fix them here
-  if (any(sv0(2:i1,2:j1,1:k1,:).lt.0.)) then
-    write(*,*) 'Negative values in sv0.'
-  endif
+  !if (any(sv0(2:i1,2:j1,1:k1,:).lt.0.)) then
+  !  write(*,*) 'Negative values in sv0.'
+  !endif
   sv0 = max(sv0, 0.)
 
   ! Zero the summed statistics and tendencies
-  ! no need to zero:
-  ! thlp_t, qtp_t      : they are set in point_processes
-  ! precep_i, precep_l : they are set at the end of the column loop
   if (l_tendencies) then
-    tend_patch = 0.
     tend_col = 0.
   endif
   if (l_statistics) then
-    statistics_patch = 0.
-    statistics_col = 0.
+    mphys_col = 0.
   endif
+
+  ! no need to zero:
+  ! thlp_t, qtp_t      : they are set in point_processes
+  ! precep_i, precep_l : they are set at the end of the column loop
+  ! statistics and tendencies : all handled by microstat3
 
   delt = rdt / (4. - dble(rk3step))
 
@@ -524,7 +544,7 @@ subroutine bulkmicro3
                     ,sv0_t(iq_cl,:,i,j), svp_t(iq_cl,:,i,j)                      &
                     ,sv0_t(in_cl,:,i,j), svp_t(in_cl,:,i,j)                      &
                     ,sv0_t(in_cc,:,i,j)                                          &
-                    ,statistics_col, tend_col                                    )
+                    ,mphys_col, tend_col                                         )
 
   !  - Point processes at k-point
   ! ------------------------------------------------------------------
@@ -532,7 +552,7 @@ subroutine bulkmicro3
         call point_processes(prg_t(:,k,i,j),exnf(k),rhof(k),presf(k)         &
                             ,sv0_t(:,k,i,j),svp_t(:,k,i,j),svm_t(:,k,i,j)    &
                             ,thlp_t(k,i,j),qtp_t(k,i,j)                      &
-                            ,statistics_col(:,k), tend_col(:,k)              )
+                            ,mphys_col(:,k), tend_col(:,k)                   )
       enddo
 
 
@@ -556,26 +576,116 @@ subroutine bulkmicro3
     ! Accumulate non-zero tendencies and statistics, and reset to zero.
     ! NOTE BUG: can we have tendencies while all svp() are exactly zero,
     !       but that seems extremely unlikely.
+    ! NOTE: The data is still in the transposed (column) format, we need to use svp_t etc.
+    ! NOTE: we do it here, instead of in bulkmicrostat etc. to reduce the amount of
+    !       copying and temporary arrays
     if (l_tendencies) then
       ks = minval(k_low(:))
       ke = maxval(k_high(:))
       if (ks <= ke) then
         do k=ks,ke
-          tend_patch(:,k) = tend_patch(:,k) + tend_col(:,k)
+          tend_fsum(:,k) = tend_fsum(:,k) + tend_col(:,k)
         enddo
         tend_col(:,ks:ke) = 0.
       endif
     endif
+
+    ! Calculate output statistics
     if (l_statistics) then
       ks = minval(k_low(:))
       ke = maxval(k_high(:))
       if (ks <= ke) then
         do k=ks,ke
-          statistics_patch(:,k) = statistics_patch(:,k) + statistics_col(:,k)
-        enddo
-        statistics_col(:,ks:ke) = 0.
-      endif
-    endif
+          ! general mphys statistics
+          statistic_mphys(:,k) = statistic_mphys(:,k) + mphys_col(:,k)
+          mphys_col(:,k) = 0.
+
+          ! Full sum of svp
+          statistic_svp_fsum(1:11,k) = statistic_svp_fsum(1:11,k) + svp_t(1:11,k,i,j)
+
+          ! Full sum of sv0
+          statistic_sv0_fsum(1:11,k) = statistic_sv0_fsum(1:11,k) + sv0_t(1:11,k,i,j)
+
+          ! Conditional sums
+          ! threshold is the same as the masking condition in point_processes
+
+          !  - in_hr / iq_hr
+          if (sv0_t(iq_hr,k,i,j) .gt. q_hr_min) then
+            ! Count
+            statistic_sv0_count(in_hr,k) = statistic_sv0_count(in_hr,k) + 1.0
+            statistic_sv0_count(iq_hr,k) = statistic_sv0_count(iq_hr,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_hr,k) = statistic_sv0_csum(in_hr,k) + sv0_t(in_hr,k,i,j)
+            statistic_sv0_csum(iq_hr,k) = statistic_sv0_csum(iq_hr,k) + sv0_t(iq_hr,k,i,j)
+            statistic_svp_csum(in_hr,k) = statistic_svp_csum(in_hr,k) + svp_t(in_hr,k,i,j)
+            statistic_svp_csum(iq_hr,k) = statistic_svp_csum(iq_hr,k) + svp_t(iq_hr,k,i,j)
+          endif
+
+          !  - in_cl / iq_cl
+          if (sv0_t(iq_cl,k,i,j) .gt. qcliqmin) then
+            ! Count
+            statistic_sv0_count(in_cl,k) = statistic_sv0_count(in_cl,k) + 1.0
+            statistic_sv0_count(iq_cl,k) = statistic_sv0_count(iq_cl,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_cl,k) = statistic_sv0_csum(in_cl,k) + sv0_t(in_cl,k,i,j)
+            statistic_sv0_csum(iq_cl,k) = statistic_sv0_csum(iq_cl,k) + sv0_t(iq_cl,k,i,j)
+            statistic_svp_csum(in_cl,k) = statistic_svp_csum(in_cl,k) + svp_t(in_cl,k,i,j)
+            statistic_svp_csum(iq_cl,k) = statistic_svp_csum(iq_cl,k) + svp_t(iq_cl,k,i,j)
+          endif
+
+          !  - in_ci / iq_ci
+          if (sv0_t(iq_ci,k,i,j) .gt. qicemin) then
+            ! Count
+            statistic_sv0_count(in_ci,k) = statistic_sv0_count(in_ci,k) + 1.0
+            statistic_sv0_count(iq_ci,k) = statistic_sv0_count(iq_ci,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_ci,k) = statistic_sv0_csum(in_ci,k) + sv0_t(in_ci,k,i,j)
+            statistic_sv0_csum(iq_ci,k) = statistic_sv0_csum(iq_ci,k) + sv0_t(iq_ci,k,i,j)
+            statistic_svp_csum(in_ci,k) = statistic_svp_csum(in_ci,k) + svp_t(in_ci,k,i,j)
+            statistic_svp_csum(iq_ci,k) = statistic_svp_csum(iq_ci,k) + svp_t(iq_ci,k,i,j)
+          endif
+
+          !  - in_hs / iq_hs
+          if (sv0_t(iq_hs,k,i,j) .gt. q_hs_min) then
+            ! Count
+            statistic_sv0_count(in_hs,k) = statistic_sv0_count(in_hs,k) + 1.0
+            statistic_sv0_count(iq_hs,k) = statistic_sv0_count(iq_hs,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_hs,k) = statistic_sv0_csum(in_hs,k) + sv0_t(in_hs,k,i,j)
+            statistic_sv0_csum(iq_hs,k) = statistic_sv0_csum(iq_hs,k) + sv0_t(iq_hs,k,i,j)
+            statistic_svp_csum(in_hs,k) = statistic_svp_csum(in_hs,k) + svp_t(in_hs,k,i,j)
+            statistic_svp_csum(iq_hs,k) = statistic_svp_csum(iq_hs,k) + svp_t(iq_hs,k,i,j)
+          endif
+
+          !  - in_hg / iq_hg
+          if (sv0_t(iq_hg,k,i,j) .gt. q_hg_min) then
+            ! Count
+            statistic_sv0_count(in_hg,k) = statistic_sv0_count(in_hg,k) + 1.0
+            statistic_sv0_count(iq_hg,k) = statistic_sv0_count(iq_hg,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_hg,k) = statistic_sv0_csum(in_hg,k) + sv0_t(in_hg,k,i,j)
+            statistic_sv0_csum(iq_hg,k) = statistic_sv0_csum(iq_hg,k) + sv0_t(iq_hg,k,i,j)
+            statistic_svp_csum(in_hg,k) = statistic_svp_csum(in_hg,k) + svp_t(in_hg,k,i,j)
+            statistic_svp_csum(iq_hg,k) = statistic_svp_csum(iq_hg,k) + svp_t(iq_hg,k,i,j)
+          endif
+
+          !  - in_cc
+          if (sv0_t(in_cc,k,i,j) .gt. Nccn0) then ! TODO: a sensible threshold for ccn
+            ! Count
+            statistic_sv0_count(in_cc,k) = statistic_sv0_count(in_cc,k) + 1.0
+
+            ! Conditional sum
+            statistic_sv0_csum(in_cc,k) = statistic_sv0_csum(in_cc,k) + sv0_t(in_cc,k,i,j)
+            statistic_svp_csum(in_cc,k) = statistic_svp_csum(in_cc,k) + svp_t(in_cc,k,i,j)
+          endif
+        enddo ! k
+      endif ! ks <= ke
+    endif ! l_statistics
 
   enddo ! loop over i
   enddo ! loop over j
@@ -587,8 +697,8 @@ subroutine bulkmicro3
 
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
-  !call bulkmicrotend3 ! #t5
-  !call bulkmicrostat3 ! #t5
+  call bulkmicrotend3
+  call bulkmicrostat3
 end subroutine bulkmicro3
 
 
@@ -605,7 +715,7 @@ end subroutine bulkmicro3
 !
 ! tmp0,qt0,ql0,esl,qvsl,qvsi,w0  (i,j,k)  => prg_t (iprg,k,j)
 !
-! sv0,svm,svp0 (i,j,k,isv)  =>  sv0_t, svm_t, svp_t (isv,k,i,j)
+! sv0,svm,svp (i,j,k,isv)  =>  sv0_t, svm_t, svp_t (isv,k,i,j)
 !
 ! NOTE: Loop ordering and partial unrolling to improve performance
 !       Total performance is quite sensitive, please test before making any changes

@@ -8,6 +8,7 @@ module modbulkmicro3_point
                            eps0, qcmin
   use modmicrodata3
   implicit none
+
   private
   public point_processes
 
@@ -139,11 +140,6 @@ contains
     q_hrm = svm(iq_hr)
     q_hsm = svm(iq_hs)
     q_hgm = svm(iq_hg)
-
-    ! TODO: remove
-    if (any(sv0.lt.0).or.any(svm.lt.0)) then
-      write (6,*) 'modbulkmicro3_point: negative values in sv0 or svm'
-    endif
 
     n_ccp  = svp(in_cc)
     n_clp  = svp(in_cl)

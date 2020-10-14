@@ -64,8 +64,8 @@
   logical :: l_hdump          = .false.  &  !< whether to do hydrometeor dumps
             ,l_hbinary        = .false.  &  !<- whether to use binary
             ,l_hdiracc        = .false.  &
-            ,l_tendencies     = .true.  &  !<- if to write full tendencies TODO: check if there is an existing flag
-            ,l_statistics     = .true.     !<- if to write statistics
+            ,l_tendencies     = .true.   &  !<- if to write full tendencies TODO: check if there is an existing flag
+            ,l_statistics     = .true.      !<- if to write statistics
 
   real ::  Nc0             = 70.0e6   &  !<- proposed number of droplet in namelist
              ,xc0_min         = 4.2e-15  &  !<- xcmin  min mean mass of cloud water
@@ -77,6 +77,7 @@
   !    integer :: inr = 1, iqr=2 )
   integer, parameter :: ncols = 12 ! NOTE: - should be even for the untranspose_svs()
                                    !       - keep the n/q fields next to eachother (performance)
+                                   !       - ncols /= nsv, as chemistry could add more scalars
   integer ::  in_hr           =  1       &  ! |<  in_hr : number content [     kg^{-1}] for rain,
              ,iq_hr           =  2       &  ! |<  iq_hr : water content  [ kg  kg^{-1}] for rain,
              ,in_cl           =  3       &  ! |<  in_cl : number content [     kg^{-1}] for cloud droplets,
@@ -430,8 +431,8 @@
     ,idq_hs_eme_sc   = 74 &      !< mass tendency enhanced melting of snow by cloud water
     ,idn_hs_eme_rs   = 75 &      !< number tendency enhanced melting of snow by rain
     ,idq_hs_eme_rs   = 76 &      !< mass tendency enhanced melting of snow by rain
-    ,idn_hg_eme_gc   = 77 &      !< number tendency enhanced melting of graupel
-    ,idq_hg_eme_gc   = 78 &      !< mass tendency enhanced melting of graupel
+    ,idn_hg_eme_gc   = 77 &      !< number tendency enhanced melting of graupel by liquid clouds
+    ,idq_hg_eme_gc   = 78 &      !< mass tendency enhanced melting of graupel by liquid clouds
     ,idn_hg_eme_gr   = 79 &      !< number tendency enhanced melting of graupel by rain
     ,idq_hg_eme_gr   = 80 &      !< mass tendency enhanced melting of graupel by rain
     ,idn_cl_se       = 81 &      !< sedimentation for clouds water - number
@@ -494,11 +495,17 @@
 
   ! pre-processed precipitation fields to output in bulkmicrostat3
   real, allocatable ::  precep_l(:,:) & !< liquid surface precipitation (precep_hr)
-                           ,precep_i(:,:)   !< frozen surface precipitation (precep_[ci+hs+hg])
+                       ,precep_i(:,:)   !< frozen surface precipitation (precep_[ci+hs+hg])
 
   logical :: q_hr_mask,q_hs_mask,q_hg_mask,q_cl_mask,q_ci_mask
 
-  real, allocatable :: tend_patch(:,:), statistics_patch(:,:)
+  real, allocatable :: tend_fsum(:,:)           &  ! Sum of individual tendencies
+                      ,statistic_mphys(:,:)     &  ! Full sum of selected tendencies
+                      ,statistic_sv0_count(:,:) &  ! Count of sv0 > threshold
+                      ,statistic_sv0_fsum(:,:)  &  ! Full sum of sv0
+                      ,statistic_sv0_csum(:,:)  &  ! Conditional sum: sv0 > threshold
+                      ,statistic_svp_fsum(:,:)  &  ! Full sum of svp
+                      ,statistic_svp_csum(:,:)     ! Conditional sum: sv0 > threshold
 
   ! indices in the tranposed array
   integer, parameter :: nprgs     = 8    ! rounded to a power of 2, to help alignment (performance)
