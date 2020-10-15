@@ -331,26 +331,39 @@ subroutine initbulkmicrostat3
 
 !------------------------------------------------------------------------------!
 !> General routine, does the timekeeping
-  subroutine bulkmicrostat3
+  subroutine bulkmicrostat3(l_write, l_sample)
     use modglobal,    only  : rk3step, timee, dt_lim
     implicit none
+
+    ! Sampling the output has moved from dobulkmicrostat3 to bulkmicrostat3,
+    ! because the data is more easily available there.
+    ! To keep all the time keeping in one place, we do 2 calls per step to microstat3
+    ! with the following parameters:
+    logical, intent(out) :: l_sample ! If bulkmicro3 should sample the tendencies 
+    logical, intent(in)  :: l_write  ! If bulkmicro3 has sampled the tendencies
+
+    ! by default, don't sample anything
+    l_sample = .false.
 
     if (.not. lmicrostat) return
     if (rk3step /= 3) return
     if (timee == 0) return
+
     if (timee < tnext .and. timee < tnextwrite) then
-      dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
+      dt_lim = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
       return
     end if
 
     if (timee >= tnext) then
       tnext = tnext + idtav
       ! NOTE: this used to be "call dobulkmicrostat3" to average over (i,j) and sums over subdomains
-      ! 1. the sum over (i,j) now happens in modbulkmicro3
+      ! 1. the sum over (i,j) now happens in modbulkmicro3 if l_sample = .true.
       ! 2. the MPI call to sum over subdomains moved to writebulkmicrostat3
-    end if
+      l_sample = .true.
+    endif
 
-    if (timee >= tnextwrite) then
+    ! only write if bulkmicro3 has sampled (ie. l_write = .true.)
+    if (timee >= tnextwrite .and. l_write) then
       tnextwrite = tnextwrite + itimeav
       call writebulkmicrostat3
     end if
