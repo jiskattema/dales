@@ -42,17 +42,38 @@
   real,external :: rlim
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-   real      d1,d2,cf
 
-  integer   i,j,k
+  real    :: d1,d2,cf
+  integer :: i,j,k
+  integer :: k_low,k_high
 
   real :: d1m, d2m, d1p, d2p, cfm, cfp, work
 
-  do k=1,kmax
+  k_low = -1
+  do k=1,k1
+    if (any(putin(:,:,k).ne.0.)) then
+      k_low = k
+      exit
+    endif
+  enddo
+  if (k_low == -1) then
+    ! putin == zero
+    return
+  endif
+
+  k_high = -1
+  do k=k1,1,-1
+    if (any(putin(:,:,k).ne.0.)) then
+      k_high = k
+      exit
+    endif
+  enddo
+
+  do k=max(1,k_low),min(kmax,k_high)
     do j=2,j1
-      do i=2,i2 ! YES
+      do i=2,i2
         d2m =  putin(i  ,j,k) -putin(i-1,j,k)
-        d2p = -putin(i  ,j,k) +putin(i-1,j,k) 
+        d2p = -putin(i  ,j,k) +putin(i-1,j,k)
 
         d1m = putin(i-1,j,k)-putin(i-2,j,k)
         d1p = putin(i  ,j,k)-putin(i+1,j,k)
@@ -75,9 +96,9 @@
     end do
   end do
 
-  do k=1,kmax
+  do k=max(1,k_low),min(kmax,k_high)
     do j=2,j2
-      do i=2,i1 ! YES
+      do i=2,i1
         d1m = putin(i,j-1,k)-putin(i,j-2,k)
         d1p = putin(i,j  ,k)-putin(i,j+1,k)
 
@@ -103,9 +124,9 @@
     end do
   end do
 
-  do k=3,kmax
+  do k=max(3,k_low),min(kmax,k_high+1)
     do j=2,j1
-      do i=2,i1 ! YES
+      do i=2,i1
         d1m = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
         d2m = rhobf(k)   * putin(i,j,k  ) - rhobf(k-1) * putin(i,j,k-1)
 
@@ -131,11 +152,11 @@
   end do
 
   do j=2,j1
-    do i=2,i1 ! YES
+    do i=2,i1
       d1m = 0
       d2m = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
       cfm = rhobf(1) * putin(i,j,1)
-      
+
       d1p = rhobf(2) * putin(i,j,2)   - rhobf(3) * putin(i,j,3)
       d2p = rhobf(1) * putin(i-1,j,1) - rhobf(2) * putin(i,j,2)
       cfp = rhobf(2) * putin(i,j,2)
