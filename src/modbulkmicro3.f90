@@ -454,7 +454,7 @@ end subroutine exitbulkmicro3
 subroutine bulkmicro3
   use modglobal, only : i1,j1,k1,rdt,rk3step
   use modfields, only : exnf,rhof,presf,sv0
-  use modbulkmicrostat3, only : bulkmicrotend3, bulkmicrostat3
+  use modbulkmicrostat3, only : bulkmicrostat3
   use modmpi, only : myid
   use modbulkmicro3_point, only : point_processes
   use modbulkmicro3_column, only : nucleation3, column_processes
@@ -472,7 +472,6 @@ subroutine bulkmicro3
          ,qtp_t   (      k1,i1  ,j1)
 
   ! column variables
-  ! TODO: move to microdata3?
   real :: tend_col (ntends, k1)  &
          ,mphys_col(nmphys, k1)
 
@@ -697,7 +696,7 @@ subroutine bulkmicro3
 
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
-  call bulkmicrotend3
+  ! NOTE: tendencies are also handled by bulkmicrostat3
   call bulkmicrostat3
 end subroutine bulkmicro3
 
