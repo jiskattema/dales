@@ -460,6 +460,7 @@ subroutine bulkmicro3
   use modbulkmicro3_column, only : nucleation3, column_processes
   implicit none
   integer :: i,j,k,ks,ke
+  logical :: l_sample          ! should we sample the mphys tendencies and output
 
   integer :: k_low(ncols)    & ! lowest k with non-zero values for svp(:,:,k,i)
             ,k_high(ncols)     ! highest k with non-zero values for svp(:,:,k,i)
@@ -495,6 +496,9 @@ subroutine bulkmicro3
       write(6,*) ' modbulkmicro3: clouds initialised by initcloud3'
     endif
   endif
+
+  ! ask microstat if we need to sample this call, but dont write anything yet
+  call bulkmicrostat3(.false., l_sample)
 
   ! BUG: remove code below
   ! sv0 can contain negative values,
@@ -578,7 +582,7 @@ subroutine bulkmicro3
     ! NOTE: The data is still in the transposed (column) format, we need to use svp_t etc.
     ! NOTE: we do it here, instead of in bulkmicrostat etc. to reduce the amount of
     !       copying and temporary arrays
-    if (l_tendencies) then
+    if (l_sample .and. l_tendencies) then
       ks = minval(k_low(:))
       ke = maxval(k_high(:))
       if (ks <= ke) then
@@ -590,7 +594,7 @@ subroutine bulkmicro3
     endif
 
     ! Calculate output statistics
-    if (l_statistics) then
+    if (l_sample .and. l_statistics) then
       ks = minval(k_low(:))
       ke = maxval(k_high(:))
       if (ks <= ke) then
@@ -697,7 +701,9 @@ subroutine bulkmicro3
   ! microphysics statistics - just once per step
   ! ------------------------------------------------------------------
   ! NOTE: tendencies are also handled by bulkmicrostat3
-  call bulkmicrostat3
+  ! tell microstat the tendencies are ready for writing
+  call bulkmicrostat3(.true., l_sample)
+
 end subroutine bulkmicro3
 
 
