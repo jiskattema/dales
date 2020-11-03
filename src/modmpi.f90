@@ -319,20 +319,16 @@ contains
     integer, intent(in)  :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
     real, intent(in)     :: var(ib:ie,jb:je,kb:ke)
 
-    real    :: averl(ks:kf)
-    real    :: avers(ks:kf)
+    real    :: avers(kbs:kes)
     integer :: k
 
-    averl       = 0.
-    avers       = 0.
-
     do k=kbs,kes
-      averl(k) = sum(var(ibs:ies,jbs:jes,k))
+      avers(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
 
-    call MPI_ALLREDUCE(averl, avers, kf-ks+1, MY_REAL, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, avers, kes-kbs+1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
-    aver = aver + avers
+    aver(kbs:kes) = aver(kbs:kes) + avers(kbs:kes)
 
   end subroutine slabsum
   
