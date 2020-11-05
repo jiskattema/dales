@@ -454,111 +454,122 @@ contains
   return
   end subroutine thermo
 
+  pure subroutine saturation(T, p, satur, esl, qvsl, qvsi)
+    use modglobal, only : rd,rv,tup,tdn,ttab,esatltab,esatitab
+    implicit none
+    real, intent(in) :: T, p
+    real, intent(out) :: satur, esl, qvsl, qvsi
+
+    real :: ilratio
+    real :: esi, thi, tlo
+    integer :: tlonr, thinr
+
+    ! tlonr=int((T-150.)*5.)
+    ! thinr=tlonr+1
+    ! ttab(m)=150.+0.2*m
+    ! tlo = ttab(tlonr)
+    ! thi = ttab(thinr)
+    ! esl=(thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(thinr)
+    ! esi=(thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(thinr)
+
+    tlonr=int(T*5.)
+    tlo = tlonr - T*5.
+    esl=(tlo + 1.0)*esatltab(tlonr - 750)-tlo*esatltab(tlonr - 750 + 1)
+    esi=(tlo + 1.0)*esatitab(tlonr - 750)-tlo*esatitab(tlonr - 750 + 1)
+    qvsl=(rd/rv)*esl/(p-(1.-rd/rv)*esl)
+    qvsi=(rd/rv)*esi/(p-(1.-rd/rv)*esi)
+    if (T.ge.tup) then
+      ! no ice, take liquid saturation
+      satur = qvsl
+    else if (T.le.tdn) then
+      ! no liquid, take ice saturation
+      satur = qvsi
+    else
+      ! mixed phase
+      ilratio = (T-tdn)/(tup-tdn)
+      satur = ilratio*qvsl+(1.-ilratio)*qvsi
+    endif
+  end subroutine saturation
+
   subroutine icethermo0
+    ! old: 3.93% of 70 seconds
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
+!! \author Jisk Attema
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
   implicit none
 
-  integer i, j, k
-  real :: ilratio, esl1,esi1,qvsl1,qvsi1,qsatur, thlguess, thlguessmin,tlo,thi,ttry
-  real :: Tnr,Tnr_old
+  integer i, j, k, thi, tlo
+  real :: Tn1,Tn2,Tn3,thl1,thl2,thl3,satur,ilratio
   integer :: niter,nitert,tlonr,thinr
 
-!     calculation of T with Newton-Raphson method
-!     first guess is Tnr=tl
-      nitert = 0
+  niter = 0
+  nitert = 0
+
+  do k=1,k1
+  do j=2,j1 
+  do i=2,i1
+    ! first guess for temperature T = tl
+    Tn1=exnf(k)*thl0(i,j,k)
+    call saturation(Tn1, presf(k), qsat(i,j,k), esl(i,j,k), qvsl(i,j,k), qvsi(i,j,k))
+
+    if(qt0(i,j,k)<=qsat(i,j,k)) then
+      ! NOTE: under saturated, so no need to continue
+      tmp0(i,j,k)=Tn1
+    else
+      ! thl for lower limit
+      thl1=Tn1/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsat(i,j,k),0.)
+
+      ! upper limit for temperature corresponding thl
+      Tn2=Tn1+(rlv/(cp*exnf(k)))*qt0(i,j,k)
+      call saturation(Tn2, presf(k), qsat(i,j,k), esl(i,j,k), qvsl(i,j,k), qvsi(i,j,k))
+      thl2=Tn2/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsat(i,j,k),0.)
+
+      ! The temperature we search is in the bracket [Tn1, Tn2]
+      thl3 = 10000.0
       niter = 0
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-            ! first guess for temperature
-            Tnr=exnf(k)*thl0(i,j,k)
-            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl1=(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)
-            qvsi1=(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0(i,j,k)>qsatur) then
-              Tnr_old=0.
-              niter = 0
-              thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
-              ttry=Tnr-0.002
-              ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-              tlonr=int((ttry-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-              esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-              qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+      do while ( &
+        (abs(Tn2-Tn1).gt.0.002).and. &
+        (abs(thl3-thl0(i,j,k)).gt.0.002).and. &
+        (niter<100))
 
-              Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
-              do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
-                niter = niter+1
-                Tnr_old=Tnr
-                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-                tlonr=int((Tnr-150.)*5.)
-                if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
-                endif
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-                esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+        niter = niter + 1
+        ! Pick a point Tn3 inside the bracket
 
-                ttry=Tnr-0.002
-                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-                tlonr=int((ttry-150.)*5.)
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-                esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+        ! mid-point
+        ! Tn3 = 0.5 * (Tn1 + Tn2)
 
-                Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
-              enddo
-              nitert =max(nitert,niter)
-              tmp0(i,j,k)= Tnr
-              ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-              tlonr=int((Tnr-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-              esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-              qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
-              qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
-            else
-              tmp0(i,j,k)= Tnr
-              esl(i,j,k)=esl1
-              esi1=esi1
-              qvsl(i,j,k)=qvsl1
-              qvsi(i,j,k)=qvsi1
-            endif
-            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
-            qsat(i,j,k) = qsatur
-      end do
-      end do
-      end do
-      if(nitert>99) then
-      write(*,*) 'thermowarning'
-      endif
+        ! linear intercept
+        Tn3 = (Tn1 * (thl2 - thl0(i,j,k)) - Tn2 * (thl1 - thl0(i,j,k))) / (thl2 - thl1)
+
+        ! Calculate the value
+        call saturation(Tn3, presf(k), qsat(i,j,k), esl(i,j,k), qvsl(i,j,k), qvsi(i,j,k))
+        thl3 = Tn3/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsat(i,j,k),0.)
+
+        ! Adjust brackets
+        if (thl3.gt.thl0(i,j,k)) then
+          Tn2 = Tn3
+          thl2 = thl3
+        else
+          Tn1 = Tn3
+          thl1 = thl3
+        endif
+      enddo
+      nitert = max(nitert, niter)
+
+      tmp0(i,j,k)=Tn3
+    endif
+    ql0(i,j,k) = max(qt0(i,j,k)-qsat(i,j,k),0.)
+  end do
+  end do
+  end do
+
+  if(nitert>99) then
+    write(*,*) 'thermowarning'
+    stop
+  endif
 
   end subroutine icethermo0
 
