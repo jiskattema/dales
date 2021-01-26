@@ -480,7 +480,6 @@ contains
         w2subavl , &
         qt2avl   , &
         thl2avl  , &
-        thv2avl  , &
         ql2avl   , &
         th2avl
     real,allocatable, dimension(:,:) :: &
@@ -520,7 +519,6 @@ contains
               thv2av  , &
               th2av   , &
               ql2av
-    real,allocatable, dimension(:,:,:)::  thv0
     real,allocatable, dimension(:)::   thvmav
     real ,allocatable, dimension(:,:,:):: sv0h
 
@@ -531,6 +529,7 @@ contains
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
+    real    thv0_ij
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -542,7 +541,6 @@ contains
         w2subavl (k1), &
         qt2avl   (k1), &
         thl2avl  (k1), &
-        thv2avl  (k1), &
         th2avl   (k1))
     allocate( &
         ql2avl   (k1), &
@@ -581,8 +579,8 @@ contains
               th2av   (k1), &
               ql2av   (k1), &
               sv2av   (k1,nsv))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
+    allocate(thv0_sqr(k1))  ! [sum_(i,j) thv0(i,j,k) ** 2]/ijtot
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
@@ -636,10 +634,10 @@ contains
     w2subavl  = 0.0
     qt2avl    = 0.0
     thl2avl   = 0.0
-    thv2avl   = 0.0
     th2avl    = 0.0
     ql2avl    = 0.0
     thvmav    = 0.0
+    thv0_sqr  = 0.0
 
     sv2av   = 0.0
 
@@ -657,11 +655,14 @@ contains
     do  k=1,k1
       do  j=2,j1
         do  i=2,i1
-          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                        *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thv0_ij = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thvmav(k) = thvmav(k) + thv0_ij
+          thv0_sqr(k) = thv0_sqr(k) + thv0_ij**2
         enddo
       enddo
     enddo
+    call MPI_ALLREDUCE(MPI_IN_PLACE, thvmav, k1, MY_REAL, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, thv0_sqr, k1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
     do k=1,k1
       cfracavl(k)    = cfracavl(k)+count(ql0(2:i1,2:j1,k)>0)
@@ -674,7 +675,6 @@ contains
     call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
@@ -684,6 +684,7 @@ contains
     cfracav = cfracav / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
+    thv0_sqr = thv0_sqr/ijtot
 
     cszav  = csz
   !
@@ -695,7 +696,14 @@ contains
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
-!         4.1 special treatment for lowest level
+
+  !         4.x Special treatment for thv0
+  !     -------------------------------------------------
+    do k=1,kmax
+      thv2av(k) = (thv0_sqr(k) - thvmav(k)**2)
+    enddo
+
+  !         4.1 special treatment for lowest level
   !     -------------------------------------------------
 
     qls   = 0.0 ! hj: no liquid water at the surface
@@ -712,6 +720,7 @@ contains
     den   = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
     cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt   = 1./den
+
     do j=2,j1
     do i=2,i1
       qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
@@ -750,7 +759,6 @@ contains
       w2subavl (1) = w2subavl (1) + (e12m(i,j,1)**2)
       qt2avl   (1) = qt2avl   (1) + (qtm (i,j,1) - qtmav (1))**2
       thl2avl  (1) = thl2avl  (1) + (thlm(i,j,1) - thlmav(1))**2
-      thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
       th2avl   (1) = th2avl   (1) + (thlm(i,j,1) - thmav (1))**2
       ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
@@ -873,7 +881,6 @@ contains
         w2subavl (k) = w2subavl (k) + (e12m(i,j,k)**2)
         qt2avl   (k) = qt2avl   (k) + (qtm (i,j,k) - qtmav (k))**2
         thl2avl  (k) = thl2avl  (k) + (thlm(i,j,k) - thlmav(k))**2
-        thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
         th2avl   (k) = th2avl   (k) + (thlm(i,j,k) - thmav (k))**2 !thlm, no thm !?!
         ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
@@ -988,8 +995,6 @@ contains
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(thl2avl, thl2av, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(thv2avl, thv2av, k1,    MY_REAL, &
-                      MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(th2avl, th2av, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(ql2avl, ql2av, k1,    MY_REAL, &
@@ -1060,7 +1065,6 @@ contains
       w2subav  = w2subav  /ijtot
       qt2av    = qt2av    /ijtot
       thl2av   = thl2av   /ijtot
-      thv2av   = thv2av   /ijtot
       th2av    = th2av    /ijtot
       ql2av    = ql2av    /ijtot
 !       qs2av    = qs2av    /ijtot
@@ -1146,7 +1150,6 @@ contains
         w2subavl , &
         qt2avl   , &
         thl2avl  , &
-        thv2avl  , &
         th2avl   )
     deallocate( &
         ql2avl   , &
@@ -1186,7 +1189,6 @@ contains
               th2av   , &
               ql2av   , &
               sv2av   )
-    deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
   end subroutine do_genstat

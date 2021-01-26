@@ -36,7 +36,6 @@ module modthermodynamics
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
-  real, allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
 
 
@@ -49,7 +48,6 @@ contains
     implicit none
 
     allocate(th0av(k1))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     th0av = 0.
 
   end subroutine initthermodynamics
@@ -60,7 +58,8 @@ contains
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
-    use modmpi, only : slabsum
+    use modmpi, only : slabsum,comm3d,mpierr,my_real
+
     implicit none
     integer:: k
     if (timee < 0.01) then
@@ -82,12 +81,18 @@ contains
     call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    do k=1,k1
-      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-    enddo
+
     thvf = 0.0
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    do k=1,k1
+      do j=1,j1
+        do i=1,i1
+          thvf(k) = thvf(k) + &
+            (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+        enddo
+      enddo
+    enddo
+    call MPI_ALLREDUCE(MPI_IN_PLACE, thvf, k1, MY_REAL, MPI_SUM, comm3d, mpierr)
+
     thvf = thvf/ijtot
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
@@ -98,7 +103,6 @@ contains
   subroutine exitthermodynamics
   implicit none
     deallocate(th0av)
-    deallocate(thv0)
   end subroutine exitthermodynamics
 
 !> Calculate thetav and dthvdz

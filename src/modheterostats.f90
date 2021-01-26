@@ -272,7 +272,7 @@ contains
     integer n,i,j,k
     integer status
 
-    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg,&
+    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, thv_sqr, qtavg, qlavg, eavg,&
     thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
     real, dimension(imax,jmax)         :: lwpavg
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
@@ -281,18 +281,20 @@ contains
     real, dimension(jmax,ncklimit,nsv) :: svavg, svhavg, svvar,  wsvcov, wsvcovs
 
     real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv),thv0(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv)
 
     real  buffer(jmax,ncklimit)
     real  bufferij(itot,jmax)
 
     real  qs0h, t0h, den, c1, c2
+    real  thv0_ij
 
     uavg(:,:)     = 0.0
     vavg(:,:)     = 0.0
     wavg(:,:)     = 0.0
     thlavg(:,:)   = 0.0
     thvavg(:,:)   = 0.0
+    thv_sqr(:,:)  = 0.0
     eavg(:,:)     = 0.0
     qtavg(:,:)    = 0.0
     qlavg(:,:)    = 0.0
@@ -370,14 +372,31 @@ contains
       end if
     enddo
 
-    do  k=1,k1
+    ! Special treatment for thv0 to prevent allocation of full 3D field
+
+    !shift prognostic fields one step as 1st column
+    !is dummy column because of MPI and periodicity
+    do  k=1,ncklimit
       do  j=2,j1
         do  i=2,i1
-          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                        *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thv0_ij = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thvavg(j-1,k) = thvavg(j-1,k) + thv0_ij
+          thv_sqr(j-1,k) = thv_sqr(j-1,k) + thv0_ij**2
         enddo
       enddo
     enddo
+
+    thvavg = thvavg / itot
+    thv_sqr = thv_sqr / itot
+
+    call MPI_ALLREDUCE(MPI_IN_PLACE,thvavg,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE,thv_sqr,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+
+    do k = 1,ncklimit
+      do j = 1,jmax
+        thvvar(j,k) = thv_sqr(j,k) - thvavg(j,k)**2
+      end do
+    end do
 
 
     !LOOPS ARE NOT PUT IN FUNCTION BECAUSE OF ARRAY DEFINITIONS WHICH DIFFER AMONG VARIABLES!
@@ -417,16 +436,6 @@ contains
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
           thlavg(j,k) = thlavg(j,k) + thl0(i+1,j+1,k)
-        end do
-      end do
-    end do
-
-    do k = 1,ncklimit
-      do j = 1,jmax
-        do i = 1,imax
-          !shift prognostic fields one step as 1st column
-          !is dummy column because of MPI and periodicity
-          thvavg(j,k) = thvavg(j,k) + thv0(i+1,j+1,k)
         end do
       end do
     end do
@@ -553,7 +562,6 @@ contains
     vavg   = vavg / itot
     wavg   = wavg / itot
     thlavg = thlavg / itot
-    thvavg = thvavg / itot
     qtavg  = qtavg / itot
     qlavg  = qlavg / itot
     eavg   = eavg / itot
@@ -601,12 +609,10 @@ contains
     endif
     thlavg = buffer
 
-    call MPI_ALLREDUCE(thvavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
-        status = nf90_put_var(ncid, thvavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        status = nf90_put_var(ncid, thvavgid, thvavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
-    thvavg = buffer
 
     call MPI_ALLREDUCE(qtavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
@@ -722,16 +728,6 @@ contains
         do i = 1,imax
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
-          thvvar(j,k) = thvvar(j,k) + (thv0(i+1,j+1,k)-thvavg(j,k))**2.
-        end do
-      end do
-    end do
-
-    do k = 1,ncklimit
-      do j = 1,jmax
-        do i = 1,imax
-          !shift prognostic fields one step as 1st column
-          !is dummy column because of MPI and periodicity
           qtvar(j,k) = qtvar(j,k) + (qt0(i+1,j+1,k)-qtavg(j,k))**2.
         end do
       end do
@@ -761,7 +757,6 @@ contains
     vvar = vvar / itot
     wvar = wvar / itot
     thlvar = thlvar / itot
-    thvvar = thvvar / itot
     qtvar = qtvar / itot
     qlvar = qlvar / itot
     svvar = svvar / itot
@@ -790,9 +785,8 @@ contains
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
 
-    call MPI_REDUCE(thvvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
     if(myidx == 0) then
-        status = nf90_put_var(ncid, thvvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        status = nf90_put_var(ncid, thvvarid, thvvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
 
